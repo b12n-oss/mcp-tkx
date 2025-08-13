@@ -13,6 +13,25 @@ Status: **alpha quality**
 
 Tested on Claude Desktop and Claude Code, no problems found for the features implemented.
 
+## Protocol Version Support
+
+MCP Toolkit supports automatic protocol version negotiation between clients and servers:
+
+- **2025-06-18** (latest) - Full support with all new features
+- **2025-03-26** - Full backward compatibility
+- **2024-11-05** - Legacy support
+
+### New in 2025-06-18
+
+- **Title fields** - Human-readable display names for better UI
+- **Structured tool output** - Define output schemas for type-safe responses
+- **Resource links** - Tools can return resources alongside content
+- **Completion context** - Pass previous values to completion handlers
+- **_meta field support** - Optional metadata for various message types
+- **Breaking change:** JSON-RPC batching removed (array requests no longer supported)
+
+📚 **[See the Migration Guide](MIGRATION-2025-06-18.md)** for upgrading existing MCP servers and clients.
+
 ## Implemented features
 
 - [x] API for both clients & servers
