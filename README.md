@@ -25,7 +25,7 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
 - Compatible with protocol versions
   - [x] `2024-11-05`
   - [x] `2025-03-26`
-  - [ ] `2025-06-18` (not yet)
+  - [x] `2025-06-18`
 - MCP features implemented
   - [x] Cancellation
   - [x] Ping
