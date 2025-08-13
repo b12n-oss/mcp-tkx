@@ -235,7 +235,20 @@ Use the `_meta` field for passing metadata through the protocol:
 
 ## Testing Your Migration
 
-### 1. Run the Test Suite
+### 1. Run the Compatibility Checker
+
+Use the provided test script to check your existing tools:
+
+```bash
+# Check your existing session configuration
+bb test-migration.clj
+
+# Or integrate into your code:
+(load-file "test-migration.clj")
+(test-session-compatibility your-session-config)
+```
+
+### 2. Run the Test Suite
 
 After updating, ensure all tests pass:
 
