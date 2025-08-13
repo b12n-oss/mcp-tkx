@@ -3,6 +3,7 @@
             [mcp-toolkit.json-rpc :as json-rpc]
             [mcp-toolkit.client :as client]
             [mcp-toolkit.server :as server]
+            [mcp-toolkit.impl.server.handler :as server.handler]
             [mcp-toolkit.test.util :as util]
             [promesa.core :as p]
             [promesa.exec.csp :as sp]))
@@ -218,3 +219,95 @@
                                           (json-rpc/close-connection server-context)
                                           ;; Pass through
                                           (or error x))))))))
+
+(deftest json-rpc-batching-removal-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "JSON-RPC batching is not supported in 2025-06-18"
+                        (let [message-logs (atom [])
+                              client-session (client/create-session {:protocol-version "2025-06-18"
+                                                                     :on-initialized nil})
+                              server-session (server/create-session {:on-initialized nil})
+                              {:keys [client-context server-context]} (setup-and-connect-client-server client-session
+                                                                                                       server-session
+                                                                                                       message-logs)]
+                          (-> (p/do
+              ;; Try to send a batch request (array of requests)
+              ;; This should be rejected in 2025-06-18
+                                (let [batch-request [{:jsonrpc "2.0"
+                                                      :method "ping"
+                                                      :id 1}
+                                                     {:jsonrpc "2.0"
+                                                      :method "ping"
+                                                      :id 2}]]
+                ;; Send batch request directly to server
+                                  (json-rpc/handle-message server-context batch-request))
+
+              ;; Give time for processing
+                                (p/delay 100)
+
+              ;; Check that an error was returned for batch requests
+                                (let [logs @message-logs
+                                      responses (filter #(= :<- (first %)) logs)]
+                ;; In 2025-06-18, batch requests should return an error
+                ;; For now, this test will fail because batching is still supported
+                ;; After we remove batching, this test should pass
+                                  (is (= 1 (count responses)) "Should return single error for batch request")
+                                  (when (seq responses)
+                                    (let [response (second (first responses))]
+                                      (is (contains? response :error) "Response should be an error")
+                                      (when (contains? response :error)
+                                        (is (= -32600 (get-in response [:error :code]))
+                                            "Should return Invalid Request error"))))))
+
+                              (p/handle (fn [x error]
+                                          (json-rpc/close-connection client-context)
+                                          (json-rpc/close-connection server-context)
+                        ;; Pass through
+                                          (or error x))))))))
+
+(deftest title-field-support-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (testing "title field support in prompts, resources, and tools"
+    ;; Create test data with title fields
+    (let [test-prompt-with-title {:name "test_prompt"
+                                  :title "Test Prompt Display Name"
+                                  :description "A test prompt with title"
+                                  :arguments []}
+          test-resource-with-title {:uri "test://resource"
+                                    :name "test_resource"
+                                    :title "Test Resource Display Name"
+                                    :description "A test resource with title"
+                                    :mimeType "text/plain"}
+          test-tool-with-title {:name "test_tool"
+                                :title "Test Tool Display Name"
+                                :description "A test tool with title"
+                                :inputSchema {:type "object"}}
+
+          ;; Create a session with test data
+          session (atom {:prompt-by-name {(:name test-prompt-with-title) test-prompt-with-title}
+                         :resource-by-uri {(:uri test-resource-with-title) test-resource-with-title}
+                         :tool-by-name {(:name test-tool-with-title) test-tool-with-title}})]
+
+      ;; Test prompt list handler
+      (let [result (server.handler/prompt-list-handler {:session session})
+            prompt (first (:prompts result))]
+        (is (= "test_prompt" (:name prompt)))
+        (is (= "Test Prompt Display Name" (:title prompt)))
+        (is (contains? prompt :title) "Prompt should have title field"))
+
+      ;; Test resource list handler
+      (let [result (server.handler/resource-list-handler {:session session})
+            resource (first (:resources result))]
+        (is (= "test_resource" (:name resource)))
+        (is (= "Test Resource Display Name" (:title resource)))
+        (is (contains? resource :title) "Resource should have title field"))
+
+      ;; Test tool list handler
+      (let [result (server.handler/tool-list-handler {:session session})
+            tool (first (:tools result))]
+        (is (= "test_tool" (:name tool)))
+        (is (= "Test Tool Display Name" (:title tool)))
+        (is (contains? tool :title) "Tool should have title field")))))

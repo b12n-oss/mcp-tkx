@@ -1,0 +1,10 @@
+.idea
+*.iml
+.cpcache
+.nrepl-port
+.claude
+.cljs_node_repl
+node_modules/
+out/
+.clj-kondo
+.lsp

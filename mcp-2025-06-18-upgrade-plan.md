@@ -1,115 +1,124 @@
-The user is asking about upgrading a Clojure library implementing the MCP (Model Context Protocol) protocol from version 2025-03-26 to version 2025-06-18. They want to know what changes need to be made to support the newer specification.
+# MCP Toolkit Upgrade Plan: 2025-03-26 → 2025-06-18
 
-I need to:
-1. Compare the two specifications to understand the differences
-2. Look at the current code to see what needs to be updated
-3. Provide specific guidance on what changes are required
+## Overview
+This document outlines the upgrade plan for MCP Toolkit to support the 2025-06-18 specification, based on the official changelog from https://modelcontextprotocol.io/specification/2025-06-18/changelog
 
-Let me analyze the differences between the two specification versions:
+## Specification Changes Summary
 
-From the URLs provided:
+### Major Changes
+1. **Remove JSON-RPC batching support** (Breaking change)
+2. **Structured tool output** - Tools can define output schemas
+3. **OAuth Resource Server classification** - Security enhancement for HTTP transport
+4. **RFC 8707 Resource Indicators** - Required for OAuth clients
+5. **Elicitation support** - Servers can request additional info from users
+6. **Resource links in tool results** - Tools can reference resources
+7. **MCP-Protocol-Version header** - Required for HTTP transport
 
-- Current: https://modelcontextprotocol.io/specification/2025-03-26/changelog
-- Target: https://modelcontextprotocol.io/specification/2025-06-18/changelog
+### Schema Changes
+1. **_meta field additions** - Added to more interface types
+2. **context field in CompletionRequest** - Include previously-resolved variables
+3. **title field** - Human-friendly display names (name becomes programmatic ID)
 
-Looking at the code, I can see this is a comprehensive MCP toolkit that supports both client and server implementations. The current implementation seems to support protocol versions "2024-11-05" and "2025-03-26" as seen in the server code.
+## Implementation Phases
 
-The key areas I need to examine for changes would be:
-1. Protocol version changes
-2. New or modified message types
-3. Changes to existing capabilities
-4. New capabilities or features
-5. Breaking changes in message formats
+### ✅ Phase 1: Protocol Version Updates (COMPLETED)
+- [x] Add "2025-06-18" to server-supported-protocol-versions
+- [x] Update default client protocol-version to "2025-06-18"
+- [x] Update README.md compatibility notes
+- [x] Add tests for protocol negotiation and backward compatibility
 
-From the code, I can see they currently support:
-- Handshake/initialization
-- Prompts, Resources, Tools
-- Cancellation, Progress, Logging
-- Completion
-- Roots, Sampling
+### Phase 2: Breaking Changes
+- [ ] Check if JSON-RPC batching is implemented
+- [ ] Remove JSON-RPC batching support if present
+- [ ] Update tests to ensure batching is rejected
 
-I should focus on what specific changes are needed between 2025-03-26 and 2025-06-18 specifications.
+### Phase 3: Basic Schema Updates
+- [ ] Add `title` field to prompts, tools, and resources
+  - [ ] Update server data structures
+  - [ ] Update client data structures
+  - [ ] Update handler code
+  - [ ] Add tests for title field
+- [ ] Add `_meta` field support to messages
+  - [ ] Identify all message types that need _meta
+  - [ ] Add optional _meta field
+  - [ ] Document proper usage
 
-However, I notice that I don't actually have access to the changelog content from those URLs, so I'll need to provide general guidance on how to approach this upgrade and what areas to focus on based on typical MCP specification evolution patterns.
+### Phase 4: Enhanced Features
+- [ ] Implement structured tool output
+  - [ ] Add outputSchema field to tool definitions
+  - [ ] Update tool result handling
+  - [ ] Add validation for structured output
+  - [ ] Create example with structured output
+- [ ] Add resource links in tool results
+  - [ ] Update tool result structure
+  - [ ] Handle resource links in responses
+  - [ ] Add tests for resource links
+- [ ] Add context field to CompletionRequest
+  - [ ] Update completion request structure
+  - [ ] Handle context in completion handler
+  - [ ] Test context passing
 
-Looking at your MCP Toolkit codebase, I can see you have a well-structured implementation supporting the 2025-03-26 specification. To upgrade to the 2025-06-18 specification, you'll need to make several key changes. Let me break down the areas that typically require updates between MCP specification versions:
+### Phase 5: Advanced Features (Lower Priority)
+- [ ] Elicitation support (optional client capability)
+  - [ ] Add elicitation to client capabilities
+  - [ ] Implement elicit method handler
+  - [ ] Add server-side elicitation support
+  - [ ] Create elicitation example
 
-Key Areas to Review and Update
-1. Protocol Version Support
-First, update the supported protocol versions in your server implementation:
+### Phase 6: HTTP Transport Updates (If Applicable)
+- [ ] Add MCP-Protocol-Version header to HTTP requests
+- [ ] Implement OAuth Resource Server metadata
+- [ ] Add RFC 8707 Resource Indicators support
 
-clojure
-Copy code
-;; In src/mcp_toolkit/server.cljc - create-session function
-:server-supported-protocol-versions ["2024-11-05"
-                                     "2025-03-26"
-                                     "2025-06-18"] ; Add new version
-2. Client Default Protocol Version
-Update the default protocol version in the client:
+### Phase 7: Testing & Validation
+- [ ] Update all existing tests for 2025-06-18
+- [ ] Add tests for new features
+- [ ] Test with MCP Inspector
+- [ ] Test with Claude Desktop
+- [ ] Validate example projects
 
-clojure
-Copy code
-;; In src/mcp_toolkit/client.cljc - create-session function
-:or   {client-info                     {:name    "mcp-toolkit"
-                                        :version "0.1.1-alpha"}
-       client-capabilities             {:roots {:listChanged true}}
-       protocol-version                "2025-06-18" ; Update default
-       ;; ... rest of defaults
-}
-3. Capability Negotiation Updates
-The 2025-06-18 specification typically includes enhanced capability definitions. You'll likely need to update the capability structures in both client and server handlers.
+### Phase 8: Documentation
+- [ ] Update CHANGELOG.md
+- [ ] Update API documentation
+- [ ] Update example configurations
+- [ ] Create migration guide for users
 
-Check for changes in:
+## Implementation Priority
 
-Message format structures
-New capability fields
-Enhanced resource/tool/prompt capabilities
-4. Message Handler Updates
-Review your handler implementations for any new or modified message types:
+### Immediate (Core Compatibility)
+1. ✅ Protocol version negotiation
+2. Remove JSON-RPC batching
+3. Add title field support
+4. Add _meta field support
 
-clojure
-Copy code
-;; In src/mcp_toolkit/impl/server/handler.cljc and
-;; src/mcp_toolkit/impl/client/handler.cljc
+### Next (Enhanced Features)
+5. Structured tool output
+6. Resource links in tool results
+7. Context in CompletionRequest
 
-;; Look for new message types or modified existing ones
-;; Common areas that change between versions:
-;; - Resource subscription/notification formats
-;; - Tool invocation parameters
-;; - Progress notification structure
-;; - Completion request/response formats
-5. Error Code Updates
-Check if there are new error codes or modified error handling requirements:
+### Future (Advanced/Optional)
+8. Elicitation support
+9. HTTP transport updates
+10. OAuth enhancements
 
-clojure
-Copy code
-;; In src/mcp_toolkit/json_rpc.cljc
-;; Review and add any new error codes defined in 2025-06-18
-Specific Changes to Look For
-Based on typical MCP specification evolution, review these areas:
+## Current Status
 
-Enhanced Resource Handling
-New resource metadata fields
-Modified subscription mechanisms
-Updated notification formats
-Improved Tool Capabilities
-Enhanced input schema validation
-New tool metadata requirements
-Modified progress reporting
-Extended Completion Support
-New completion types
-Enhanced completion context
-Modified completion response formats
-Testing Strategy
-Update your test cases in test/mcp_toolkit/core_test.cljc to include 2025-06-18 scenarios
-Test backward compatibility to ensure existing 2025-03-26 clients still work
-Validate handshake negotiation works correctly with the new version
+- **Branch**: support-2025-06-18-spec
+- **Last Commit**: Added protocol version support and tests
+- **Tests**: All passing
+- **Next Step**: Check and remove JSON-RPC batching support
 
-Next Steps
-Review the actual 2025-06-18 specification at the URL you provided to identify specific changes
-Start with protocol version updates as shown above
-Test incrementally - add 2025-06-18 support while maintaining 2025-03-26 compatibility
-Update your examples to showcase any new 2025-06-18 features
-The good news is your architecture is well-designed for this kind of upgrade - the modular handler system and clear separation of concerns will make the transition smoother. Focus on the specification differences first, then systematically update each component.
+## Testing Strategy
 
-Would you like me to help you implement any specific part of this upgrade once you've reviewed the actual specification differences?
+For each change:
+1. Write tests first (TDD approach)
+2. Implement the change
+3. Verify tests pass
+4. Test with example projects
+5. Document the change
+
+## Notes
+
+- The toolkit primarily uses STDIO transport, so HTTP-specific changes are lower priority
+- Maintain backward compatibility with 2025-03-26 where possible
+- Focus on changes that affect the core client-server communication first
