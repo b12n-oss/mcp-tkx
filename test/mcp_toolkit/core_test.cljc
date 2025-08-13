@@ -4,6 +4,7 @@
             [mcp-toolkit.client :as client]
             [mcp-toolkit.server :as server]
             [mcp-toolkit.impl.server.handler :as server.handler]
+            [mcp-toolkit.impl.meta-support :as meta-support]
             [mcp-toolkit.test.util :as util]
             [promesa.core :as p]
             [promesa.exec.csp :as sp]))
@@ -311,3 +312,126 @@
         (is (= "test_tool" (:name tool)))
         (is (= "Test Tool Display Name" (:title tool)))
         (is (contains? tool :title) "Tool should have title field")))))
+
+(deftest structured-tool-output-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (testing "structured tool output with outputSchema (2025-06-18 spec)"
+    (let [test-tool-with-schema {:name "calculator"
+                                 :title "Calculator Tool"
+                                 :description "A calculator that returns structured results"
+                                 :inputSchema {:type "object"
+                                               :properties {:operation {:type "string"}
+                                                            :a {:type "number"}
+                                                            :b {:type "number"}}}
+                                 :outputSchema {:type "object"
+                                                :properties {:result {:type "number"}
+                                                             :formula {:type "string"}}}}
+
+          session (atom {:tool-by-name {(:name test-tool-with-schema) test-tool-with-schema}})]
+
+      ;; Test that outputSchema is included in tool list
+      (let [result (server.handler/tool-list-handler {:session session})
+            tool (first (:tools result))]
+        (is (contains? tool :outputSchema) "Tool should include outputSchema")
+        (is (= (:outputSchema test-tool-with-schema) (:outputSchema tool)))))))
+
+(deftest tool-result-resources-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "tool results can include resource links (2025-06-18 spec)"
+                        (let [session (atom {:tool-by-name {"file_reader" {:name "file_reader"
+                                                                           :title "File Reader"
+                                                                           :tool-fn (fn [_ _]
+                                                                   ;; Return structured result with resources
+                                                                                      (p/resolved
+                                                                                       {:content [{:type "text"
+                                                                                                   :text "File content here"}]
+                                                                                        :resources [{:uri "file:///test.txt"
+                                                                                                     :name "test.txt"
+                                                                                                     :mimeType "text/plain"}]}))}}})
+                              context {:session session}
+                              message {:params {:name "file_reader"
+                                                :arguments {}}}]
+
+                          (-> (server.handler/tool-call-handler (assoc context :message message))
+                              (p/then (fn [result]
+                                        (is (contains? result :content) "Result should have content")
+                                        (is (contains? result :resources) "Result should have resources")
+                                        (is (= 1 (count (:resources result))))
+                                        (is (= "file:///test.txt" (-> result :resources first :uri))))))))))
+
+(deftest completion-context-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (testing "completion requests can include context (2025-06-18 spec)"
+    (let [completion-called (atom false)
+          completion-context-received (atom nil)
+
+          session (atom {:prompt-by-name
+                         {"test_prompt"
+                          {:name "test_prompt"
+                           :complete-fn (fn [ctx arg-name arg-value]
+                                          (reset! completion-called true)
+                                          (reset! completion-context-received (:completion-context ctx))
+                                          {:completion {:values ["value1" "value2"]
+                                                        :total 2
+                                                        :hasMore false}})}}})
+
+          context {:session session}
+
+          ;; Test with context provided
+          message-with-context {:params {:ref {:type "ref/prompt"
+                                               :name "test_prompt"}
+                                         :argument {:name "arg1"
+                                                    :value "val"}
+                                         :context {:previousValues {:key "value"}}}}]
+
+      ;; Call handler with context
+      (server.handler/completion-complete-handler (assoc context :message message-with-context))
+
+      (is @completion-called "Completion function should be called")
+      (is (= {:previousValues {:key "value"}} @completion-context-received)
+          "Context should be passed to completion function")
+
+      ;; Reset for next test
+      (reset! completion-called false)
+      (reset! completion-context-received nil)
+
+      ;; Test without context (backward compatibility)
+      (let [message-without-context {:params {:ref {:type "ref/prompt"
+                                                    :name "test_prompt"}
+                                              :argument {:name "arg1"
+                                                         :value "val"}}}]
+        (server.handler/completion-complete-handler (assoc context :message message-without-context))
+
+        (is @completion-called "Completion function should be called without context")
+        (is (nil? @completion-context-received) "No context should be passed when not provided")))))
+
+(deftest meta-field-support-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (testing "_meta field utilities"
+    (let [data {:name "test" :value 42}
+          meta-info {:timestamp 123456 :source "test"}]
+
+;; Test with-meta-field
+      (let [with-meta (meta-support/with-meta-field data meta-info)]
+        (is (contains? with-meta :_meta) "Should have _meta field")
+        (is (= meta-info (:_meta with-meta)) "Meta should match"))
+
+      ;; Test extract-meta
+      (let [with-meta (assoc data :_meta meta-info)]
+        (is (= meta-info (meta-support/extract-meta with-meta))))
+
+      ;; Test strip-meta
+      (let [with-meta (assoc data :_meta meta-info)
+            stripped (meta-support/strip-meta with-meta)]
+        (is (not (contains? stripped :_meta)) "Should not have _meta after stripping")
+        (is (= data stripped) "Should match original data"))
+
+      ;; Test has-meta?
+      (is (meta-support/has-meta? {:_meta {}}))
+      (is (not (meta-support/has-meta? {:name "test"}))))))
+

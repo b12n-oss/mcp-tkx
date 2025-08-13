@@ -12,12 +12,23 @@
   {})
 
 (defn completion-complete-handler [{:keys [session message] :as context}]
-  (let [{:keys [ref argument]} (:params message)]
+  (let [{:keys [ref argument context]} (:params message)] ;; Added context from params (2025-06-18)
     (-> (case (:type ref)
           "ref/prompt" (when-some [prompt-param-complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
-                         (prompt-param-complete-fn context (:name argument) (:value argument)))
+                         ;; Pass context if provided (2025-06-18 spec)
+                         (if context
+                           (prompt-param-complete-fn (assoc context :completion-context context)
+                                                     (:name argument)
+                                                     (:value argument))
+                           (prompt-param-complete-fn context (:name argument) (:value argument))))
           "ref/resource" (when-some [resource-uri-complete-fn (:resource-uri-complete-fn @session)]
-                           (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument))))
+                           ;; Pass context if provided (2025-06-18 spec)
+                           (if context
+                             (resource-uri-complete-fn (assoc context :completion-context context)
+                                                       (:uri ref)
+                                                       (:name argument)
+                                                       (:value argument))
+                             (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument)))))
         (or {:completion {:values []
                           :total 0
                           :hasMore false}}))))
@@ -63,17 +74,35 @@
 (defn tool-list-handler [{:keys [session]}]
   {:tools (-> @session :tool-by-name vals
               (->> (mapv (fn [tool]
-                           (select-keys tool [:name :title :description :inputSchema])))))
+                           (cond-> (select-keys tool [:name :title :description :inputSchema])
+                             ;; Add outputSchema if present (2025-06-18 spec)
+                             (:outputSchema tool) (assoc :outputSchema (:outputSchema tool)))))))
    #_#_:nextCursor "next-page-cursor"})
 
 (defn tool-call-handler [{:keys [session message] :as context}]
   (let [{:keys [name arguments]} (:params message)]
-    (if-some [tool-fn (-> @session :tool-by-name (get name) :tool-fn)]
-      (-> (tool-fn context arguments)
-          (p/catch (fn [exception]
-                     {:content [{:type "text"
-                                 :text (ex-message exception)}]
-                      :isError true})))
+    (if-some [tool (-> @session :tool-by-name (get name))]
+      (let [tool-fn (:tool-fn tool)]
+        (-> (tool-fn context arguments)
+            (p/then (fn [result]
+                      ;; Support both simple and structured responses (2025-06-18 spec)
+                      (cond
+                        ;; If result already has content/resources structure, use as-is
+                        (and (map? result)
+                             (or (contains? result :content)
+                                 (contains? result :resources)))
+                        result
+
+                        ;; Legacy simple response - wrap in content
+                        :else
+                        {:content [{:type "text"
+                                    :text (if (string? result)
+                                            result
+                                            (pr-str result))}]})))
+            (p/catch (fn [exception]
+                       {:content [{:type "text"
+                                   :text (ex-message exception)}]
+                        :isError true}))))
       ;; FIXME: this is wrong because it will be interpreted as result data
       (json-rpc/invalid-tool-name (:id message) name))))
 
