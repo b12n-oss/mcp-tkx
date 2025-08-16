@@ -5,9 +5,7 @@
             [mcp-toolkit.impl.common :refer [user-callback]]
             [promesa.core :as p]))
 
-;;
 ;; Functions typically called from a prompt-fn or a tool-fn
-;;
 
 (defn notify-progress
   "Notifies the client about progress during tool or prompt execution.
@@ -29,13 +27,13 @@
   nil)
 
 (def ^:private log-level->importance
-  {"debug" 0
-   "info" 1
-   "notice" 2
-   "warning" 3
-   "error" 4
-   "critical" 5
-   "alert" 6
+  {"debug"     0
+   "info"      1
+   "notice"    2
+   "warning"   3
+   "error"     4
+   "critical"  5
+   "alert"     6
    "emergency" 7})
 
 (defn notify-log
@@ -307,15 +305,11 @@
          on-initialized request-root-list
          on-client-root-list-changed request-root-list}}]
   {;; About the server
-   :server-supported-protocol-versions ["2024-11-05"
-                                        "2025-03-26"
-                                        "2025-06-18"]
+   :server-supported-protocol-versions ["2024-11-05" "2025-03-26" "2025-06-18"]
    :server-info server-info
    :server-instructions server-instructions
-
    :initialized false
    :handler-by-method server.handler/handler-by-method-pre-initialization
-
    :protocol-version nil ; determined at initialization
    :prompt-by-name (mc/index-by :name prompts)
    :resource-by-uri (mc/index-by :uri resources)
@@ -324,17 +318,14 @@
    :resource-uri-complete-fn resource-uri-complete-fn
    :is-cancelled-by-request-id {} ;; "is-cancelled" atoms indexed by request-id
    :logging-level logging-level
-
    :on-initialized on-initialized
    :on-client-root-list-changed on-client-root-list-changed
    :on-client-root-list-updated on-client-root-list-updated
-
    ;; About the client
    :client-info nil
    :client-capabilities nil
    :client-subscribed-resource-uris #{}
    :client-root-by-uri {}
-
    :last-called-method-id -1 ;; Used for calling methods on the remote site
    :handler-by-called-method-id {} ;; The response handlers
    })

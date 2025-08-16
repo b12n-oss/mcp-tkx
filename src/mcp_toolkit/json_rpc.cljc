@@ -1,10 +1,7 @@
 (ns mcp-toolkit.json-rpc
   (:require [promesa.core :as p]))
 
-;;
 ;; https://www.jsonrpc.org/specification
-;;
-
 ;; RPC call with invalid JSON:
 (def parse-error-response
   {:jsonrpc "2.0"
@@ -80,10 +77,6 @@
   ([topic params]
    (-> (notification topic)
        (assoc :params params))))
-
-;;
-;;
-;;
 
 (defn call-remote-method
   "Calls a remote method via JSON-RPC.

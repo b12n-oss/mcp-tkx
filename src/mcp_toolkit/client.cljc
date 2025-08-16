@@ -325,17 +325,13 @@
   {:client-info client-info
    :client-capabilities client-capabilities
    :protocol-version protocol-version
-
    :initialized false
    :on-initialized on-initialized
    :handler-by-method client.handler/handler-by-method-pre-initialization
-
    :root-by-uri (mc/index-by :uri roots)
-
    :server-prompt-by-name {}
    :server-resource-by-uri {}
    :server-tool-by-name {}
-
    :on-sampling-requested on-sampling-requested
    :on-server-progress on-server-progress
    :on-server-log on-server-log
@@ -346,7 +342,6 @@
    :on-server-resource-list-updated on-server-resource-list-updated
    :on-server-tool-list-changed on-server-tool-list-changed
    :on-server-tool-list-updated on-server-tool-list-updated
-
    :last-called-method-id -1 ;; Used for calling methods on the remote site
    :handler-by-called-method-id {} ;; The response handlers
    })
