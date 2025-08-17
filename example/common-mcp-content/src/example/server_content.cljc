@@ -11,7 +11,7 @@
    :arguments [{:name "expressions"
                 :description "Comma-separated expressions"
                 :required false}]
-   :complete-fn (fn [context name value]
+   :complete-fn (fn [_context name value]
                   (when (= name "expressions")
                     (when-not (str/includes? name "!")
                       {:completion {:values [(str value "!")
@@ -19,7 +19,7 @@
                                              (str value "!#@!!")]
                                     :total 3
                                     :hasMore false}})))
-   :prompt-fn (fn [context {:keys [expressions]}]
+   :prompt-fn (fn [_context {:keys [expressions]}]
                 {:description (str "A talk-like-a-pirate prompt which includes the expressions: " expressions)
                  :messages [{:role "user"
                              :content {:type "text"
@@ -53,7 +53,8 @@
     :description "The documentation files"
     :mimeType "text/markdown; charset=UTF-8"}])
 
-(defn my-resource-uri-complete-fn [context uri name value]
+(defn my-resource-uri-complete-fn
+  [_context uri name value]
   (when (and (= uri "file:///doc/{path}")
              (= name "path"))
     (let [paths ["hello.md" "world.md"]

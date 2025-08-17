@@ -21,16 +21,16 @@
   (j/write-value-as-string v object-mapper))
 
 (defn error-response [msg status & {:keys [headers]}]
-  {:status  status
+  {:status status
    :headers {"content-type" "text/plain"}
-   :body    msg})
+   :body msg})
 
 (defn valid-content-type? [ctx]
   (let [ct (get-in ctx [:req :headers "content-type"])]
     (cond
-      (str/blank? ct)                                false
+      (str/blank? ct) false
       (not (str/starts-with? ct "application/json")) false
-      :else                                          true)))
+      :else true)))
 
 (defn matches-port-wildcard? [pattern value]
   (when (str/ends-with? pattern ":*")
@@ -40,23 +40,23 @@
 (defn valid-host?
   ([host allowed-hosts]
    (cond
-     (str/blank? host)              false
+     (str/blank? host) false
      (contains? allowed-hosts host) true
      :else
      (boolean (some #(matches-port-wildcard? % host) allowed-hosts))))
   ([ctx]
-   (let [host          (get-in ctx [:req :headers "host"])
+   (let [host (get-in ctx [:req :headers "host"])
          allowed-hosts (get-in ctx [:settings :allowed-hosts])]
      (valid-host? host allowed-hosts))))
 
 (defn valid-origin?
   ([origin allowed-origins]
    (cond
-     (str/blank? origin)                true
+     (str/blank? origin) true
      (contains? allowed-origins origin) true
-     :else                              (boolean (some #(matches-port-wildcard? % origin) allowed-origins))))
+     :else (boolean (some #(matches-port-wildcard? % origin) allowed-origins))))
   ([ctx]
-   (let [origin          (get-in ctx [:req :headers "origin"])
+   (let [origin (get-in ctx [:req :headers "origin"])
          allowed-origins (get-in ctx [:settings :allowed-origins])]
      (valid-origin? origin allowed-origins))))
 
@@ -64,11 +64,11 @@
   (let [post? (= :post (:request-method req))]
     (cond
       (and post? (not (valid-content-type? ctx))) (error-response "Invalid Content-Type header" 400)
-      (not (valid-host? ctx))                     (error-response "Invalid Host header" 421)
-      (not (valid-origin? ctx))                   (error-response "Invalid Origin header" 400)
-      :else                                       nil)))
+      (not (valid-host? ctx)) (error-response "Invalid Host header" 421)
+      (not (valid-origin? ctx)) (error-response "Invalid Origin header" 400)
+      :else nil)))
 
-(def base-SSE-headers {"Content-Type"  "text/event-stream"
+(def base-SSE-headers {"Content-Type" "text/event-stream"
                        "Cache-Control" "no-cache, no-transform"})
 
 (defn add-keep-alive? [ring-request]
@@ -99,10 +99,10 @@
 (defn send-base-sse-response!
   "Send the response headers, this should be done as soon as the conneciton is
   open."
-  [req channel  {:keys [status] :as opts}]
+  [req channel {:keys [status] :as opts}]
   (tel/log! {:level :debug :id :sse/send-headers :data {:status status}})
   (http-kit/send! channel
-                  {:status  (or status 200)
+                  {:status (or status 200)
                    :headers (sse-headers req opts)}
                   false))
 
@@ -117,10 +117,10 @@
   "Adds a new connection to the pool, returns the initial session data"
   [ctx session-id channel]
   (let [data {:session/session-id session-id
-              :session/channel    channel
-              :session/send!      (fn [event data]
-                                    (channel-send! channel event data))
-              :session/data       ((:create-session-fn ctx) ctx session-id)}]
+              :session/channel channel
+              :session/send! (fn [event data]
+                               (channel-send! channel event data))
+              :session/data ((:create-session-fn ctx) ctx session-id)}]
     (swap! (::connections ctx) assoc session-id data)
     data))
 
@@ -142,13 +142,13 @@
 
 (defn handle-message-response [session message]
   (let [mcp-context {:send-message (make-send-message session)
-                     :session      (:session/data session)}]
+                     :session (:session/data session)}]
 
     (tel/log! {:level :debug :id :sse/accepted-message :data {:message message}})
     (json-rpc/handle-message mcp-context message))
-  {:status  202
+  {:status 202
    :headers {"content-type" "text/plain"}
-   :body    "Accepted"})
+   :body "Accepted"})
 
 (defn handle-sse-stream [ctx req]
   (let [ctx (assoc ctx :req req)]

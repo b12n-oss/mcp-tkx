@@ -27,10 +27,10 @@
 
 (def session
   (atom
-    (client/create-session {:client-capabilities {:roots    {:listChanged true}
-                                                  :sampling {}}
-                            :roots content/roots
-                            :on-sampling-requested content/sampling-handler})))
+   (client/create-session {:client-capabilities {:roots {:listChanged true}
+                                                 :sampling {}}
+                           :roots content/roots
+                           :on-sampling-requested content/sampling-handler})))
 
 (def context
   (atom {:session session}))
@@ -98,11 +98,11 @@
    (defn main [& args]
      (let [;; Start a server process
            server-process (spawn "clojure" #js ["-X:mcp-server"]
-                                #js {:cwd (.resolve path ".." "cljc-server-stdio")
-                                     :stdio #js ["pipe"    ; writable stdin
-                                                 "pipe"    ; writable stdout
-                                                 "inherit" ; stderr
-                                                 ,]})
+                                 #js {:cwd (.resolve path ".." "cljc-server-stdio")
+                                      :stdio #js ["pipe" ; writable stdin
+                                                  "pipe" ; writable stdout
+                                                  "inherit" ; stderr
+                                                  ]})
            ;; A writer to write on the server's stdin
            writer (.-stdin server-process)
            ;; A reader to read lines from the server's stdout
@@ -145,6 +145,4 @@
 
   @session
 
-  (json-rpc/close-connection @context)
-
-  ,)
+  (json-rpc/close-connection @context))

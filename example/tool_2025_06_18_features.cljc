@@ -1,4 +1,4 @@
-(ns example.tool-2025-06-18
+(ns tool-2025-06-18-features.cljc
   "Example tool demonstrating 2025-06-18 features.
    
    This example shows:
@@ -6,9 +6,11 @@
    - Structured output with outputSchema
    - Resource links in tool results
    - _meta field for metadata"
-  (:require [mcp-toolkit.server :as server]
-            [mcp-toolkit.impl.meta-support :as meta]
-            [promesa.core :as p]))
+  (:require
+   [clojure.string :as str]
+   [mcp-toolkit.server :as server]
+   [mcp-toolkit.impl.meta-support :as meta]
+   [promesa.core :as p]))
 
 ;; Example 1: Simple tool with title field
 (def simple-calculator
@@ -21,7 +23,7 @@
                               :a {:type "number"}
                               :b {:type "number"}}
                  :required [:operation :a :b]}
-   :tool-fn (fn [context arguments]
+   :tool-fn (fn [_context arguments]
               (let [{:keys [operation a b]} arguments
                     result (case operation
                              "add" (+ a b)
@@ -42,7 +44,7 @@
                               :a {:type "number"}
                               :b {:type "number"}}
                  :required [:operation :a :b]}
-   ;; NEW: Define the structure of the output
+   ;; Define the structure of the output
    :outputSchema {:type "object"
                   :properties {:result {:type "number"
                                         :description "The calculated result"}
@@ -51,7 +53,7 @@
                                :precision {:type "integer"
                                            :description "Decimal precision"}}
                   :required [:result :formula]}
-   :tool-fn (fn [context arguments]
+   :tool-fn (fn [_context arguments]
               (let [{:keys [operation a b]} arguments
                     op-symbol (case operation
                                 "add" "+"
@@ -78,7 +80,7 @@
                  :properties {:directory {:type "string"
                                           :description "Directory to analyze"}}
                  :required [:directory]}
-   :tool-fn (fn [context arguments]
+   :tool-fn (fn [_context arguments]
               (p/let [dir (:directory arguments)
                       ;; Simulate finding important files
                       important-files ["README.md" "deps.edn" "src/core.clj"]]
@@ -112,7 +114,7 @@
    :outputSchema {:type "object"
                   :properties {:result {:type "number"}
                                :count {:type "integer"}}}
-   :tool-fn (fn [context arguments]
+   :tool-fn (fn [_context arguments]
               (let [start-time (System/currentTimeMillis)
                     {:keys [data operation]} arguments
                     result (case operation
@@ -145,7 +147,7 @@
                {:name "conditions"
                 :description "WHERE conditions"
                 :required false}]
-   :prompt-fn (fn [context arguments]
+   :prompt-fn (fn [_context arguments]
                 {:messages [{:role "user"
                              :content {:type "text"
                                        :text (str "Generate SQL query for table: " (:table arguments)
@@ -153,7 +155,7 @@
                                                   "\nConditions: " (:conditions arguments))}}]})
    ;; Completion function that uses context
    :complete-fn (fn [context arg-name arg-value]
-                  (let [;; NEW: Access context from previous completions
+                  (let [;; Access context from previous completions
                         prev-context (:completion-context context)
                         prev-table (:table prev-context)]
                     (case arg-name
@@ -195,7 +197,7 @@
    :title "Application Settings" ;; NEW: Display name for resource
    :description "Current application configuration"
    :mimeType "application/json"
-   :read-fn (fn [context uri]
+   :read-fn (fn [_context uri]
               {:contents [{:uri uri
                            :mimeType "application/json"
                            :text (str {:version "2025-06-18"
@@ -206,7 +208,8 @@
                                                   :meta-fields true}})}]})})
 
 ;; Create a test session with all examples
-(defn create-example-session []
+(defn create-example-session
+  []
   (server/create-session
    {:tools [simple-calculator
             advanced-calculator
@@ -216,7 +219,8 @@
     :resources [config-resource]}))
 
 ;; Helper function to test tools directly
-(defn test-tool [tool-name arguments]
+(defn test-tool
+  [tool-name arguments]
   (let [session (atom (create-example-session))
         context {:session session}
         tool (-> @session :tool-by-name (get tool-name))]
@@ -241,4 +245,4 @@
   ;; Test data processor with metadata
   (test-tool "process_data" {:data [1 2 3 4 5] :operation "average"})
   ;; => {:content [...], :_meta {:timestamp ..., :processing-time-ms ...}}
-  )
+  *e)

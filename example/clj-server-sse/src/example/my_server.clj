@@ -29,25 +29,25 @@
   "
   [_context _session-id]
   (atom
-   (server/create-session {:prompts                  [content/talk-like-pirate-prompt]
-                           :resources                [content/hello-doc-resource
-                                                      content/world-doc-resource]
-                           :tools                    [content/parentify-tool]
-                           :resource-templates       content/my-resource-templates
+   (server/create-session {:prompts [content/talk-like-pirate-prompt]
+                           :resources [content/hello-doc-resource
+                                       content/world-doc-resource]
+                           :tools [content/parentify-tool]
+                           :resource-templates content/my-resource-templates
                            :resource-uri-complete-fn content/my-resource-uri-complete-fn})))
 
 (def default-transport-env
-  {:dev?              true
+  {:dev? true
    :create-session-fn create-session
-   :settings          {:allowed-hosts ["127.0.0.1:*"]}})
+   :settings {:allowed-hosts ["127.0.0.1:*"]}})
 
 (defn log-request [{:keys [uri request-method] :as req} {:keys [body status] :as resp}]
   (tel/log! {:level :info :msg (str (str/upper-case (name request-method)) " " uri)
-             :data  (merge  {:status status}
-                            (when (>= (or status -1) 400)
-                              {:err          body
-                               :resp-headers (select-keys  resp [:headers])
-                               :req-headers  (select-keys  req [:headers])}))}))
+             :data (merge {:status status}
+                          (when (>= (or status -1) 400)
+                            {:err body
+                             :resp-headers (select-keys resp [:headers])
+                             :req-headers (select-keys req [:headers])}))}))
 
 (defn log-request-middleware [handler]
   (fn [req]
@@ -61,7 +61,7 @@
 
 (defn handler [ctx]
   (let [dev-mode (:dev? ctx)
-        f        (fn [] (reitit/ring-handler (reitit/router (routes ctx))))]
+        f (fn [] (reitit/ring-handler (reitit/router (routes ctx))))]
     (if dev-mode
       (reitit/reloading-ring-handler f)
       (f))))
@@ -72,8 +72,8 @@
   (assoc ctx ::server
          (http-kit/run-server (handler ctx)
                               {:legacy-return-value? false
-                               :port                 port
-                               :ip                   bind})))
+                               :port port
+                               :ip bind})))
 
 (defn stop-http [{::keys [server]}]
   (when server
@@ -115,4 +115,4 @@
   ;; or do both at once
   (restart {:host "127.0.0.1" :port 3000})
   ;;
-  ,)
+  )
