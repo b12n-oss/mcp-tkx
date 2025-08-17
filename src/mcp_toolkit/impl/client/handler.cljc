@@ -1,11 +1,15 @@
 (ns ^:no-doc mcp-toolkit.impl.client.handler
   (:require [mcp-toolkit.impl.common :refer [user-callback]]))
 
-(defn ping-handler [context]
+(defn ping-handler
+  [context]
   {})
 
-(defn root-list-handler [{:keys [session]}]
-  {:roots (-> @session :root-by-uri vals
+(defn root-list-handler
+  [{:keys [session]}]
+  {:roots (-> @session
+              :root-by-uri
+              vals
               (->> (mapv (fn [root]
                            (select-keys root [:uri :name])))))})
 

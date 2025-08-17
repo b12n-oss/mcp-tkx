@@ -1,9 +1,10 @@
 (ns mcp-toolkit.client
-  (:require [mate.core :as mc]
-            [mcp-toolkit.json-rpc :as json-rpc]
-            [mcp-toolkit.impl.client.handler :as client.handler]
-            [mcp-toolkit.impl.common :refer [user-callback]]
-            [promesa.core :as p]))
+  (:require
+   [mate.core :as mc]
+   [mcp-toolkit.impl.client.handler :as client.handler]
+   [mcp-toolkit.impl.common :refer [user-callback]]
+   [mcp-toolkit.json-rpc :as json-rpc]
+   [promesa.core :as p]))
 
 (defn request-set-logging-level
   "Sets the logging level on the MCP server.
@@ -314,34 +315,33 @@
            on-server-resource-list-updated
            on-server-tool-list-changed
            on-server-tool-list-updated]
-    :or {client-info {:name "mcp-toolkit"
-                      :version "0.1.1-alpha"}
-         client-capabilities {:roots {:listChanged true}}
-         protocol-version "2025-06-18"
-         on-initialized default-on-initialized
-         on-server-prompt-list-changed request-prompt-list
-         on-server-resource-list-changed request-resource-list
-         on-server-tool-list-changed request-tool-list}}]
-  {:client-info client-info
-   :client-capabilities client-capabilities
-   :protocol-version protocol-version
-   :initialized false
-   :on-initialized on-initialized
-   :handler-by-method client.handler/handler-by-method-pre-initialization
-   :root-by-uri (mc/index-by :uri roots)
-   :server-prompt-by-name {}
-   :server-resource-by-uri {}
-   :server-tool-by-name {}
-   :on-sampling-requested on-sampling-requested
-   :on-server-progress on-server-progress
-   :on-server-log on-server-log
-   :on-server-prompt-list-changed on-server-prompt-list-changed
-   :on-server-prompt-list-updated on-server-prompt-list-updated
-   :on-server-resource-changed on-server-resource-changed
+    :or   {client-info                     {:name    "mcp-toolkit"
+                                            :version "0.1.1-alpha"}
+           client-capabilities             {:roots {:listChanged true}}
+           protocol-version                "2025-06-18"
+           on-initialized                  default-on-initialized
+           on-server-prompt-list-changed   request-prompt-list
+           on-server-resource-list-changed request-resource-list
+           on-server-tool-list-changed     request-tool-list}}]
+  {:client-info                     client-info
+   :client-capabilities             client-capabilities
+   :protocol-version                protocol-version
+   :initialized                     false
+   :on-initialized                  on-initialized
+   :handler-by-method               client.handler/handler-by-method-pre-initialization
+   :root-by-uri                     (mc/index-by :uri roots)
+   :server-prompt-by-name           {}
+   :server-resource-by-uri          {}
+   :server-tool-by-name             {}
+   :on-sampling-requested           on-sampling-requested
+   :on-server-progress              on-server-progress
+   :on-server-log                   on-server-log
+   :on-server-prompt-list-changed   on-server-prompt-list-changed
+   :on-server-prompt-list-updated   on-server-prompt-list-updated
+   :on-server-resource-changed      on-server-resource-changed
    :on-server-resource-list-changed on-server-resource-list-changed
    :on-server-resource-list-updated on-server-resource-list-updated
-   :on-server-tool-list-changed on-server-tool-list-changed
-   :on-server-tool-list-updated on-server-tool-list-updated
-   :last-called-method-id -1 ;; Used for calling methods on the remote site
-   :handler-by-called-method-id {} ;; The response handlers
-   })
+   :on-server-tool-list-changed     on-server-tool-list-changed
+   :on-server-tool-list-updated     on-server-tool-list-updated
+   :last-called-method-id           -1 ;; Used for calling methods on the remote site
+   :handler-by-called-method-id     {}}) ;; The response handlers
