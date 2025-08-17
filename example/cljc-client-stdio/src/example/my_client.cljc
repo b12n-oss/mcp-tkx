@@ -1,18 +1,27 @@
 (ns example.my-client
-  (:require [clojure.string :as str]
-            [mcp-toolkit.client :as client]
-            [mcp-toolkit.json-rpc :as json-rpc]
-            [promesa.core :as p]
-            [example.client-content :as content]
-            #?(:clj [jsonista.core :as j])
-            #?(:cljs ["child_process" :refer [spawn]])
-            #?(:cljs ["path" :as path]))
-  #?(:clj (:import (clojure.lang LineNumberingPushbackReader)
-                   (java.io BufferedReader
-                            BufferedWriter
-                            File
-                            InputStreamReader
-                            OutputStreamWriter))))
+  #?@
+   (:clj
+    [(:require
+      [example.client-content :as content]
+      [jsonista.core :as j]
+      [mcp-toolkit.client :as client]
+      [mcp-toolkit.json-rpc :as json-rpc])
+     (:import
+      (clojure.lang LineNumberingPushbackReader)
+      (java.io
+       BufferedReader
+       BufferedWriter
+       File
+       InputStreamReader
+       OutputStreamWriter))]
+    :cljs
+    [(:require
+      ["child_process" :refer [spawn]]
+      ["path" :as path]
+      [clojure.string :as str]
+      [example.client-content :as content]
+      [mcp-toolkit.client :as client]
+      [mcp-toolkit.json-rpc :as json-rpc])]))
 
 ;; Example of usage of this library.
 

@@ -1,20 +1,24 @@
 (ns example.my-server
-  (:require [clojure.string :as str]
-            [mcp-toolkit.server :as server]
-            [mcp-toolkit.json-rpc :as json-rpc]
-            [promesa.core :as p]
-            [example.server-content :as content]
-            #?(:clj [jsonista.core :as j])
-            #?(:clj [nrepl.server :as nrepl]))
-  #?(:clj (:import (clojure.lang LineNumberingPushbackReader)
-                   (java.io OutputStreamWriter))))
+  #?@
+   (:clj
+    [(:require
+      [example.server-content :as content]
+      [jsonista.core :as j]
+      [mcp-toolkit.json-rpc :as json-rpc]
+      [mcp-toolkit.server :as server]
+      [nrepl.server :as nrepl])
+     (:import
+      (clojure.lang LineNumberingPushbackReader)
+      (java.io OutputStreamWriter))]
+    :cljs
+    [(:require
+      [clojure.string :as str]
+      [example.server-content :as content]
+      [mcp-toolkit.json-rpc :as json-rpc]
+      [mcp-toolkit.server :as server])]))
 
 ;; Example of usage of this library.
-
-;;
 ;; State
-;;
-
 (def session
   (atom
     (server/create-session {:prompts [content/talk-like-pirate-prompt]
@@ -24,12 +28,8 @@
                             :resource-templates content/my-resource-templates
                             :resource-uri-complete-fn content/my-resource-uri-complete-fn})))
 
-;;
 ;; Platform-specific threading, transport & I/O stuffs
-;;
-
 ;; on the JVM
-
 #?(:clj
    (def context
      {:session session
@@ -39,7 +39,6 @@
                         (.write writer (j/write-value-as-string message json-mapper))
                         (.write writer "\n")
                         (.flush writer)))}))
-
 #?(:clj
    (defn listen-messages [context
                           ^LineNumberingPushbackReader reader]
@@ -59,7 +58,6 @@
                (do
                  (json-rpc/handle-message context message)
                  (recur)))))))))
-
 #?(:clj
    (defn main [{:keys [bind port]}]
      ;; In this example, we launch an nREPL server which can be used to hack the MCP server while it is running.
@@ -73,7 +71,6 @@
            (nrepl/stop-server server))))))
 
 ;; on Node JS
-
 #?(:cljs
    (def context
      {:session session
@@ -82,12 +79,10 @@
                                                    clj->js
                                                    js/JSON.stringify
                                                    (str "\n"))))}))
-
 #?(:cljs
    (defn main [& args]
      (js/process.stdin.setEncoding "utf8")
      (js/process.stdout.setEncoding "utf8")
-
      (js/process.stdin.on "data"
                           (fn [chunk]
                             ;; In this simple example, we naively assume that there is a json object per line.
@@ -113,26 +108,34 @@
   ;; tail -n 20 -F ~/Library/Logs/Claude/mcp-server-toolkit.log
 
   @session
+
   (:message-log @session)
+
   (swap! session update :message-log empty)
 
   (server/add-prompt context talk-like-pirate-prompt)
+
   (server/remove-prompt context talk-like-pirate-prompt)
 
   (server/add-resource context hello-world-resource)
+
   (server/remove-resource context hello-world-resource)
 
   ;; Simulates changing a resource.
   (swap! session update-in [:resource-by-uri "file:///doc/hello.md" :text] str " xxx")
+
   (server/notify-resource-updated context {:uri "file:///doc/hello.md"})
 
   (server/set-resource-templates context my-resource-templates)
+
   (server/set-resource-uri-complete-fn context my-resource-uri-complete-fn)
 
   (server/add-tool context parentify-tool)
+
   (server/remove-tool context parentify-tool)
 
   (server/send-log-data context "info" "mcp-toolkit" {:message "Made in Finland"})
+
   (server/send-log-data context "emergency" "datacenter" {:error "HCF"})
 
   (some-> (server/request-sampling context {:messages [{:role "user"
@@ -145,4 +148,4 @@
                                             :maxTokens 100})
           deref)
 
-  ,)
+  *e)
