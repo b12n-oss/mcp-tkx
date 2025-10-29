@@ -31,7 +31,7 @@ Start the MCP server with:
 clojure -X:mcp-server
 ```
 
-### MCP Inspector 
+### MCP Inspector
 
 1. Make sure that the MCP server is running (see previous section).
 2. Run the MCP inspector: `npx @modelcontextprotocol/inspector`.

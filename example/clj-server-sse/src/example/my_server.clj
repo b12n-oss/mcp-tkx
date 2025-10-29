@@ -41,7 +41,9 @@
    :create-session-fn create-session
    :settings {:allowed-hosts ["127.0.0.1:*"]}})
 
-(defn log-request [{:keys [uri request-method] :as req} {:keys [body status] :as resp}]
+(defn log-request
+  [{:keys [uri request-method] :as req}
+   {:keys [body status] :as resp}]
   (tel/log! {:level :info :msg (str (str/upper-case (name request-method)) " " uri)
              :data (merge {:status status}
                           (when (>= (or status -1) 400)
@@ -49,17 +51,20 @@
                              :resp-headers (select-keys resp [:headers])
                              :req-headers (select-keys req [:headers])}))}))
 
-(defn log-request-middleware [handler]
+(defn log-request-middleware
+  [handler]
   (fn [req]
     (let [resp (handler req)]
       (log-request req resp)
       resp)))
 
-(defn routes [ctx]
+(defn routes
+  [ctx]
   ["" {:middleware [log-request-middleware]}
    (sse/routes ctx)])
 
-(defn handler [ctx]
+(defn handler
+  [ctx]
   (let [dev-mode (:dev? ctx)
         f (fn [] (reitit/ring-handler (reitit/router (routes ctx))))]
     (if dev-mode
@@ -75,7 +80,8 @@
                                :port port
                                :ip bind})))
 
-(defn stop-http [{::keys [server]}]
+(defn stop-http
+  [{::keys [server]}]
   (when server
     (when-let [result (http-kit/server-stop! server {:timeout 1000})]
       @result)))
@@ -114,5 +120,4 @@
   (stop)
   ;; or do both at once
   (restart {:host "127.0.0.1" :port 3000})
-  ;;
-  )
+  *e)

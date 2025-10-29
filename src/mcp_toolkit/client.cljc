@@ -213,7 +213,7 @@
    Args:
      context    - The client session context
      request-id - ID of the request to cancel
-    
+
    Returns:
      nil"
   [context request-id]

@@ -36,7 +36,8 @@
                           :total 0
                           :hasMore false}}))))
 
-(defn prompt-list-handler [{:keys [session]}]
+(defn prompt-list-handler
+  [{:keys [session]}]
   {:prompts (-> @session
                 :prompt-by-name
                 vals

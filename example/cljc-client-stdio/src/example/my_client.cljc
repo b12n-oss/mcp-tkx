@@ -139,10 +139,12 @@
 ;;
 
 (comment
-
   (main)
+
   (-main)
 
   @session
 
-  (json-rpc/close-connection @context))
+  (json-rpc/close-connection @context)
+
+  *e)

@@ -10,29 +10,34 @@
 (def object-mapper
   (j/object-mapper {:decode-key-fn keyword :encode-key-fn name}))
 
-(defn parse-message [ctx]
+(defn parse-message
+  [ctx]
   (let [message (try
                   (-> (j/read-value (-> ctx :req :body) object-mapper))
                   (catch Exception _
                     nil))]
     message))
 
-(defn ->json [v]
+(defn ->json
+  [v]
   (j/write-value-as-string v object-mapper))
 
-(defn error-response [msg status & {:keys [headers]}]
+(defn error-response
+  [msg status & {:keys [headers]}]
   {:status status
    :headers {"content-type" "text/plain"}
    :body msg})
 
-(defn valid-content-type? [ctx]
+(defn valid-content-type?
+  [ctx]
   (let [ct (get-in ctx [:req :headers "content-type"])]
     (cond
       (str/blank? ct) false
       (not (str/starts-with? ct "application/json")) false
       :else true)))
 
-(defn matches-port-wildcard? [pattern value]
+(defn matches-port-wildcard?
+  [pattern value]
   (when (str/ends-with? pattern ":*")
     (let [base (subs pattern 0 (- (count pattern) 2))]
       (str/starts-with? value (str base ":")))))
@@ -60,7 +65,8 @@
          allowed-origins (get-in ctx [:settings :allowed-origins])]
      (valid-origin? origin allowed-origins))))
 
-(defn validate-request [{:keys [req] :as ctx}]
+(defn validate-request
+  [{:keys [req] :as ctx}]
   (let [post? (= :post (:request-method req))]
     (cond
       (and post? (not (valid-content-type? ctx))) (error-response "Invalid Content-Type header" 400)
@@ -71,7 +77,8 @@
 (def base-SSE-headers {"Content-Type" "text/event-stream"
                        "Cache-Control" "no-cache, no-transform"})
 
-(defn add-keep-alive? [ring-request]
+(defn add-keep-alive?
+  [ring-request]
   (let [protocol (:protocol ring-request)]
     (or (nil? protocol)
         (neg? (compare protocol "HTTP/1.1")))))
@@ -106,12 +113,15 @@
                    :headers (sse-headers req opts)}
                   false))
 
-(defn channel-send! [channel event data]
+(defn channel-send!
+  [channel event data]
   (http-kit/send! channel
                   (str "event: " event "\n" "data: " data "\n\n")
                   false))
 
-(defn new-session-id [] (str (java.util.UUID/randomUUID)))
+(defn new-session-id
+  []
+  (str (java.util.UUID/randomUUID)))
 
 (defn assoc-session!
   "Adds a new connection to the pool, returns the initial session data"
@@ -135,12 +145,14 @@
   [ctx session-id]
   (get-in @(::connections ctx) [session-id]))
 
-(defn make-send-message [{:session/keys [send!] :as _session}]
+(defn make-send-message
+  [{:session/keys [send!] :as _session}]
   (fn [message]
     (tel/log! {:level :debug :id :sse/outgoing-message :data {:message message}})
     (send! "message" (->json message))))
 
-(defn handle-message-response [session message]
+(defn handle-message-response
+  [session message]
   (let [mcp-context {:send-message (make-send-message session)
                      :session (:session/data session)}]
 
@@ -150,7 +162,8 @@
    :headers {"content-type" "text/plain"}
    :body "Accepted"})
 
-(defn handle-sse-stream [ctx req]
+(defn handle-sse-stream
+  [ctx req]
   (let [ctx (assoc ctx :req req)]
     (if-let [error-response (validate-request ctx)]
       error-response
@@ -167,7 +180,8 @@
                                 (tel/log! {:level :debug :id :sse/close :data {:status status}})
                                 (dissoc-session! ctx session-id))})))))
 
-(defn handle-messages [ctx req]
+(defn handle-messages
+  [ctx req]
   (let [ctx (assoc ctx :req req)]
     (if-let [error-response (validate-request ctx)]
       error-response
@@ -177,11 +191,13 @@
           (error-response "Could not parse message" 400))
         (error-response "Session not found" 404)))))
 
-(defn routes [ctx]
+(defn routes
+  [ctx]
   [""
    ;; 2024-11-05 - SSE Transport
    ["/sse" {:get (partial handle-sse-stream ctx)}]
    ["/messages/:id" {:post (partial handle-messages ctx)}]])
 
-(defn ctx-start [ctx]
+(defn ctx-start
+  [ctx]
   (assoc ctx ::connections (atom {})))

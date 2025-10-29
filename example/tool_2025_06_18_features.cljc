@@ -1,6 +1,6 @@
 (ns tool-2025-06-18-features.cljc
   "Example tool demonstrating 2025-06-18 features.
-   
+
    This example shows:
    - Title field for better UI display
    - Structured output with outputSchema
