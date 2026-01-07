@@ -234,26 +234,26 @@
                                                                                                        server-session
                                                                                                        message-logs)]
                           (-> (p/do
-              ;; Try to send a batch request (array of requests)
-              ;; This should be rejected in 2025-06-18
+                                ;; Try to send a batch request (array of requests)
+                                ;; This should be rejected in 2025-06-18
                                 (let [batch-request [{:jsonrpc "2.0"
                                                       :method "ping"
                                                       :id 1}
                                                      {:jsonrpc "2.0"
                                                       :method "ping"
                                                       :id 2}]]
-                ;; Send batch request directly to server
+                                  ;; Send batch request directly to server
                                   (json-rpc/handle-message server-context batch-request))
 
-              ;; Give time for processing
+                                ;; Give time for processing
                                 (p/delay 100)
 
-              ;; Check that an error was returned for batch requests
+                                ;; Check that an error was returned for batch requests
                                 (let [logs @message-logs
                                       responses (filter #(= :<- (first %)) logs)]
-                ;; In 2025-06-18, batch requests should return an error
-                ;; For now, this test will fail because batching is still supported
-                ;; After we remove batching, this test should pass
+                                  ;; In 2025-06-18, batch requests should return an error
+                                  ;; For now, this test will fail because batching is still supported
+                                  ;; After we remove batching, this test should pass
                                   (is (= 1 (count responses)) "Should return single error for batch request")
                                   (when (seq responses)
                                     (let [response (second (first responses))]
@@ -265,7 +265,7 @@
                               (p/handle (fn [x error]
                                           (json-rpc/close-connection client-context)
                                           (json-rpc/close-connection server-context)
-                        ;; Pass through
+                                          ;; Pass through
                                           (or error x))))))))
 
 (deftest title-field-support-test
@@ -344,7 +344,7 @@
                         (let [session (atom {:tool-by-name {"file_reader" {:name "file_reader"
                                                                            :title "File Reader"
                                                                            :tool-fn (fn [_ _]
-                                                                   ;; Return structured result with resources
+                                                                                      ;; Return structured result with resources
                                                                                       (p/resolved
                                                                                        {:content [{:type "text"
                                                                                                    :text "File content here"}]
@@ -418,7 +418,7 @@
           meta-info {:timestamp 123456
                      :source "test"}]
 
-;; Test with-meta-field
+      ;; Test with-meta-field
       (let [with-meta (meta-support/with-meta-field data meta-info)]
         (is (contains? with-meta :_meta) "Should have _meta field")
         (is (= meta-info (:_meta with-meta)) "Meta should match"))

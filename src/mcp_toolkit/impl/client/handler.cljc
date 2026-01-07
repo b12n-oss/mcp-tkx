@@ -14,15 +14,15 @@
                            (select-keys root [:uri :name])))))})
 
 (def handler-by-method-post-initialization
-  {"ping"                                 ping-handler
-   "roots/list"                           root-list-handler
-   "sampling/createMessage"               (user-callback :on-sampling-requested)
-   "notifications/progress"               (user-callback :on-server-progress)
-   "notifications/message"                (user-callback :on-server-log)
-   "notifications/prompts/list_changed"   (user-callback :on-server-prompt-list-changed)
-   "notifications/resources/updated"      (user-callback :on-server-resource-changed)
+  {"ping" ping-handler
+   "roots/list" root-list-handler
+   "sampling/createMessage" (user-callback :on-sampling-requested)
+   "notifications/progress" (user-callback :on-server-progress)
+   "notifications/message" (user-callback :on-server-log)
+   "notifications/prompts/list_changed" (user-callback :on-server-prompt-list-changed)
+   "notifications/resources/updated" (user-callback :on-server-resource-changed)
    "notifications/resources/list_changed" (user-callback :on-server-resource-list-changed)
-   "notifications/tools/list_changed"     (user-callback :on-server-tool-list-changed)})
+   "notifications/tools/list_changed" (user-callback :on-server-tool-list-changed)})
 
 (def handler-by-method-pre-initialization
   {"ping" ping-handler})

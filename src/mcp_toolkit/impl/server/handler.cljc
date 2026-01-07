@@ -131,19 +131,19 @@
     (reset! is-cancelled-atom true)))
 
 (def handler-by-method-post-initialization
-  {"ping"                             ping-handler
-   "logging/setLevel"                 set-logging-level-handler
-   "completion/complete"              completion-complete-handler
-   "prompts/list"                     prompt-list-handler
-   "prompts/get"                      prompt-get-handler
-   "resources/list"                   resource-list-handler
-   "resources/read"                   resource-read-handler
-   "resources/templates/list"         resource-templates-list-handler
-   "resources/subscribe"              resource-subscribe-handler
-   "resources/unsubscribe"            resource-unsubscribe-handler
-   "tools/list"                       tool-list-handler
-   "tools/call"                       tool-call-handler
-   "notifications/cancelled"          cancelled-notification-handler
+  {"ping" ping-handler
+   "logging/setLevel" set-logging-level-handler
+   "completion/complete" completion-complete-handler
+   "prompts/list" prompt-list-handler
+   "prompts/get" prompt-get-handler
+   "resources/list" resource-list-handler
+   "resources/read" resource-read-handler
+   "resources/templates/list" resource-templates-list-handler
+   "resources/subscribe" resource-subscribe-handler
+   "resources/unsubscribe" resource-unsubscribe-handler
+   "tools/list" tool-list-handler
+   "tools/call" tool-call-handler
+   "notifications/cancelled" cancelled-notification-handler
    "notifications/roots/list_changed" (user-callback :on-client-root-list-changed)})
 
 ;; Initialization phase, a handshake where protocol versions are tentatively agreed.
@@ -151,8 +151,8 @@
 (defn initialize-handler
   [{:keys [session message]}]
   (let [{client-protocol-version :protocolVersion
-         client-info             :clientInfo
-         client-capabilities     :capabilities} (:params message)
+         client-info :clientInfo
+         client-capabilities :capabilities} (:params message)
 
         {:keys [server-info
                 server-supported-protocol-versions
@@ -166,13 +166,13 @@
            :client-info client-info
            :client-capabilities client-capabilities)
     (-> {:protocolVersion protocol-version
-         :capabilities    {:logging     {}
-                           :completions {}
-                           :prompts     {:listChanged true}
-                           :resources   {:subscribe   true
-                                         :listChanged true}
-                           :tools       {:listChanged true}}
-         :serverInfo      server-info}
+         :capabilities {:logging {}
+                        :completions {}
+                        :prompts {:listChanged true}
+                        :resources {:subscribe true
+                                    :listChanged true}
+                        :tools {:listChanged true}}
+         :serverInfo server-info}
         (cond-> (some? server-instructions) (assoc :instructions server-instructions)))))
 
 (defn initialized-notification-handler
@@ -184,6 +184,6 @@
   ((user-callback :on-initialized) context))
 
 (def handler-by-method-pre-initialization
-  {"ping"                      ping-handler
-   "initialize"                initialize-handler
+  {"ping" ping-handler
+   "initialize" initialize-handler
    "notifications/initialized" initialized-notification-handler})
