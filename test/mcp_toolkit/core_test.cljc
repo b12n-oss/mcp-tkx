@@ -413,8 +413,10 @@
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (testing "_meta field utilities"
-    (let [data {:name "test" :value 42}
-          meta-info {:timestamp 123456 :source "test"}]
+    (let [data {:name "test"
+                :value 42}
+          meta-info {:timestamp 123456
+                     :source "test"}]
 
 ;; Test with-meta-field
       (let [with-meta (meta-support/with-meta-field data meta-info)]

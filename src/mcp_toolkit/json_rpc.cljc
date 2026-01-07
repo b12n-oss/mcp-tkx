@@ -90,7 +90,8 @@
 
    Returns:
      A promise that resolves to the method result or rejects with the error."
-  [context {:keys [method params] :as message}]
+  [context {:keys [method params]
+            :as message}]
   (let [{:keys [session send-message]} context
         ;; Picks a unique method id for a remote call. Robust to concurrent calls.
         ;; TODO: ensure it loops when reaching the maximum integer value.
@@ -135,7 +136,8 @@
 
 (defn- route-message
   "Returns a Promesa promise which handles a given json-rpc-message."
-  [{:keys [session message] :as context}]
+  [{:keys [session message]
+    :as context}]
   (if (contains? message :method)
     (let [{:keys [id method]} message
           handler (-> @session :handler-by-method (get method))]

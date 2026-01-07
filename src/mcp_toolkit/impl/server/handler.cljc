@@ -14,7 +14,8 @@
   {})
 
 (defn completion-complete-handler
-  [{:keys [session message] :as context}]
+  [{:keys [session message]
+    :as context}]
   (let [{:keys [ref argument context]} (:params message)] ;; Added context from params (2025-06-18)
     (-> (case (:type ref)
           "ref/prompt" (when-some [prompt-param-complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
@@ -46,7 +47,8 @@
    #_#_:nextCursor "next-page-cursor"})
 
 (defn prompt-get-handler
-  [{:keys [session message] :as context}]
+  [{:keys [session message]
+    :as context}]
   (let [{:keys [name arguments]} (:params message)]
     (if-some [prompt-fn (-> @session :prompt-by-name (get name) :prompt-fn)]
       (prompt-fn context arguments)
@@ -93,7 +95,8 @@
    #_#_:nextCursor "next-page-cursor"})
 
 (defn tool-call-handler
-  [{:keys [session message] :as context}]
+  [{:keys [session message]
+    :as context}]
   (let [{:keys [name arguments]} (:params message)]
     (if-some [tool (-> @session :tool-by-name (get name))]
       (let [tool-fn (:tool-fn tool)]
@@ -173,7 +176,8 @@
         (cond-> (some? server-instructions) (assoc :instructions server-instructions)))))
 
 (defn initialized-notification-handler
-  [{:keys [session] :as context}]
+  [{:keys [session]
+    :as context}]
   (swap! session assoc
          :initialized true
          :handler-by-method handler-by-method-post-initialization)

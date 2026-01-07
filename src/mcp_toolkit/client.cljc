@@ -112,7 +112,8 @@
         {:keys [server-capabilities]} @session]
     (when (contains? server-capabilities :resources)
       (-> (json-rpc/call-remote-method context {:method "resources/list"})
-          (p/then (fn [{:keys [resources] :as result}]
+          (p/then (fn [{:keys [resources]
+                        :as result}]
                     (swap! session assoc :server-resource-by-uri (mc/index-by :uri resources))
                     ((user-callback :on-server-resource-list-updated) context)))))))
 
@@ -186,7 +187,8 @@
         {:keys [server-capabilities]} @session]
     (when (contains? server-capabilities :prompts)
       (-> (json-rpc/call-remote-method context {:method "tools/list"})
-          (p/then (fn [{:keys [tools] :as result}]
+          (p/then (fn [{:keys [tools]
+                        :as result}]
                     (swap! session assoc :server-tool-by-name (mc/index-by :name tools))
                     ((user-callback :on-server-tool-list-updated) context)))))))
 
@@ -282,7 +284,8 @@
                                               :params {:clientInfo client-info
                                                        :capabilities client-capabilities
                                                        :protocolVersion protocol-version}})
-        (p/then (fn [{:keys [protocolVersion capabilities serverInfo] :as result}]
+        (p/then (fn [{:keys [protocolVersion capabilities serverInfo]
+                      :as result}]
                   (swap! session assoc
                          :server-protocol-version protocolVersion
                          :server-capabilities capabilities
