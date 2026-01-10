@@ -24,7 +24,7 @@
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
-      <version>1.12.4</version>
+      <version>1.12.2</version>
     </dependency>
     <dependency>
       <groupId>taipei.404</groupId>
@@ -32,14 +32,19 @@
       <version>0.1.0</version>
     </dependency>
     <dependency>
+      <groupId>metosin</groupId>
+      <artifactId>malli</artifactId>
+      <version>0.20.0</version>
+    </dependency>
+    <dependency>
       <groupId>funcool</groupId>
       <artifactId>promesa</artifactId>
       <version>11.0.678</version>
     </dependency>
     <dependency>
-      <groupId>metosin</groupId>
-      <artifactId>jsonista</artifactId>
-      <version>0.3.13</version>
+      <groupId>camel-snake-kebab</groupId>
+      <artifactId>camel-snake-kebab</artifactId>
+      <version>0.4.3</version>
     </dependency>
   </dependencies>
   <build>

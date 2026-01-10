@@ -10,5 +10,4 @@ out/
 .lsp
 # clojure-mcp
 .clojure-mcp/
-.clojure-mcp/scratch_pad.edn
-.clojure-mcp/config.edn
+mcp-toolkit.jar
