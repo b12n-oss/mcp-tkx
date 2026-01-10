@@ -1,5 +1,6 @@
 (ns ^:no-doc mcp-toolkit.impl.client.handler
-  (:require [mcp-toolkit.impl.common :refer [user-callback]]))
+  (:require
+   [mcp-toolkit.impl.common :refer [user-callback]]))
 
 (defn ping-handler
   [context]

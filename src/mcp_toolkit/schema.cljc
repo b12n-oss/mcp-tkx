@@ -3,9 +3,10 @@
    Provides validation and schema construction helpers.
    
    See: https://modelcontextprotocol.io/specification/2025-11-25"
-  (:require [malli.core :as m]
-            [malli.error :as me]
-            [clojure.string :as str]))
+  (:require
+   [clojure.string :as str]
+   [malli.core :as m]
+   [malli.error :as me]))
 
 ;; =============================================================================
 ;; Icon Schema

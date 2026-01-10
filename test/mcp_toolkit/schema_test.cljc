@@ -1,6 +1,7 @@
 (ns mcp-toolkit.schema-test
-  (:require [clojure.test :refer [deftest testing is are]]
-            [mcp-toolkit.schema :as schema]))
+  (:require
+   [clojure.test :refer [deftest is testing]]
+   [mcp-toolkit.schema :as schema]))
 
 (deftest icon-schema-test
   (testing "Icon schema validation"

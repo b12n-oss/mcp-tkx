@@ -1,7 +1,8 @@
 (ns ^:no-doc mcp-toolkit.impl.server.handler
-  (:require [mcp-toolkit.json-rpc :as json-rpc]
-            [mcp-toolkit.impl.common :refer [user-callback]]
-            [promesa.core :as p]))
+  (:require
+   [mcp-toolkit.impl.common :refer [user-callback]]
+   [mcp-toolkit.json-rpc :as json-rpc]
+   [promesa.core :as p]))
 
 (defn ping-handler
   [context]

@@ -1,13 +1,14 @@
 (ns mcp-toolkit.core-test
-  (:require [clojure.test :refer [deftest testing is are #?(:cljs async)]]
-            [mcp-toolkit.json-rpc :as json-rpc]
-            [mcp-toolkit.client :as client]
-            [mcp-toolkit.server :as server]
-            [mcp-toolkit.impl.server.handler :as server.handler]
-            [mcp-toolkit.impl.meta-support :as meta-support]
-            [mcp-toolkit.test.util :as util]
-            [promesa.core :as p]
-            [promesa.exec.csp :as sp]))
+  (:require
+   [clojure.test :refer [#?(:cljs async) deftest is testing]]
+   [mcp-toolkit.client :as client]
+   [mcp-toolkit.impl.meta-support :as meta-support]
+   [mcp-toolkit.impl.server.handler :as server.handler]
+   [mcp-toolkit.json-rpc :as json-rpc]
+   [mcp-toolkit.server :as server]
+   [mcp-toolkit.test.util :as util]
+   [promesa.core :as p]
+   [promesa.exec.csp :as sp]))
 
 (def test-root
   {:uri "file:///home/user/projects/myproject"
