@@ -50,14 +50,13 @@
 - ✅ Add Icon schema validation
 - ✅ Add comprehensive unit tests
 
-## Phase 5: Sampling with Tools (Est: 3 hours)
-- ⬜ Update `request-sampling` signature to accept `:tools`
-- ⬜ Update `request-sampling` signature to accept `:tool-choice`
-- ⬜ Add protocol version check before sending tools
-- ⬜ Update `sampling-create-message-handler` in client
-- ⬜ Update `on-sampling-requested` callback signature
-- ⬜ Add unit tests
-- ⬜ Document sampling with tools
+## Phase 5: Sampling with Tools (Est: 3 hours) ✅
+- ✅ Add Malli schemas for sampling types (ToolChoice, SamplingTool, ToolUseContent, etc.)
+- ✅ Add helper constructors (tool-choice, sampling-tool, tool-result, tool-result-message)
+- ✅ Update `request-sampling` docstring with full parameter documentation
+- ✅ Add `client-supports-sampling-tools?` capability check
+- ✅ Add comprehensive unit tests for all schemas and helpers
+- ✅ Document sampling with tools flow and examples
 
 ## Phase 6: URL Mode Elicitation (Est: 3 hours)
 - ⬜ Add `request-url-elicitation` function to `server.cljc`

@@ -262,20 +262,24 @@
       (is (schema/valid? schema/ToolResultContent
                          {:type "tool_result"
                           :tool-use-id "call_abc123"
-                          :content {:type "text" :text "Result"}}))
+                          :content {:type "text"
+                                    :text "Result"}}))
 
       ;; Multiple content blocks
       (is (schema/valid? schema/ToolResultContent
                          {:type "tool_result"
                           :tool-use-id "call_abc123"
-                          :content [{:type "text" :text "Line 1"}
-                                    {:type "text" :text "Line 2"}]}))
+                          :content [{:type "text"
+                                     :text "Line 1"}
+                                    {:type "text"
+                                     :text "Line 2"}]}))
 
       ;; With error flag
       (is (schema/valid? schema/ToolResultContent
                          {:type "tool_result"
                           :tool-use-id "call_abc123"
-                          :content {:type "text" :text "Error occurred"}
+                          :content {:type "text"
+                                    :text "Error occurred"}
                           :is-error true})))
 
     (testing "invalid tool results"
@@ -283,45 +287,54 @@
       (is (not (schema/valid? schema/ToolResultContent
                               {:type "text"
                                :tool-use-id "call_abc"
-                               :content {:type "text" :text "x"}})))
+                               :content {:type "text"
+                                         :text "x"}})))
 
       ;; Missing tool-use-id
       (is (not (schema/valid? schema/ToolResultContent
                               {:type "tool_result"
-                               :content {:type "text" :text "x"}}))))))
+                               :content {:type "text"
+                                         :text "x"}}))))))
 
 (deftest tool-result-constructor-test
   (testing "tool-result constructor"
     (testing "basic result"
       (is (= {:type "tool_result"
               :tool-use-id "call_abc"
-              :content {:type "text" :text "Weather: 18°C"}}
+              :content {:type "text"
+                        :text "Weather: 18°C"}}
              (schema/tool-result {:tool-use-id "call_abc"
-                                  :content {:type "text" :text "Weather: 18°C"}}))))
+                                  :content {:type "text"
+                                            :text "Weather: 18°C"}}))))
 
     (testing "error result"
       (is (= {:type "tool_result"
               :tool-use-id "call_def"
-              :content {:type "text" :text "City not found"}
+              :content {:type "text"
+                        :text "City not found"}
               :is-error true}
              (schema/tool-result {:tool-use-id "call_def"
-                                  :content {:type "text" :text "City not found"}
+                                  :content {:type "text"
+                                            :text "City not found"}
                                   :is-error true}))))))
 
 (deftest tool-result-message-test
   (testing "tool-result-message constructor"
     (testing "single result"
       (let [result (schema/tool-result {:tool-use-id "call_abc"
-                                        :content {:type "text" :text "Result"}})]
+                                        :content {:type "text"
+                                                  :text "Result"}})]
         (is (= {:role "user"
                 :content [result]}
                (schema/tool-result-message result)))))
 
     (testing "multiple results"
       (let [results [(schema/tool-result {:tool-use-id "call_abc"
-                                          :content {:type "text" :text "Result 1"}})
+                                          :content {:type "text"
+                                                    :text "Result 1"}})
                      (schema/tool-result {:tool-use-id "call_def"
-                                          :content {:type "text" :text "Result 2"}})]]
+                                          :content {:type "text"
+                                                    :text "Result 2"}})]]
         (is (= {:role "user"
                 :content results}
                (schema/tool-result-message results))))))
@@ -332,38 +345,47 @@
                          {:role "user"
                           :content {:type "tool_result"
                                     :tool-use-id "call_abc"
-                                    :content {:type "text" :text "x"}}}))
+                                    :content {:type "text"
+                                              :text "x"}}}))
 
       (is (schema/valid? schema/ToolResultMessage
                          {:role "user"
                           :content [{:type "tool_result"
                                      :tool-use-id "call_abc"
-                                     :content {:type "text" :text "x"}}
+                                     :content {:type "text"
+                                               :text "x"}}
                                     {:type "tool_result"
                                      :tool-use-id "call_def"
-                                     :content {:type "text" :text "y"}}]})))
+                                     :content {:type "text"
+                                               :text "y"}}]})))
 
     (testing "invalid messages - wrong role"
       (is (not (schema/valid? schema/ToolResultMessage
                               {:role "assistant"
                                :content {:type "tool_result"
                                          :tool-use-id "call_abc"
-                                         :content {:type "text" :text "x"}}}))))))
+                                         :content {:type "text"
+                                                   :text "x"}}}))))))
 
 (deftest tool-result-message!-test
   (testing "tool-result-message! with validation"
     (testing "valid message returns result"
       (let [result (schema/tool-result {:tool-use-id "call_abc"
-                                        :content {:type "text" :text "OK"}})]
-        (is (= {:role "user" :content [result]}
+                                        :content {:type "text"
+                                                  :text "OK"}})]
+        (is (= {:role "user"
+                :content [result]}
                (schema/tool-result-message! result)))))
 
     (testing "validates constructed message"
       (let [results [(schema/tool-result {:tool-use-id "call_abc"
-                                          :content {:type "text" :text "R1"}})
+                                          :content {:type "text"
+                                                    :text "R1"}})
                      (schema/tool-result {:tool-use-id "call_def"
-                                          :content {:type "text" :text "R2"}})]]
-        (is (= {:role "user" :content results}
+                                          :content {:type "text"
+                                                    :text "R2"}})]]
+        (is (= {:role "user"
+                :content results}
                (schema/tool-result-message! results)))))))
 
 (deftest stop-reason-test
@@ -386,7 +408,8 @@
            {:role "user"
             :content {:type "tool_result"
                       :tool-use-id "call_abc"
-                      :content {:type "text" :text "OK"}}})))
+                      :content {:type "text"
+                                :text "OK"}}})))
 
     (testing "invalid messages"
       ;; Wrong role
@@ -394,7 +417,8 @@
                 {:role "assistant"
                  :content {:type "tool_result"
                            :tool-use-id "call_abc"
-                           :content {:type "text" :text "OK"}}})))
+                           :content {:type "text"
+                                     :text "OK"}}})))
 
       ;; Missing content
       (is (not (schema/valid-tool-result-message?
