@@ -10,15 +10,13 @@
 
 ---
 
-## Phase 0: Key Transformation (Est: 3 hours)
-- ⬜ Create `mcp-toolkit.impl.keys` namespace
-- ⬜ Implement `wire->clj` function (camelCase → kebab-case)
-- ⬜ Implement `clj->wire` function (kebab-case → camelCase)
-- ⬜ Handle special keys (`:properties`, `:arguments`, etc.)
-- ⬜ Update `json-rpc/handle-message` with transformation
-- ⬜ Update `json-rpc/call-remote-method` with transformation
-- ⬜ Add unit tests for key transformation
-- ⬜ Update all handlers to use kebab-case keys
+## Phase 0: Key Transformation (Est: 3 hours) ✅
+- ✅ Use `csk/->kebab-case-keyword` at transport decode (camelCase → kebab-case)
+- ✅ Use `csk/->camelCaseString` at transport encode (kebab-case → camelCase)
+- ✅ Updated example transports: stdio (CLJ/CLJS), SSE
+- ✅ Updated all handlers to use kebab-case keys
+- ✅ Updated client.cljc, server.cljc, impl/server/handler.cljc
+- ⏭️ No separate keys namespace needed - using csk directly at boundary
 
 ## Phase 1: Protocol Version (Est: 1 hour)
 - ⬜ Add `"2025-11-25"` to `supported-protocol-versions` in `server.cljc`
@@ -146,21 +144,19 @@
 ### New Files
 | File | Phase | Description |
 |------|-------|-------------|
-| `src/mcp_toolkit/impl/keys.cljc` | 0 | Key transformation |
 | `src/mcp_toolkit/impl/tasks.cljc` | 7 | Task management |
 | `src/mcp_toolkit/impl/elicitation.cljc` | 4 | Elicitation schemas |
 | `src/mcp_toolkit/util/icons.cljc` | 3 | Icon utilities (optional) |
-| `test/mcp_toolkit/impl/keys_test.cljc` | 0 | Key transformation tests |
 | `test/mcp_toolkit/protocol_2025_11_25_test.cljc` | All | New protocol tests |
 
-### Files to Modify
-| File | Phases | Changes |
-|------|--------|---------|
-| `src/mcp_toolkit/json_rpc.cljc` | 0 | Add key transformation |
-| `src/mcp_toolkit/server.cljc` | 1,2,5,6,7 | Version, description, sampling, elicitation, tasks |
-| `src/mcp_toolkit/client.cljc` | 1,5,6 | Version, sampling, elicitation |
-| `src/mcp_toolkit/impl/server/handler.cljc` | 3,7,9 | Icons, tasks, validation |
-| `src/mcp_toolkit/impl/client/handler.cljc` | 5,6 | Sampling, elicitation |
+### Files Modified (Phase 0) ✅
+| File | Changes |
+|------|---------|
+| `src/mcp_toolkit/client.cljc` | kebab-case keys |
+| `src/mcp_toolkit/server.cljc` | kebab-case keys |
+| `src/mcp_toolkit/impl/server/handler.cljc` | kebab-case keys |
+| `example/*/transport` | csk key transformation |
+| `example/common-mcp-content` | kebab-case keys |
 
 ---
 
