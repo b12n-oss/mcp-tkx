@@ -1,25 +1,28 @@
 # MCP Toolkit Migration Plan: 2025-06-18 → 2025-11-25
 
-**Document Version:** 1.0  
+**Document Version:** 2.0  
 **Created:** 2025-01-11  
+**Updated:** 2025-01-11  
 **Target Spec:** [MCP 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
-2. [Changelog Overview](#changelog-overview)
-3. [Implementation Phases](#implementation-phases)
-4. [Phase 1: Protocol Version Negotiation](#phase-1-protocol-version-negotiation)
-5. [Phase 2: Implementation Description Field](#phase-2-implementation-description-field)
-6. [Phase 3: Icons Support](#phase-3-icons-support)
-7. [Phase 4: EnumSchema Updates](#phase-4-enumschema-updates)
-8. [Phase 5: Sampling with Tools](#phase-5-sampling-with-tools)
-9. [Phase 6: URL Mode Elicitation](#phase-6-url-mode-elicitation)
-10. [Phase 7: Tasks Support (Experimental)](#phase-7-tasks-support-experimental)
-11. [Phase 8: OAuth Enhancements](#phase-8-oauth-enhancements)
-12. [Phase 9: Minor Clarifications](#phase-9-minor-clarifications)
-13. [Testing Strategy](#testing-strategy)
-14. [Migration Checklist](#migration-checklist)
+2. [Key Design Decision: Idiomatic Clojure Keys](#key-design-decision-idiomatic-clojure-keys)
+3. [Changelog Overview](#changelog-overview)
+4. [Implementation Phases](#implementation-phases)
+5. [Phase 0: Key Transformation Layer](#phase-0-key-transformation-layer)
+6. [Phase 1: Protocol Version Negotiation](#phase-1-protocol-version-negotiation)
+7. [Phase 2: Implementation Description Field](#phase-2-implementation-description-field)
+8. [Phase 3: Icons Support](#phase-3-icons-support)
+9. [Phase 4: EnumSchema Updates](#phase-4-enumschema-updates)
+10. [Phase 5: Sampling with Tools](#phase-5-sampling-with-tools)
+11. [Phase 6: URL Mode Elicitation](#phase-6-url-mode-elicitation)
+12. [Phase 7: Tasks Support (Experimental)](#phase-7-tasks-support-experimental)
+13. [Phase 8: OAuth Enhancements](#phase-8-oauth-enhancements)
+14. [Phase 9: Minor Clarifications](#phase-9-minor-clarifications)
+15. [Testing Strategy](#testing-strategy)
+16. [Migration Checklist](#migration-checklist)
 
 ---
 
@@ -35,7 +38,58 @@ The MCP 2025-11-25 specification introduces several significant enhancements ove
 
 This migration maintains full backward compatibility with existing protocol versions while adding support for all new 2025-11-25 features.
 
-**Estimated Effort:** 3-5 days for core implementation, 2-3 days for testing
+**Key Design Decision:** All internal Clojure code will use **kebab-case** keys (`:max-tokens`, `:input-schema`) with automatic conversion to/from **camelCase** at the JSON-RPC boundary using `camel-snake-kebab`.
+
+**Estimated Effort:** 4-6 days for core implementation, 2-3 days for testing
+
+---
+
+## Key Design Decision: Idiomatic Clojure Keys
+
+### Problem
+
+The MCP protocol uses camelCase for JSON keys (e.g., `maxTokens`, `inputSchema`), but idiomatic Clojure uses kebab-case (e.g., `:max-tokens`, `:input-schema`).
+
+### Solution
+
+Use `camel-snake-kebab` (already a dependency) to transform keys at the JSON-RPC boundary:
+
+```clojure
+;; Incoming JSON (camelCase) → Internal Clojure (kebab-case)
+{"maxTokens" 1000, "inputSchema" {...}}
+→ {:max-tokens 1000, :input-schema {...}}
+
+;; Outgoing Clojure (kebab-case) → JSON (camelCase)  
+{:max-tokens 1000, :input-schema {...}}
+→ {"maxTokens": 1000, "inputSchema": {...}}
+```
+
+### Benefits
+
+1. **Idiomatic Clojure** - Code reads naturally
+2. **Consistent API** - Users always work with kebab-case
+3. **Less cognitive load** - No mixing of conventions
+4. **Editor support** - Better autocomplete for kebab-case keywords
+
+### Key Mapping Reference
+
+| Wire Format (camelCase) | Internal (kebab-case) |
+|-------------------------|----------------------|
+| `maxTokens` | `:max-tokens` |
+| `inputSchema` | `:input-schema` |
+| `outputSchema` | `:output-schema` |
+| `toolChoice` | `:tool-choice` |
+| `hasMore` | `:has-more` |
+| `isError` | `:is-error` |
+| `mimeType` | `:mime-type` |
+| `listChanged` | `:list-changed` |
+| `protocolVersion` | `:protocol-version` |
+| `serverInfo` | `:server-info` |
+| `clientInfo` | `:client-info` |
+| `resourceTemplates` | `:resource-templates` |
+| `taskId` | `:task-id` |
+| `enumTitles` | `:enum-titles` |
+| `multiSelect` | `:multi-select` |
 
 ---
 
@@ -67,17 +121,176 @@ This migration maintains full backward compatibility with existing protocol vers
 ## Implementation Phases
 
 ```
-Phase 1 ─► Phase 2 ─► Phase 3 ─► Phase 4
-   │          │          │          │
-   ▼          ▼          ▼          ▼
-Protocol   Description  Icons    EnumSchema
-Version    Field
+Phase 0 ─► Phase 1 ─► Phase 2 ─► Phase 3 ─► Phase 4
+   │          │          │          │          │
+   ▼          ▼          ▼          ▼          ▼
+  Key      Protocol   Description  Icons    EnumSchema
+Transform  Version    Field
 
 Phase 5 ─► Phase 6 ─► Phase 7 ─► Phase 8 ─► Phase 9
    │          │          │          │          │
    ▼          ▼          ▼          ▼          ▼
 Sampling   URL Mode    Tasks     OAuth     Minor
 + Tools    Elicit    (Exp.)    Enhance   Clarify
+```
+
+---
+
+## Phase 0: Key Transformation Layer
+
+**Priority:** Critical (Foundation for all other phases)  
+**Complexity:** Moderate  
+**Estimated Time:** 3 hours
+
+### New File: `src/mcp_toolkit/impl/keys.cljc`
+
+```clojure
+(ns ^:no-doc mcp-toolkit.impl.keys
+  "Key transformation utilities for converting between MCP wire format (camelCase)
+   and idiomatic Clojure (kebab-case).
+   
+   Uses camel-snake-kebab for transformations."
+  (:require [camel-snake-kebab.core :as csk]
+            [camel-snake-kebab.extras :as csk-extras]))
+
+(defn wire->clj
+  "Transforms all keys in a data structure from camelCase to kebab-case.
+   Used when receiving JSON-RPC messages.
+   
+   Example:
+     (wire->clj {:maxTokens 1000 :inputSchema {:type \"object\"}})
+     => {:max-tokens 1000 :input-schema {:type \"object\"}}"
+  [data]
+  (csk-extras/transform-keys csk/->kebab-case-keyword data))
+
+(defn clj->wire
+  "Transforms all keys in a data structure from kebab-case to camelCase.
+   Used when sending JSON-RPC messages.
+   
+   Example:
+     (clj->wire {:max-tokens 1000 :input-schema {:type \"object\"}})
+     => {:maxTokens 1000 :inputSchema {:type \"object\"}}"
+  [data]
+  (csk-extras/transform-keys csk/->camelCaseKeyword data))
+
+;; Special handling for keys that should NOT be transformed
+;; (e.g., user-defined keys in tool arguments, JSON Schema properties)
+
+(def ^:private preserve-keys
+  "Keys whose nested content should not be transformed.
+   These typically contain user-defined schemas or data."
+  #{:properties :arguments :data :result :content :_meta})
+
+(defn wire->clj-shallow
+  "Transforms top-level keys only, preserving nested structures.
+   Useful when nested data contains user-defined keys."
+  [data]
+  (if (map? data)
+    (into {}
+          (map (fn [[k v]]
+                 [(csk/->kebab-case-keyword k)
+                  (if (contains? preserve-keys (csk/->kebab-case-keyword k))
+                    v  ; Don't transform nested user data
+                    (wire->clj-shallow v))]))
+          data)
+    data))
+
+(defn clj->wire-shallow
+  "Transforms top-level keys only for outgoing messages."
+  [data]
+  (if (map? data)
+    (into {}
+          (map (fn [[k v]]
+                 [(csk/->camelCaseKeyword k)
+                  (if (contains? preserve-keys k)
+                    v  ; Don't transform nested user data
+                    (clj->wire-shallow v))]))
+          data)
+    data))
+```
+
+### Update: `src/mcp_toolkit/json_rpc.cljc`
+
+Add key transformation at the boundary:
+
+```clojure
+(ns mcp-toolkit.json-rpc
+  (:require [mcp-toolkit.impl.keys :as keys]
+            [promesa.core :as p]))
+
+;; Update handle-message to transform incoming keys
+(defn handle-message
+  "Handles incoming JSON-RPC messages with automatic key transformation.
+   
+   - Incoming camelCase keys are converted to kebab-case
+   - Outgoing kebab-case keys are converted to camelCase"
+  [context message]
+  (let [{:keys [send-message]} context
+        ;; Transform incoming message keys to kebab-case
+        message (keys/wire->clj message)
+        ;; Wrap send-message to transform outgoing keys
+        send-message* (fn [response]
+                        (send-message (keys/clj->wire response)))]
+    (if (vector? message)
+      (send-message* invalid-request-response)
+      (-> (route-message (assoc context 
+                                :message message
+                                :send-message send-message*))
+          (p/then (fn [response]
+                    (when (some? response)
+                      (send-message* response))))))))
+
+;; Update call-remote-method to transform keys
+(defn call-remote-method
+  "Calls a remote method via JSON-RPC with automatic key transformation."
+  [context {:keys [method params] :as message}]
+  (let [{:keys [session send-message]} context
+        called-method-id (-> (swap! session update :last-called-method-id inc)
+                             :last-called-method-id)]
+    (p/create
+     (fn [resolve reject]
+       (let [response-handler (fn [{:keys [session message]}]
+                                (swap! session update :handler-by-called-method-id dissoc called-method-id)
+                                (if (contains? message :error)
+                                  (reject (ex-info "error" (:error message)))
+                                  ;; Result is already transformed by handle-message
+                                  (resolve (:result message))))]
+         (swap! session update :handler-by-called-method-id assoc called-method-id response-handler)
+         ;; Transform outgoing message keys to camelCase
+         (send-message (keys/clj->wire
+                        (-> message
+                            (assoc :jsonrpc "2.0"
+                                   :id called-method-id)))))))))
+```
+
+### Testing the Key Transformation
+
+```clojure
+(ns mcp-toolkit.impl.keys-test
+  (:require [clojure.test :refer [deftest testing is]]
+            [mcp-toolkit.impl.keys :as keys]))
+
+(deftest wire->clj-test
+  (testing "transforms camelCase to kebab-case"
+    (is (= {:max-tokens 1000
+            :input-schema {:type "object"
+                           :properties {:file-path {:type "string"}}}}
+           (keys/wire->clj {:maxTokens 1000
+                            :inputSchema {:type "object"
+                                          :properties {:filePath {:type "string"}}}})))))
+
+(deftest clj->wire-test
+  (testing "transforms kebab-case to camelCase"
+    (is (= {:maxTokens 1000
+            :inputSchema {:type "object"}}
+           (keys/clj->wire {:max-tokens 1000
+                            :input-schema {:type "object"}})))))
+
+(deftest round-trip-test
+  (testing "round-trip transformation preserves data"
+    (let [original {:max-tokens 1000 :tool-choice {:type "auto"}}]
+      (is (= original
+             (keys/wire->clj (keys/clj->wire original)))))))
 ```
 
 ---
@@ -123,12 +336,12 @@ Update default protocol version:
   (testing "Server negotiates 2025-11-25 with compatible client"
     (let [session (server/create-session {})
           result (handle-initialize session "2025-11-25")]
-      (is (= "2025-11-25" (:protocolVersion result)))))
+      (is (= "2025-11-25" (:protocol-version result)))))
   
   (testing "Server falls back for older clients"
     (let [session (server/create-session {})
           result (handle-initialize session "2025-06-18")]
-      (is (= "2025-06-18" (:protocolVersion result))))))
+      (is (= "2025-06-18" (:protocol-version result))))))
 ```
 
 ---
@@ -164,29 +377,14 @@ Update `create-session` to accept description:
            ;; ... existing keys ...
            ]
     :or {server-info {:name "mcp-toolkit"
-                      :version "0.1.1-alpha"
-                      ;; description is optional, not included by default
+                      :version "0.2.0"
+                      ;; description is optional
                       }}}]
   ;; ... rest of implementation
   )
 ```
 
-#### File: `src/mcp_toolkit/impl/server/handler.cljc`
-
-Update `initialize-handler` to include description if present:
-
-```clojure
-(defn initialize-handler
-  [{:keys [session message]}]
-  (let [{:keys [server-info ...]} @session]
-    ;; server-info now may contain :description
-    (-> {:protocolVersion protocol-version
-         :capabilities {...}
-         :serverInfo server-info}  ;; description passes through naturally
-        (cond-> ...))))
-```
-
-### Example Usage
+### Example Usage (Kebab-case)
 
 ```clojure
 (server/create-session
@@ -207,17 +405,15 @@ Update `initialize-handler` to include description if present:
 
 Tools, resources, resource templates, and prompts can now include an `icon` field:
 
-```typescript
-interface Tool {
-  name: string;
-  title?: string;
-  description?: string;
-  icon?: string;  // NEW: data URI or HTTPS URL
-  inputSchema: object;
-  outputSchema?: object;
-}
-
-// Same pattern for Resource, ResourceTemplate, Prompt
+```clojure
+;; Internal Clojure representation (kebab-case)
+{:name "read_file"
+ :title "File Reader"
+ :icon "data:image/svg+xml;base64,..."
+ :description "Reads a file from disk"
+ :input-schema {:type "object"
+                :properties {:path {:type "string"}}
+                :required [:path]}}
 ```
 
 **Icon Format:**
@@ -235,9 +431,9 @@ Update list handlers to include icon:
   [{:keys [session]}]
   {:tools (-> @session :tool-by-name vals
               (->> (mapv (fn [tool]
-                           (cond-> (select-keys tool [:name :title :description :inputSchema])
-                             ;; Add outputSchema if present (2025-06-18)
-                             (:outputSchema tool) (assoc :outputSchema (:outputSchema tool))
+                           (cond-> (select-keys tool [:name :title :description :input-schema])
+                             ;; Add output-schema if present (2025-06-18)
+                             (:output-schema tool) (assoc :output-schema (:output-schema tool))
                              ;; NEW: Add icon if present (2025-11-25)
                              (:icon tool) (assoc :icon (:icon tool)))))))})
 
@@ -253,18 +449,9 @@ Update list handlers to include icon:
   [{:keys [session]}]
   {:resources (-> @session :resource-by-uri vals
                   (->> (mapv (fn [resource]
-                               (cond-> (select-keys resource [:uri :name :title :description :mimeType])
+                               (cond-> (select-keys resource [:uri :name :title :description :mime-type])
                                  ;; NEW: Add icon if present (2025-11-25)
                                  (:icon resource) (assoc :icon (:icon resource)))))))})
-
-(defn resource-templates-list-handler
-  [{:keys [session]}]
-  {:resourceTemplates (-> @session :resource-templates
-                          (or [])
-                          (->> (mapv (fn [template]
-                                       (cond-> template
-                                         ;; NEW: Icon passes through if present
-                                         true identity)))))})
 ```
 
 ### Example Usage
@@ -273,15 +460,15 @@ Update list handlers to include icon:
 (def file-reader-tool
   {:name "read_file"
    :title "File Reader"
-   :icon "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PHBhdGggZD0iTTYgMmg5bDUgNXYxNUg2eiIvPjwvc3ZnPg=="
+   :icon "data:image/svg+xml;base64,PHN2ZyB4bWxucz0i..."
    :description "Reads a file from disk"
-   :inputSchema {:type "object"
-                 :properties {:path {:type "string"}}
-                 :required [:path]}
+   :input-schema {:type "object"
+                  :properties {:path {:type "string"}}
+                  :required [:path]}
    :tool-fn (fn [ctx args] (slurp (:path args)))})
 ```
 
-### Icon Utility Namespace (Optional)
+### Icon Utility Namespace
 
 Create `src/mcp_toolkit/util/icons.cljc`:
 
@@ -322,19 +509,17 @@ EnumSchema now supports:
 - Single-select (default)
 - Multi-select
 
-```typescript
-interface EnumSchema {
-  type: "string";
-  enum: string[];
-  enumTitles?: string[];   // NEW: Display names
-  multiSelect?: boolean;   // NEW: Allow multiple selections
-  default?: string | string[];  // NEW: Default value(s)
-}
+### Internal Representation (Kebab-case)
+
+```clojure
+{:type "string"
+ :enum ["low" "medium" "high"]
+ :enum-titles ["Low Priority" "Medium Priority" "High Priority"]  ;; kebab-case
+ :multi-select true                                               ;; kebab-case
+ :default ["medium"]}
 ```
 
-### Changes Required
-
-#### File: `src/mcp_toolkit/impl/elicitation.cljc` (NEW FILE)
+### New File: `src/mcp_toolkit/impl/elicitation.cljc`
 
 ```clojure
 (ns mcp-toolkit.impl.elicitation
@@ -344,29 +529,29 @@ interface EnumSchema {
   "Creates a validated enum schema.
    
    Options:
-   - :values - Vector of string values (required)
-   - :titles - Vector of display titles (optional, must match values length)
-   - :multi-select? - Allow multiple selections (default: false)
-   - :default - Default value(s)"
-  [{:keys [values titles multi-select? default]}]
+   - :values       - Vector of string values (required)
+   - :titles       - Vector of display titles (optional, must match values length)
+   - :multi-select - Allow multiple selections (default: false)
+   - :default      - Default value(s)"
+  [{:keys [values titles multi-select default]}]
   (cond-> {:type "string"
            :enum values}
-    titles (assoc :enumTitles titles)
-    multi-select? (assoc :multiSelect true)
+    titles (assoc :enum-titles titles)
+    multi-select (assoc :multi-select true)
     default (assoc :default default)))
 
 (defn validate-enum-schema
   "Validates an enum schema structure."
-  [{:keys [enum enumTitles multiSelect default] :as schema}]
+  [{:keys [enum enum-titles multi-select default] :as schema}]
   (cond
     (not (sequential? enum))
     {:valid? false :error "enum must be an array"}
     
-    (and enumTitles (not= (count enum) (count enumTitles)))
-    {:valid? false :error "enumTitles must match enum length"}
+    (and enum-titles (not= (count enum) (count enum-titles)))
+    {:valid? false :error "enum-titles must match enum length"}
     
-    (and multiSelect default (not (sequential? default)))
-    {:valid? false :error "default must be array when multiSelect is true"}
+    (and multi-select default (not (sequential? default)))
+    {:valid? false :error "default must be array when multi-select is true"}
     
     :else
     {:valid? true}))
@@ -382,13 +567,13 @@ interface EnumSchema {
 ;; Titled enum
 {:type "string"
  :enum ["low" "medium" "high"]
- :enumTitles ["Low Priority" "Medium Priority" "High Priority"]}
+ :enum-titles ["Low Priority" "Medium Priority" "High Priority"]}
 
 ;; Multi-select enum
 {:type "string"
  :enum ["email" "sms" "push"]
- :enumTitles ["Email" "SMS" "Push Notification"]
- :multiSelect true
+ :enum-titles ["Email" "SMS" "Push Notification"]
+ :multi-select true
  :default ["email"]}
 ```
 
@@ -402,22 +587,23 @@ interface EnumSchema {
 
 ### Specification (SEP-1577)
 
-Sampling requests can now include tool definitions, enabling server-side agent loops:
+Sampling requests can now include tool definitions, enabling server-side agent loops.
 
-```typescript
-interface CreateMessageRequest {
-  messages: SamplingMessage[];
-  maxTokens: number;
-  // NEW in 2025-11-25:
-  tools?: Tool[];
-  toolChoice?: ToolChoice;
-  // ... existing fields
-}
+### Internal API (Kebab-case)
 
-type ToolChoice = 
-  | { type: "auto" }
-  | { type: "none" }
-  | { type: "tool"; name: string };
+```clojure
+;; Server requesting sampling with tools
+(server/request-sampling context
+  {:messages [{:role "user" 
+               :content {:type "text" 
+                         :text "Search for recent news"}}]
+   :max-tokens 1000                                    ;; kebab-case
+   :tools [{:name "web_search"
+            :description "Search the web"
+            :input-schema {:type "object"              ;; kebab-case
+                           :properties {:query {:type "string"}}
+                           :required [:query]}}]
+   :tool-choice {:type "auto"}})                       ;; kebab-case
 ```
 
 ### Changes Required
@@ -433,15 +619,15 @@ Update `request-sampling`:
    Args:
      context - The server session context
      params  - Map containing:
-       :messages   - Vector of message maps with :role and :content
-       :maxTokens  - Maximum tokens to generate (optional)
-       :tools      - Vector of tool definitions (optional, 2025-11-25+)
-       :toolChoice - Tool selection strategy (optional, 2025-11-25+)
-       :systemPrompt - System prompt (optional)
-       :includeContext - Context inclusion mode (optional)
-       :temperature - Sampling temperature (optional)
-       :stopSequences - Stop sequences (optional)
-       :metadata - Request metadata (optional)
+       :messages       - Vector of message maps with :role and :content
+       :max-tokens     - Maximum tokens to generate (optional)
+       :tools          - Vector of tool definitions (optional, 2025-11-25+)
+       :tool-choice    - Tool selection strategy (optional, 2025-11-25+)
+       :system-prompt  - System prompt (optional)
+       :include-context - Context inclusion mode (optional)
+       :temperature    - Sampling temperature (optional)
+       :stop-sequences - Stop sequences (optional)
+       :metadata       - Request metadata (optional)
    
    Returns:
      A promise resolving to the sampling result."
@@ -454,51 +640,33 @@ Update `request-sampling`:
       context 
       {:method "sampling/createMessage"
        :params (cond-> params
-                 ;; Remove tools/toolChoice if client doesn't support
-                 (not supports-tools?) (dissoc :tools :toolChoice))})))
+                 ;; Remove tools/tool-choice if client doesn't support
+                 (not supports-tools?) (dissoc :tools :tool-choice))})))
 ```
 
 #### File: `src/mcp_toolkit/impl/client/handler.cljc`
 
-Update sampling handler to pass tools:
+Update sampling handler:
 
 ```clojure
 (defn sampling-create-message-handler
-  [{:keys [session message]
-    :as context}]
-  (let [{:keys [messages maxTokens tools toolChoice 
-                systemPrompt includeContext temperature 
-                stopSequences metadata]} (:params message)]
+  [{:keys [session message] :as context}]
+  ;; Keys are already kebab-case due to transformation layer
+  (let [{:keys [messages max-tokens tools tool-choice 
+                system-prompt include-context temperature 
+                stop-sequences metadata]} (:params message)]
     (if-some [on-sampling-requested (:on-sampling-requested @session)]
-      ;; Pass all params including new tools/toolChoice
       (on-sampling-requested context 
                              {:messages messages
-                              :max-tokens maxTokens
+                              :max-tokens max-tokens
                               :tools tools           ;; NEW
-                              :tool-choice toolChoice ;; NEW
-                              :system-prompt systemPrompt
-                              :include-context includeContext
+                              :tool-choice tool-choice ;; NEW
+                              :system-prompt system-prompt
+                              :include-context include-context
                               :temperature temperature
-                              :stop-sequences stopSequences
+                              :stop-sequences stop-sequences
                               :metadata metadata})
       (json-rpc/method-not-found-response (:id message)))))
-```
-
-### Example Usage
-
-```clojure
-;; Server requesting sampling with tools
-(server/request-sampling context
-  {:messages [{:role "user" 
-               :content {:type "text" 
-                         :text "Search for recent news about AI"}}]
-   :maxTokens 1000
-   :tools [{:name "web_search"
-            :description "Search the web"
-            :inputSchema {:type "object"
-                          :properties {:query {:type "string"}}
-                          :required [:query]}}]
-   :toolChoice {:type "auto"}})
 ```
 
 ---
@@ -511,29 +679,22 @@ Update sampling handler to pass tools:
 
 ### Specification (SEP-1036)
 
-Servers can now request URL-based user interactions:
+Servers can now request URL-based user interactions.
 
-```typescript
-interface ElicitRequest {
-  message: string;
-  requestedSchema?: ObjectSchema;  // Form-based
-  // OR
-  url?: string;                     // NEW: URL-based
-  urlMessage?: string;              // NEW: Message for URL mode
-}
+### Internal API (Kebab-case)
 
-interface ElicitResult {
-  action: "accept" | "decline" | "url_completed";  // url_completed is NEW
-  content?: object;  // For form-based
-  // URL mode has no content - completion is signaled by action
-}
+```clojure
+;; URL elicitation request
+{:url "https://auth.example.com/oauth/authorize?..."
+ :url-message "Complete authentication in your browser"}  ;; kebab-case
+
+;; Result
+{:action "url-completed"}  ;; or "accept" / "decline"
 ```
 
 ### Changes Required
 
 #### File: `src/mcp_toolkit/server.cljc`
-
-Add URL elicitation support:
 
 ```clojure
 (defn request-elicitation
@@ -541,11 +702,11 @@ Add URL elicitation support:
    
    For form-based elicitation:
      {:message \"Please provide details\"
-      :requestedSchema {:type \"object\" :properties {...}}}
+      :requested-schema {:type \"object\" :properties {...}}}
    
    For URL-based elicitation (2025-11-25+):
      {:url \"https://auth.example.com/oauth/authorize?...\"
-      :urlMessage \"Complete authentication in your browser\"}
+      :url-message \"Complete authentication in your browser\"}
    
    Returns a promise resolving to ElicitResult."
   [context params]
@@ -566,31 +727,7 @@ Add URL elicitation support:
   [context url & {:keys [message]}]
   (request-elicitation context
     {:url url
-     :urlMessage (or message "Please complete the action in your browser")}))
-```
-
-#### File: `src/mcp_toolkit/impl/client/handler.cljc`
-
-Handle URL elicitation:
-
-```clojure
-(defn elicitation-create-handler
-  [{:keys [session message]
-    :as context}]
-  (let [{:keys [message requestedSchema url urlMessage]} (:params message)]
-    (if-some [on-elicitation-requested (:on-elicitation-requested @session)]
-      (if url
-        ;; URL mode elicitation (2025-11-25)
-        (on-elicitation-requested context
-          {:type :url
-           :url url
-           :message urlMessage})
-        ;; Form mode elicitation
-        (on-elicitation-requested context
-          {:type :form
-           :message message
-           :schema requestedSchema}))
-      (json-rpc/method-not-found-response (:id message)))))
+     :url-message (or message "Please complete the action in your browser")}))
 ```
 
 ### Example Usage
@@ -603,11 +740,11 @@ Handle URL elicitation:
           :message "Please sign in with your Google account")
         (p/then (fn [result]
                   (case (:action result)
-                    "url_completed" {:content [{:type "text" 
+                    "url-completed" {:content [{:type "text" 
                                                 :text "Authentication successful!"}]}
                     "decline" {:content [{:type "text" 
                                           :text "Authentication cancelled"}]
-                               :isError true}))))))
+                               :is-error true}))))))
 ```
 
 ---
@@ -620,47 +757,24 @@ Handle URL elicitation:
 
 ### Specification (SEP-1686)
 
-Tasks provide tracking for long-running operations:
+Tasks provide tracking for long-running operations.
 
-```typescript
-// Task states
-type TaskState = "working" | "input_required" | "completed" | "failed" | "cancelled";
+### Task States
 
-interface Task {
-  id: string;
-  state: TaskState;
-  message?: string;
-  progress?: {
-    current: number;
-    total?: number;
-  };
-}
-
-// New methods
-"tasks/status"  - Get task status
-"tasks/result"  - Get task result (when completed)
-"tasks/cancel"  - Cancel a task
-
-// New notification
-"notifications/tasks/progress" - Task progress updates
+```clojure
+(def task-states #{:working :input-required :completed :failed :cancelled})
 ```
 
 ### New File: `src/mcp_toolkit/impl/tasks.cljc`
 
 ```clojure
 (ns ^:no-doc mcp-toolkit.impl.tasks
-  "Experimental task support for MCP 2025-11-25.
-   
-   Tasks enable tracking of long-running operations with:
-   - Status polling
-   - Progress notifications  
-   - Cancellation
-   - Deferred result retrieval"
+  "Experimental task support for MCP 2025-11-25."
   (:require [promesa.core :as p]))
 
 (def task-states
   "Valid task states."
-  #{:working :input_required :completed :failed :cancelled})
+  #{:working :input-required :completed :failed :cancelled})
 
 (defn create-task
   "Creates a new task entry.
@@ -738,39 +852,7 @@ interface Task {
                               tasks))))))
 ```
 
-### File: `src/mcp_toolkit/impl/server/handler.cljc`
-
-Add task handlers:
-
-```clojure
-;; Add to handler-by-method-post-initialization
-(def task-handlers
-  {"tasks/status" task-status-handler
-   "tasks/result" task-result-handler
-   "tasks/cancel" task-cancel-handler})
-
-(defn task-status-handler
-  [{:keys [session message]}]
-  (let [task-id (-> message :params :taskId)]
-    (if-let [status (tasks/get-task-status session task-id)]
-      status
-      (json-rpc/error-response (:id message) -32002 "Task not found"))))
-
-(defn task-result-handler
-  [{:keys [session message]}]
-  (let [task-id (-> message :params :taskId)]
-    (tasks/get-task-result session task-id)))
-
-(defn task-cancel-handler
-  [{:keys [session message]}]
-  (let [task-id (-> message :params :taskId)]
-    (tasks/cancel-task session task-id)
-    {}))
-```
-
-### File: `src/mcp_toolkit/server.cljc`
-
-Add task utilities:
+### File: `src/mcp_toolkit/server.cljc` - Task Functions
 
 ```clojure
 (defn create-task
@@ -802,7 +884,7 @@ Add task utilities:
   [context task-id current & {:keys [total message]}]
   (json-rpc/send-message context
     (json-rpc/notification "tasks/progress"
-      {:taskId task-id
+      {:task-id task-id
        :progress {:current current
                   :total total}
        :message message})))
@@ -827,9 +909,9 @@ Add task utilities:
   {:name "analyze_large_dataset"
    :title "Large Dataset Analyzer"
    :description "Analyzes large datasets (may take several minutes)"
-   :inputSchema {:type "object"
-                 :properties {:dataset-url {:type "string"}}
-                 :required [:dataset-url]}
+   :input-schema {:type "object"
+                  :properties {:dataset-url {:type "string"}}
+                  :required [:dataset-url]}
    :tool-fn (fn [context args]
               ;; Create task for tracking
               (let [task (server/create-task context
@@ -862,55 +944,17 @@ Add task utilities:
 **Complexity:** Complex  
 **Estimated Time:** 4 hours
 
-### Changes
+### Changes (Using Kebab-case)
 
-1. **OIDC Discovery Support** (SEP-797)
-   - Authorization server discovery via `/.well-known/openid-configuration`
-
-2. **Client ID Metadata Documents** (SEP-991)
-   - New client registration mechanism via CIMD
-
-3. **Incremental Scope Consent** (SEP-835)
-   - Enhanced `WWW-Authenticate` header handling
-
-### Implementation Notes
-
-OAuth changes primarily affect:
-- HTTP transport layer
-- Authorization middleware
-- Client registration flows
-
-These are more relevant for Streamable HTTP transport implementations. For STDIO-based servers, these changes have minimal impact.
-
-### New File: `src/mcp_toolkit/auth/oidc.cljc` (Optional)
+OAuth changes primarily affect HTTP transport. Internal representations use kebab-case:
 
 ```clojure
-(ns mcp-toolkit.auth.oidc
-  "OpenID Connect Discovery support for MCP 2025-11-25."
-  (:require [promesa.core :as p]))
-
-(defn discover-oidc-config
-  "Fetches OIDC configuration from issuer.
-   
-   Args:
-     issuer - The OIDC issuer URL
-   
-   Returns:
-     Promise resolving to OIDC configuration map."
-  [issuer]
-  ;; Implementation depends on HTTP client
-  (p/resolved nil))
-
-(defn discover-authorization-server
-  "Discovers authorization server from protected resource metadata.
-   
-   Checks in order:
-   1. WWW-Authenticate header
-   2. /.well-known/oauth-protected-resource
-   3. /.well-known/openid-configuration"
-  [resource-url & {:keys [www-authenticate]}]
-  ;; Implementation
-  )
+;; Client ID Metadata Document (internal representation)
+{:client-id "my-client"
+ :client-name "My MCP Client"
+ :redirect-uris ["http://localhost:8080/callback"]
+ :grant-types ["authorization_code"]
+ :response-types ["code"]}
 ```
 
 ---
@@ -923,29 +967,16 @@ These are more relevant for Streamable HTTP transport implementations. For STDIO
 
 ### Tool Input Validation Errors
 
-Return validation errors as tool execution errors, not protocol errors:
+Return validation errors as tool execution errors using kebab-case:
 
 ```clojure
-;; In tool-call-handler
-(defn tool-call-handler
-  [{:keys [session message] :as context}]
-  (let [{:keys [name arguments]} (:params message)]
-    (if-some [tool (-> @session :tool-by-name (get name))]
-      (let [;; Validate input against schema
-            validation-error (validate-input arguments (:inputSchema tool))]
-        (if validation-error
-          ;; Return as tool execution error, NOT protocol error
-          {:content [{:type "text"
-                      :text (str "Validation error: " validation-error)}]
-           :isError true}
-          ;; Proceed with tool execution
-          ((:tool-fn tool) context arguments)))
-      (json-rpc/invalid-tool-name (:id message) name))))
+;; Error response with kebab-case internally
+{:content [{:type "text"
+            :text "Validation error: path is required"}]
+ :is-error true}  ;; kebab-case
 ```
 
 ### JSON Schema 2020-12
-
-Add dialect declaration to schemas:
 
 ```clojure
 (def default-schema-dialect 
@@ -969,20 +1000,30 @@ Create `test/mcp_toolkit/protocol_2025_11_25_test.cljc`:
 (ns mcp-toolkit.protocol-2025-11-25-test
   (:require [clojure.test :refer [deftest testing is]]
             [mcp-toolkit.server :as server]
+            [mcp-toolkit.impl.keys :as keys]
             [mcp-toolkit.impl.tasks :as tasks]))
+
+(deftest key-transformation-test
+  (testing "wire->clj transforms camelCase to kebab-case"
+    (is (= {:max-tokens 1000}
+           (keys/wire->clj {:maxTokens 1000}))))
+  
+  (testing "clj->wire transforms kebab-case to camelCase"
+    (is (= {:maxTokens 1000}
+           (keys/clj->wire {:max-tokens 1000})))))
 
 (deftest icons-test
   (testing "Tools include icon in list response"
     (let [session (atom (server/create-session
                           {:tools [{:name "test"
                                     :icon "data:image/svg+xml;base64,..."
-                                    :inputSchema {}
+                                    :input-schema {}
                                     :tool-fn identity}]}))]
-      ;; Test icon is preserved in listing
+      ;; Test icon is preserved
       )))
 
 (deftest tasks-test
-  (testing "Task lifecycle"
+  (testing "Task lifecycle uses kebab-case"
     (let [session (atom {})]
       (let [task (tasks/create-task "task-1" :message "Starting")]
         (is (= :working (:state task)))
@@ -991,115 +1032,39 @@ Create `test/mcp_toolkit/protocol_2025_11_25_test.cljc`:
           :result {:data "done"})
         (is (= :completed (:state (tasks/get-task-status session "task-1"))))))))
 
-(deftest url-elicitation-test
-  (testing "URL elicitation request format"
-    ;; Test URL elicitation params
-    ))
-
 (deftest sampling-with-tools-test
-  (testing "Sampling request includes tools"
-    ;; Test tools in sampling request
+  (testing "Sampling uses kebab-case keys internally"
+    ;; Verify :max-tokens, :tool-choice work
     ))
-
-(deftest enum-schema-test
-  (testing "Titled enum schema"
-    ;; Test enum with titles
-    )
-  (testing "Multi-select enum"
-    ;; Test multi-select enum
-    ))
-```
-
-### Integration Tests
-
-Test against MCP Inspector:
-
-```bash
-# Start server with 2025-11-25 support
-clojure -X:mcp-server
-
-# Test with MCP Inspector
-npx @modelcontextprotocol/inspector clojure -X:mcp-server
 ```
 
 ---
 
 ## Migration Checklist
 
+### Phase 0: Key Transformation
+- [ ] Create `mcp-toolkit.impl.keys` namespace
+- [ ] Implement `wire->clj` function
+- [ ] Implement `clj->wire` function
+- [ ] Handle special keys (properties, arguments, etc.)
+- [ ] Update `json-rpc/handle-message` with transformation
+- [ ] Update `json-rpc/call-remote-method` with transformation
+- [ ] Add comprehensive tests
+- [ ] Update all handlers to use kebab-case keys
+
 ### Phase 1: Protocol Version
-- [ ] Add "2025-11-25" to supported versions
-- [ ] Update default client protocol version
+- [ ] Add `"2025-11-25"` to `supported-protocol-versions`
+- [ ] Update default `protocol-version` to `"2025-11-25"`
 - [ ] Test version negotiation
 
-### Phase 2: Description Field
-- [ ] Update `create-session` to accept description
-- [ ] Verify description in initialize response
-- [ ] Add documentation
-
-### Phase 3: Icons
-- [ ] Add icon to tool-list-handler
-- [ ] Add icon to prompt-list-handler
-- [ ] Add icon to resource-list-handler
-- [ ] Add icon to resource-templates-list-handler
-- [ ] Create icon utility functions (optional)
-- [ ] Add tests
-- [ ] Add documentation
-
-### Phase 4: EnumSchema
-- [ ] Create elicitation schema helpers
-- [ ] Add enumTitles support
-- [ ] Add multiSelect support
-- [ ] Add default value support
-- [ ] Add validation
-- [ ] Add tests
-
-### Phase 5: Sampling with Tools
-- [ ] Update request-sampling to accept tools
-- [ ] Update request-sampling to accept toolChoice
-- [ ] Feature-detect client support
-- [ ] Update client sampling handler
-- [ ] Add tests
-- [ ] Add documentation
-
-### Phase 6: URL Elicitation
-- [ ] Add request-url-elicitation function
-- [ ] Update elicitation handler for URL mode
-- [ ] Handle "url_completed" action
-- [ ] Add tests
-- [ ] Add documentation
-
-### Phase 7: Tasks (Experimental)
-- [ ] Create tasks.cljc namespace
-- [ ] Implement task lifecycle (create, update, complete, fail, cancel)
-- [ ] Add tasks/status handler
-- [ ] Add tasks/result handler
-- [ ] Add tasks/cancel handler
-- [ ] Add notifications/tasks/progress
-- [ ] Integrate with tool responses
-- [ ] Add cleanup mechanism
-- [ ] Add comprehensive tests
-- [ ] Add documentation
-- [ ] Mark as experimental in docs
-
-### Phase 8: OAuth Enhancements
-- [ ] Review OIDC discovery requirements
-- [ ] Review CIMD requirements
-- [ ] Document OAuth changes
-- [ ] (Implementation as needed for HTTP transport)
-
-### Phase 9: Minor Clarifications
-- [ ] Update tool validation error handling
-- [ ] Add JSON Schema 2020-12 dialect support
-- [ ] Review and update documentation
+### Phase 2-9: See individual phase sections
 
 ### Final Steps
-- [ ] Update README.md with 2025-11-25 support
-- [ ] Update CHANGELOG.md
-- [ ] Update version in deps.edn
+- [ ] Update `README.md` with kebab-case examples
+- [ ] Update `CHANGELOG.md`
 - [ ] Run full test suite
 - [ ] Test with Claude Desktop
 - [ ] Test with Claude Code
-- [ ] Create release
 
 ---
 
@@ -1107,5 +1072,4 @@ npx @modelcontextprotocol/inspector clojure -X:mcp-server
 
 - [MCP Specification 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 - [Key Changes](https://modelcontextprotocol.io/specification/2025-11-25/changelog)
-- [TypeScript Schema](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-11-25/schema.ts)
-- [MCP Blog: First Anniversary Release](https://blog.modelcontextprotocol.io/posts/2025-11-25-first-mcp-anniversary/)
+- [camel-snake-kebab](https://github.com/clj-commons/camel-snake-kebab)

@@ -10,6 +10,16 @@
 
 ---
 
+## Phase 0: Key Transformation (Est: 3 hours)
+- ⬜ Create `mcp-toolkit.impl.keys` namespace
+- ⬜ Implement `wire->clj` function (camelCase → kebab-case)
+- ⬜ Implement `clj->wire` function (kebab-case → camelCase)
+- ⬜ Handle special keys (`:properties`, `:arguments`, etc.)
+- ⬜ Update `json-rpc/handle-message` with transformation
+- ⬜ Update `json-rpc/call-remote-method` with transformation
+- ⬜ Add unit tests for key transformation
+- ⬜ Update all handlers to use kebab-case keys
+
 ## Phase 1: Protocol Version (Est: 1 hour)
 - ⬜ Add `"2025-11-25"` to `supported-protocol-versions` in `server.cljc`
 - ⬜ Update default `protocol-version` to `"2025-11-25"` in `client.cljc`
@@ -33,8 +43,8 @@
 ## Phase 4: EnumSchema Updates (Est: 2 hours)
 - ⬜ Create `mcp-toolkit.impl.elicitation` namespace
 - ⬜ Implement `enum-schema` helper function
-- ⬜ Support `:enumTitles` field
-- ⬜ Support `:multiSelect` field
+- ⬜ Support `:enum-titles` field
+- ⬜ Support `:multi-select` field
 - ⬜ Support `:default` field for enums
 - ⬜ Implement schema validation
 - ⬜ Add unit tests
@@ -42,7 +52,7 @@
 
 ## Phase 5: Sampling with Tools (Est: 3 hours)
 - ⬜ Update `request-sampling` signature to accept `:tools`
-- ⬜ Update `request-sampling` signature to accept `:toolChoice`
+- ⬜ Update `request-sampling` signature to accept `:tool-choice`
 - ⬜ Add protocol version check before sending tools
 - ⬜ Update `sampling-create-message-handler` in client
 - ⬜ Update `on-sampling-requested` callback signature
@@ -53,7 +63,7 @@
 - ⬜ Add `request-url-elicitation` function to `server.cljc`
 - ⬜ Update `request-elicitation` to support URL params
 - ⬜ Update `elicitation-create-handler` for URL mode
-- ⬜ Handle `"url_completed"` action in results
+- ⬜ Handle `"url-completed"` action in results
 - ⬜ Add unit tests
 - ⬜ Document URL elicitation flow
 
@@ -113,25 +123,44 @@
 
 ---
 
+## Key Naming Convention
+
+| Wire Format (camelCase) | Internal (kebab-case) |
+|-------------------------|----------------------|
+| `maxTokens` | `:max-tokens` |
+| `inputSchema` | `:input-schema` |
+| `outputSchema` | `:output-schema` |
+| `toolChoice` | `:tool-choice` |
+| `hasMore` | `:has-more` |
+| `isError` | `:is-error` |
+| `mimeType` | `:mime-type` |
+| `listChanged` | `:list-changed` |
+| `multiSelect` | `:multi-select` |
+| `enumTitles` | `:enum-titles` |
+| `taskId` | `:task-id` |
+
+---
+
 ## Files to Create/Modify
 
 ### New Files
 | File | Phase | Description |
 |------|-------|-------------|
+| `src/mcp_toolkit/impl/keys.cljc` | 0 | Key transformation |
 | `src/mcp_toolkit/impl/tasks.cljc` | 7 | Task management |
 | `src/mcp_toolkit/impl/elicitation.cljc` | 4 | Elicitation schemas |
 | `src/mcp_toolkit/util/icons.cljc` | 3 | Icon utilities (optional) |
-| `src/mcp_toolkit/auth/oidc.cljc` | 8 | OIDC support (optional) |
+| `test/mcp_toolkit/impl/keys_test.cljc` | 0 | Key transformation tests |
 | `test/mcp_toolkit/protocol_2025_11_25_test.cljc` | All | New protocol tests |
 
 ### Files to Modify
 | File | Phases | Changes |
 |------|--------|---------|
+| `src/mcp_toolkit/json_rpc.cljc` | 0 | Add key transformation |
 | `src/mcp_toolkit/server.cljc` | 1,2,5,6,7 | Version, description, sampling, elicitation, tasks |
 | `src/mcp_toolkit/client.cljc` | 1,5,6 | Version, sampling, elicitation |
 | `src/mcp_toolkit/impl/server/handler.cljc` | 3,7,9 | Icons, tasks, validation |
 | `src/mcp_toolkit/impl/client/handler.cljc` | 5,6 | Sampling, elicitation |
-| `src/mcp_toolkit/json_rpc.cljc` | - | No changes expected |
 
 ---
 
@@ -159,3 +188,4 @@ npx @modelcontextprotocol/inspector clojure -X:mcp-server
 - All new features should be **backward compatible**
 - Icon validation: must be `data:image/` or `https://`
 - OAuth changes mainly affect HTTP transport users
+- Use keyword arguments for functions where it improves clarity
