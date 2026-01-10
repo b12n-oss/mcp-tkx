@@ -25,10 +25,11 @@
 - ✅ Test fallback to 2025-03-26 for older clients
 - ✅ Update documentation links to 2025-11-25 spec
 
-## Phase 2: Description Field (Est: 30 min)
-- ⬜ Allow `:description` in `server-info` map
-- ⬜ Verify description passes through in `initialize` response
-- ⬜ Update docstrings
+## Phase 2: Description Field (Est: 30 min) ✅
+- ✅ Allow `:description` in `server-info` map (already worked, just documented)
+- ✅ Verify description passes through in `initialize` response
+- ✅ Update docstrings for `create-session`
+- ✅ Add test for server-info description field
 
 ## Phase 3: Icons Support (Est: 2 hours)
 - ⬜ `tool-list-handler` - include `:icon` if present
