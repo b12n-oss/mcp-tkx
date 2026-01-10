@@ -624,4 +624,187 @@
   (testing "error code constant"
     (is (= -32042 schema/URL_ELICITATION_REQUIRED_ERROR_CODE))))
 
+;; =============================================================================
+;; Tasks Types Tests (2025-11-25 - Experimental)
+;; =============================================================================
+
+(deftest task-status-test
+  (testing "TaskStatus schema validation"
+    (testing "valid statuses"
+      (is (schema/valid? schema/TaskStatus "working"))
+      (is (schema/valid? schema/TaskStatus "input_required"))
+      (is (schema/valid? schema/TaskStatus "completed"))
+      (is (schema/valid? schema/TaskStatus "failed"))
+      (is (schema/valid? schema/TaskStatus "cancelled")))
+
+    (testing "invalid statuses"
+      (is (not (schema/valid? schema/TaskStatus "pending")))
+      (is (not (schema/valid? schema/TaskStatus "running")))
+      (is (not (schema/valid? schema/TaskStatus ""))))))
+
+(deftest task-support-mode-test
+  (testing "TaskSupportMode schema validation"
+    (testing "valid modes"
+      (is (schema/valid? schema/TaskSupportMode "required"))
+      (is (schema/valid? schema/TaskSupportMode "optional"))
+      (is (schema/valid? schema/TaskSupportMode "forbidden")))
+
+    (testing "invalid modes"
+      (is (not (schema/valid? schema/TaskSupportMode "enabled")))
+      (is (not (schema/valid? schema/TaskSupportMode "disabled"))))))
+
+(deftest task-schema-test
+  (testing "Task schema validation"
+    (testing "valid task with all fields"
+      (is (schema/valid? schema/Task
+                         {:task-id "abc-123"
+                          :status "working"
+                          :status-message "Processing data..."
+                          :created-at "2025-11-25T10:30:00Z"
+                          :last-updated-at "2025-11-25T10:35:00Z"
+                          :ttl 60000
+                          :poll-interval 5000})))
+
+    (testing "valid task with minimal fields"
+      (is (schema/valid? schema/Task
+                         {:task-id "abc-123"
+                          :status "completed"
+                          :created-at "2025-11-25T10:30:00Z"
+                          :last-updated-at "2025-11-25T10:35:00Z"
+                          :ttl 60000})))
+
+    (testing "valid task with nil ttl (unlimited)"
+      (is (schema/valid? schema/Task
+                         {:task-id "abc-123"
+                          :status "working"
+                          :created-at "2025-11-25T10:30:00Z"
+                          :last-updated-at "2025-11-25T10:30:00Z"
+                          :ttl nil})))
+
+    (testing "invalid task - missing required fields"
+      (is (not (schema/valid? schema/Task
+                              {:task-id "abc-123"
+                               :status "working"})))
+      (is (not (schema/valid? schema/Task
+                              {:status "working"
+                               :created-at "2025-11-25T10:30:00Z"
+                               :last-updated-at "2025-11-25T10:30:00Z"
+                               :ttl 60000})))))
+
+  (testing "task constructor"
+    (testing "creates task with defaults"
+      (let [t (schema/task {:task-id "abc-123"
+                            :created-at "2025-11-25T10:30:00Z"
+                            :last-updated-at "2025-11-25T10:30:00Z"
+                            :ttl 60000})]
+        (is (= "abc-123" (:task-id t)))
+        (is (= "working" (:status t)))
+        (is (= 60000 (:ttl t)))
+        (is (nil? (:status-message t)))
+        (is (nil? (:poll-interval t)))))
+
+    (testing "creates task with all options"
+      (let [t (schema/task {:task-id "abc-123"
+                            :status "completed"
+                            :status-message "Done!"
+                            :created-at "2025-11-25T10:30:00Z"
+                            :last-updated-at "2025-11-25T10:35:00Z"
+                            :ttl 60000
+                            :poll-interval 5000})]
+        (is (= "completed" (:status t)))
+        (is (= "Done!" (:status-message t)))
+        (is (= 5000 (:poll-interval t)))))))
+
+(deftest task-params-test
+  (testing "TaskParams schema validation"
+    (testing "valid params with ttl"
+      (is (schema/valid? schema/TaskParams {:ttl 60000})))
+
+    (testing "valid params empty (ttl optional)"
+      (is (schema/valid? schema/TaskParams {}))))
+
+  (testing "task-params constructor"
+    (testing "empty params"
+      (is (= {} (schema/task-params))))
+
+    (testing "with ttl"
+      (is (= {:ttl 60000} (schema/task-params {:ttl 60000}))))))
+
+(deftest create-task-result-test
+  (testing "CreateTaskResult schema validation"
+    (let [task {:task-id "abc-123"
+                :status "working"
+                :created-at "2025-11-25T10:30:00Z"
+                :last-updated-at "2025-11-25T10:30:00Z"
+                :ttl 60000}]
+      (is (schema/valid? schema/CreateTaskResult {:task task}))))
+
+  (testing "create-task-result constructor"
+    (let [t (schema/task {:task-id "abc-123"
+                          :created-at "2025-11-25T10:30:00Z"
+                          :last-updated-at "2025-11-25T10:30:00Z"
+                          :ttl 60000})]
+      (is (= {:task t} (schema/create-task-result t))))))
+
+(deftest tasks-list-result-test
+  (testing "TasksListResult schema validation"
+    (testing "valid result with tasks"
+      (let [task {:task-id "abc-123"
+                  :status "working"
+                  :created-at "2025-11-25T10:30:00Z"
+                  :last-updated-at "2025-11-25T10:30:00Z"
+                  :ttl 60000}]
+        (is (schema/valid? schema/TasksListResult {:tasks [task]}))))
+
+    (testing "valid result with cursor"
+      (let [task {:task-id "abc-123"
+                  :status "completed"
+                  :created-at "2025-11-25T10:30:00Z"
+                  :last-updated-at "2025-11-25T10:35:00Z"
+                  :ttl 60000}]
+        (is (schema/valid? schema/TasksListResult
+                           {:tasks [task]
+                            :next-cursor "cursor-xyz"}))))
+
+    (testing "valid result with empty tasks"
+      (is (schema/valid? schema/TasksListResult {:tasks []}))))
+
+  (testing "tasks-list-result constructor"
+    (let [t1 (schema/task {:task-id "abc"
+                           :created-at "2025-11-25T10:30:00Z"
+                           :last-updated-at "2025-11-25T10:30:00Z"
+                           :ttl 60000})
+          t2 (schema/task {:task-id "def"
+                           :status "completed"
+                           :created-at "2025-11-25T10:30:00Z"
+                           :last-updated-at "2025-11-25T10:35:00Z"
+                           :ttl 60000})]
+      (testing "without cursor"
+        (is (= {:tasks [t1 t2]}
+               (schema/tasks-list-result {:tasks [t1 t2]}))))
+
+      (testing "with cursor"
+        (is (= {:tasks [t1] :next-cursor "xyz"}
+               (schema/tasks-list-result {:tasks [t1] :next-cursor "xyz"})))))))
+
+(deftest related-task-meta-test
+  (testing "RelatedTaskMeta schema validation"
+    (is (schema/valid? schema/RelatedTaskMeta {:task-id "abc-123"}))
+    (is (not (schema/valid? schema/RelatedTaskMeta {}))))
+
+  (testing "related-task-meta constructor"
+    (is (= {:task-id "abc-123"}
+           (schema/related-task-meta "abc-123")))))
+
+(deftest terminal-status?-test
+  (testing "terminal-status? predicate"
+    (testing "terminal statuses"
+      (is (true? (schema/terminal-status? "completed")))
+      (is (true? (schema/terminal-status? "failed")))
+      (is (true? (schema/terminal-status? "cancelled"))))
+
+    (testing "non-terminal statuses"
+      (is (false? (schema/terminal-status? "working")))
+      (is (false? (schema/terminal-status? "input_required"))))))
+
 

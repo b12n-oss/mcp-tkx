@@ -5,7 +5,7 @@
    [promesa.core :as p]))
 
 (defn ping-handler
-  [context]
+  [_context]
   {})
 
 (defn set-logging-level-handler
@@ -16,24 +16,24 @@
 
 (defn completion-complete-handler
   [{:keys [session message]
-    :as context}]
-  (let [{:keys [ref argument context]} (:params message)] ;; Added context from params (2025-06-18)
+    :as handler-context}]
+  (let [{:keys [ref argument context]} (:params message)] ;; context from params (2025-06-18)
     (-> (case (:type ref)
           "ref/prompt" (when-some [prompt-param-complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
                          ;; Pass context if provided (2025-06-18 spec)
                          (if context
-                           (prompt-param-complete-fn (assoc context :completion-context context)
+                           (prompt-param-complete-fn (assoc handler-context :completion-context context)
                                                      (:name argument)
                                                      (:value argument))
-                           (prompt-param-complete-fn context (:name argument) (:value argument))))
+                           (prompt-param-complete-fn handler-context (:name argument) (:value argument))))
           "ref/resource" (when-some [resource-uri-complete-fn (:resource-uri-complete-fn @session)]
                            ;; Pass context if provided (2025-06-18 spec)
                            (if context
-                             (resource-uri-complete-fn (assoc context :completion-context context)
+                             (resource-uri-complete-fn (assoc handler-context :completion-context context)
                                                        (:uri ref)
                                                        (:name argument)
                                                        (:value argument))
-                             (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument)))))
+                             (resource-uri-complete-fn handler-context (:uri ref) (:name argument) (:value argument)))))
         (or {:completion {:values []
                           :total 0
                           :has-more false}}))))

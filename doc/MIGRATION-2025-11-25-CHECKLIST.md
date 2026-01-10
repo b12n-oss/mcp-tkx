@@ -58,13 +58,22 @@
 - ✅ Add comprehensive unit tests for all schemas and helpers
 - ✅ Document sampling with tools flow and examples
 
-## Phase 6: URL Mode Elicitation (Est: 3 hours)
-- ⬜ Add `request-url-elicitation` function to `server.cljc`
-- ⬜ Update `request-elicitation` to support URL params
-- ⬜ Update `elicitation-create-handler` for URL mode
-- ⬜ Handle `"url-completed"` action in results
-- ⬜ Add unit tests
-- ⬜ Document URL elicitation flow
+## Phase 6: Elicitation Support with URL Mode (Est: 4 hours) ✅
+- ✅ Add Malli schemas for elicitation types
+  - ✅ ElicitationMode, ElicitationAction enums
+  - ✅ UrlElicitationRequest with https validation
+  - ✅ FormElicitationRequest schema
+  - ✅ ElicitationResponse, ElicitationCompleteNotification
+  - ✅ UrlElicitationRequiredErrorData for error -32042
+- ✅ Add helper constructors (url-elicitation, form-elicitation, etc.)
+- ✅ Add server functions
+  - ✅ client-supports-elicitation?
+  - ✅ client-supports-url-elicitation?
+  - ✅ client-supports-form-elicitation?
+  - ✅ request-elicitation (supports both modes)
+  - ✅ notify-elicitation-complete
+- ✅ Add comprehensive unit tests
+- ✅ Document URL elicitation flow and examples
 
 ## Phase 7: Tasks Support - Experimental (Est: 8 hours)
 - ⬜ Create `mcp-toolkit.impl.tasks` namespace

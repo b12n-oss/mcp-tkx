@@ -3,7 +3,7 @@
    [mcp-toolkit.impl.common :refer [user-callback]]))
 
 (defn ping-handler
-  [context]
+  [_context]
   {})
 
 (defn root-list-handler

@@ -545,4 +545,230 @@
   "JSON-RPC error code for URL elicitation required (-32042)."
   -32042)
 
+;; =============================================================================
+;; Tasks Types (2025-11-25 - Experimental)
+;; =============================================================================
+
+;; -----------------------------------------------------------------------------
+;; Task Status and Support Mode
+;; -----------------------------------------------------------------------------
+
+(def TaskStatus
+  "Valid task execution states.
+   
+   States:
+   - \"working\"        - Request is currently being processed
+   - \"input_required\" - Receiver needs input from requestor
+   - \"completed\"      - Request completed successfully
+   - \"failed\"         - Request did not complete successfully
+   - \"cancelled\"      - Request was cancelled before completion"
+  [:enum "working" "input_required" "completed" "failed" "cancelled"])
+
+(def TaskSupportMode
+  "Tool execution task support modes.
+   
+   Modes:
+   - \"required\"  - Tool MUST be invoked as a task
+   - \"optional\"  - Tool MAY be invoked as a task or normal request
+   - \"forbidden\" - Tool MUST NOT be invoked as a task (default)"
+  [:enum "required" "optional" "forbidden"])
+
+;; -----------------------------------------------------------------------------
+;; Task Object Schema
+;; -----------------------------------------------------------------------------
+
+(def Task
+  "Schema for a task object representing execution state.
+   
+   A task is a durable state machine for tracking long-running operations.
+   
+   Fields:
+   - :task-id        - Unique identifier (receiver-generated)
+   - :status         - Current execution state
+   - :status-message - Human-readable state description (optional)
+   - :created-at     - ISO 8601 timestamp of creation
+   - :last-updated-at - ISO 8601 timestamp of last update
+   - :ttl            - Milliseconds before task may be deleted (nil = unlimited)
+   - :poll-interval  - Suggested milliseconds between status checks (optional)"
+  [:map
+   [:task-id :string]
+   [:status TaskStatus]
+   [:status-message {:optional true} :string]
+   [:created-at :string] ; ISO 8601
+   [:last-updated-at :string] ; ISO 8601
+   [:ttl [:maybe :int]]
+   [:poll-interval {:optional true} :int]])
+
+;; -----------------------------------------------------------------------------
+;; Task Request/Response Schemas
+;; -----------------------------------------------------------------------------
+
+(def TaskParams
+  "Schema for task augmentation parameters in requests.
+   
+   Include this in request params to create a task-augmented request.
+   
+   Fields:
+   - :ttl - Requested duration (ms) to retain task from creation (optional)"
+  [:map
+   [:ttl {:optional true} :int]])
+
+(def CreateTaskResult
+  "Schema for task creation response.
+   
+   Returned when a receiver accepts a task-augmented request.
+   The actual operation result comes later via tasks/result.
+   
+   Fields:
+   - :task - The created task object"
+  [:map
+   [:task Task]])
+
+(def TasksGetRequest
+  "Schema for tasks/get request params."
+  [:map
+   [:task-id :string]])
+
+(def TasksResultRequest
+  "Schema for tasks/result request params."
+  [:map
+   [:task-id :string]])
+
+(def TasksCancelRequest
+  "Schema for tasks/cancel request params."
+  [:map
+   [:task-id :string]])
+
+(def TasksListRequest
+  "Schema for tasks/list request params with optional pagination."
+  [:map
+   [:cursor {:optional true} :string]])
+
+(def TasksListResult
+  "Schema for tasks/list response.
+   
+   Fields:
+   - :tasks       - Array of task objects
+   - :next-cursor - Pagination cursor for next page (optional)"
+  [:map
+   [:tasks [:vector Task]]
+   [:next-cursor {:optional true} :string]])
+
+(def TaskStatusNotification
+  "Schema for notifications/tasks/status notification params.
+   
+   Sent when a task's status changes. Includes full task state."
+  Task)
+
+(def RelatedTaskMeta
+  "Schema for io.modelcontextprotocol/related-task metadata.
+   
+   MUST be included in _meta for all task-related messages.
+   
+   Fields:
+   - :task-id - ID of the associated task"
+  [:map
+   [:task-id :string]])
+
+;; =============================================================================
+;; Tasks Constructors
+;; =============================================================================
+
+(defn task-params
+  "Creates task augmentation parameters for a request.
+   
+   Options:
+   - :ttl - Requested retention duration in milliseconds (optional)
+   
+   Example:
+     ;; Request with 1-hour TTL
+     {:name \"analyze_data\"
+      :arguments {:file \"large.csv\"}
+      :task (task-params {:ttl 3600000})}"
+  ([]
+   {})
+  ([{:keys [ttl]}]
+   (cond-> {}
+     ttl (assoc :ttl ttl))))
+
+(defn task
+  "Creates a task object.
+   
+   Options:
+   - :task-id         - Unique identifier (required)
+   - :status          - Task status (required, default \"working\")
+   - :status-message  - Human-readable message (optional)
+   - :created-at      - ISO 8601 timestamp (required)
+   - :last-updated-at - ISO 8601 timestamp (required)
+   - :ttl             - Retention duration in ms, nil for unlimited (required)
+   - :poll-interval   - Suggested polling interval in ms (optional)
+   
+   Example:
+     (task {:task-id (str (random-uuid))
+            :status \"working\"
+            :created-at \"2025-11-25T10:30:00Z\"
+            :last-updated-at \"2025-11-25T10:30:00Z\"
+            :ttl 60000
+            :poll-interval 5000})"
+  [{:keys [task-id status status-message created-at last-updated-at ttl poll-interval]
+    :or {status "working"}}]
+  (cond-> {:task-id task-id
+           :status status
+           :created-at created-at
+           :last-updated-at last-updated-at
+           :ttl ttl}
+    status-message (assoc :status-message status-message)
+    poll-interval (assoc :poll-interval poll-interval)))
+
+(defn create-task-result
+  "Creates a task creation response.
+   
+   Args:
+   - task-obj - The task object to wrap
+   
+   Example:
+     (create-task-result
+       (task {:task-id \"abc-123\"
+              :status \"working\"
+              :created-at \"2025-11-25T10:30:00Z\"
+              :last-updated-at \"2025-11-25T10:30:00Z\"
+              :ttl 60000}))"
+  [task-obj]
+  {:task task-obj})
+
+(defn related-task-meta
+  "Creates related task metadata for _meta field.
+   
+   MUST be included in all task-related messages.
+   
+   Args:
+   - task-id - ID of the associated task
+   
+   Example:
+     {:_meta {\"io.modelcontextprotocol/related-task\"
+              (related-task-meta \"abc-123\")}}"
+  [task-id]
+  {:task-id task-id})
+
+(defn tasks-list-result
+  "Creates a tasks/list response.
+   
+   Options:
+   - :tasks       - Vector of task objects (required)
+   - :next-cursor - Pagination cursor for next page (optional)
+   
+   Example:
+     (tasks-list-result {:tasks [task1 task2]
+                         :next-cursor \"cursor-xyz\"})"
+  [{:keys [tasks next-cursor]}]
+  (cond-> {:tasks tasks}
+    next-cursor (assoc :next-cursor next-cursor)))
+
+(defn terminal-status?
+  "Returns true if the status is a terminal state.
+   
+   Terminal states: completed, failed, cancelled"
+  [status]
+  (contains? #{"completed" "failed" "cancelled"} status))
+
 

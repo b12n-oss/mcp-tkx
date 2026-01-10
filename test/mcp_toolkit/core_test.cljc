@@ -622,4 +622,78 @@
             context {:session session}]
         (is (nil? (server/client-supports-form-elicitation? context)))))))
 
+;; =============================================================================
+;; Tasks Capability Tests (2025-11-25 - Experimental)
+;; =============================================================================
+
+(deftest tasks-capability-test
+  (is true "yes")
+
+  (testing "client-supports-tasks? function"
+    (testing "returns true when client declares tasks capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (true? (server/client-supports-tasks? context)))))
+
+    (testing "returns true when client declares full tasks capability"
+      (let [session (atom {:client-capabilities {:tasks {:list {}
+                                                         :cancel {}
+                                                         :requests {:sampling {:create-message {}}}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-tasks? context)))))
+
+    (testing "returns false when client has no tasks capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-tasks? context))))))
+
+  (testing "client-supports-task-augmented-sampling? function"
+    (testing "returns true when client declares sampling.createMessage task support"
+      (let [session (atom {:client-capabilities {:tasks {:requests {:sampling {:create-message {}}}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-task-augmented-sampling? context)))))
+
+    (testing "returns false when client only has basic tasks capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-task-augmented-sampling? context)))))
+
+    (testing "returns false when client has no tasks capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-task-augmented-sampling? context))))))
+
+  (testing "client-supports-task-augmented-elicitation? function"
+    (testing "returns true when client declares elicitation.create task support"
+      (let [session (atom {:client-capabilities {:tasks {:requests {:elicitation {:create {}}}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-task-augmented-elicitation? context)))))
+
+    (testing "returns false when client only has basic tasks capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-task-augmented-elicitation? context))))))
+
+  (testing "client-supports-tasks-list? function"
+    (testing "returns true when client declares tasks.list capability"
+      (let [session (atom {:client-capabilities {:tasks {:list {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-tasks-list? context)))))
+
+    (testing "returns false when client has no list capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-tasks-list? context))))))
+
+  (testing "client-supports-tasks-cancel? function"
+    (testing "returns true when client declares tasks.cancel capability"
+      (let [session (atom {:client-capabilities {:tasks {:cancel {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-tasks-cancel? context)))))
+
+    (testing "returns false when client has no cancel capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-tasks-cancel? context)))))))
+
 

@@ -276,6 +276,158 @@
                                                         {:elicitation-id elicitation-id}))
   nil)
 
+;; =============================================================================
+;; Tasks (2025-11-25 - Experimental)
+;; =============================================================================
+
+(defn client-supports-tasks?
+  "Returns true if the client supports any task operations.
+   
+   Clients must declare {:tasks {...}} capability."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (contains? client-capabilities :tasks)))
+
+(defn client-supports-task-augmented-sampling?
+  "Returns true if the client supports task-augmented sampling/createMessage.
+   
+   Clients must declare {:tasks {:requests {:sampling {:create-message {}}}}}."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (boolean (get-in client-capabilities [:tasks :requests :sampling :create-message]))))
+
+(defn client-supports-task-augmented-elicitation?
+  "Returns true if the client supports task-augmented elicitation/create.
+   
+   Clients must declare {:tasks {:requests {:elicitation {:create {}}}}}."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (boolean (get-in client-capabilities [:tasks :requests :elicitation :create]))))
+
+(defn client-supports-tasks-list?
+  "Returns true if the client supports the tasks/list operation.
+   
+   Clients must declare {:tasks {:list {}}}."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (boolean (get-in client-capabilities [:tasks :list]))))
+
+(defn client-supports-tasks-cancel?
+  "Returns true if the client supports the tasks/cancel operation.
+   
+   Clients must declare {:tasks {:cancel {}}}."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (boolean (get-in client-capabilities [:tasks :cancel]))))
+
+(defn request-task-get
+  "Gets the current status of a task.
+   Returns a promise resolved with the Task object.
+   (see https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks)
+
+   Args:
+     context - The server session context
+     task-id - The unique identifier of the task
+
+   Returns:
+     A promise that resolves to the Task object with current status.
+
+   Example:
+     (p/let [task (request-task-get context \"abc-123\")]
+       (println \"Status:\" (:status task)))"
+  [context task-id]
+  (json-rpc/call-remote-method context {:method "tasks/get"
+                                        :params {:task-id task-id}}))
+
+(defn request-task-result
+  "Gets the result of a completed task.
+   Blocks until the task reaches a terminal status.
+   (see https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks)
+
+   Args:
+     context - The server session context
+     task-id - The unique identifier of the task
+
+   Returns:
+     A promise that resolves to the actual operation result
+     (e.g., CreateMessageResult for sampling, ElicitationResponse for elicitation).
+     Returns JSON-RPC error if the underlying operation failed.
+
+   Notes:
+     - Blocks until task reaches terminal status (completed/failed/cancelled)
+     - For tasks in input_required status, this returns the input request
+     - You can continue polling via request-task-get while waiting"
+  [context task-id]
+  (json-rpc/call-remote-method context {:method "tasks/result"
+                                        :params {:task-id task-id}}))
+
+(defn request-task-cancel
+  "Cancels a task that has not yet reached terminal status.
+   (see https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks)
+
+   Args:
+     context - The server session context
+     task-id - The unique identifier of the task to cancel
+
+   Returns:
+     A promise that resolves to the Task object with cancelled status.
+     Returns error if task is already in terminal status.
+
+   Notes:
+     - Cannot cancel tasks already completed/failed/cancelled
+     - Cancelled tasks remain in cancelled status even if execution continues"
+  [context task-id]
+  (when (client-supports-tasks-cancel? context)
+    (json-rpc/call-remote-method context {:method "tasks/cancel"
+                                          :params {:task-id task-id}})))
+
+(defn request-tasks-list
+  "Lists all tasks with optional pagination.
+   (see https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks)
+
+   Args:
+     context - The server session context
+     cursor  - Optional pagination cursor from previous response
+
+   Returns:
+     A promise that resolves to {:tasks [...] :next-cursor ...}
+
+   Example:
+     (p/let [result (request-tasks-list context)]
+       (doseq [task (:tasks result)]
+         (println (:task-id task) (:status task)))
+       (when-let [cursor (:next-cursor result)]
+         (request-tasks-list context cursor)))"
+  ([context]
+   (request-tasks-list context nil))
+  ([context cursor]
+   (when (client-supports-tasks-list? context)
+     (json-rpc/call-remote-method context {:method "tasks/list"
+                                           :params (cond-> {}
+                                                     cursor (assoc :cursor cursor))}))))
+
+(defn notify-task-status
+  "Notifies the requestor that a task's status has changed.
+   
+   Receivers MAY send this when task status changes.
+   Requestors MUST NOT rely on receiving this notification.
+   
+   Args:
+     context - The server session context
+     task    - The full Task object with updated status
+   
+   Notes:
+     - Only send to the requestor that created the task
+     - Requestors should continue polling via tasks/get"
+  [context task]
+  (json-rpc/send-message context (json-rpc/notification "tasks/status" task))
+  nil)
+
 ;;
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
 ;;
