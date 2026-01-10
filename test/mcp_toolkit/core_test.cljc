@@ -24,15 +24,15 @@
   {:uri "ipfs:///world/hello.md"
    :name "hello.md"
    :description "Hello world"
-   :mimeType "text/markdown"})
+   :mime-type "text/markdown"})
 
 (def test-tool
   {:name "parentify"
    :description "Parentify a text: wraps a text within parenthesis."
-   :inputSchema {:properties {:text {:description "the text to be parentified"
-                                     :type "string"}}
-                 :type "object"
-                 :required ["text"]}})
+   :input-schema {:properties {:text {:description "the text to be parentified"
+                                      :type "string"}}
+                  :type "object"
+                  :required ["text"]}})
 
 (defn setup-and-connect-client-server
   "Returns a "
@@ -110,23 +110,24 @@
                                                   "MCP handshake")
 
                                 ;; Test if the messages are what we expect.
+                                ;; Note: Internal format uses kebab-case keys
                                 (is (= [[:-> {:jsonrpc "2.0"
                                               :method "initialize"
-                                              :params {:clientInfo {:name "mcp-toolkit"
-                                                                    :version "0.1.1-alpha"}
-                                                       :protocolVersion "2025-06-18"
-                                                       :capabilities {:roots {:listChanged true}}}
+                                              :params {:client-info {:name "mcp-toolkit"
+                                                                     :version "0.1.1-alpha"}
+                                                       :protocol-version "2025-11-25"
+                                                       :capabilities {:roots {:list-changed true}}}
                                               :id 0}]
                                         [:<- {:jsonrpc "2.0"
-                                              :result {:serverInfo {:name "mcp-toolkit"
-                                                                    :version "0.1.1-alpha"}
-                                                       :protocolVersion "2025-06-18"
+                                              :result {:server-info {:name "mcp-toolkit"
+                                                                     :version "0.1.1-alpha"}
+                                                       :protocol-version "2025-11-25"
                                                        :capabilities {:logging {}
                                                                       :completions {}
-                                                                      :prompts {:listChanged true}
-                                                                      :resources {:listChanged true
+                                                                      :prompts {:list-changed true}
+                                                                      :resources {:list-changed true
                                                                                   :subscribe true}
-                                                                      :tools {:listChanged true}}}
+                                                                      :tools {:list-changed true}}}
                                               :id 0}]
                                         [:-> {:jsonrpc "2.0"
                                               :method "notifications/initialized"}]]
@@ -166,9 +167,9 @@
                                       init-request (-> messages first second)
                                       init-response (-> messages second second)]
                                   ;; Client requests 2025-03-26
-                                  (is (= "2025-03-26" (get-in init-request [:params :protocolVersion])))
+                                  (is (= "2025-03-26" (get-in init-request [:params :protocol-version])))
                                   ;; Server should respond with 2025-03-26 (negotiated version)
-                                  (is (= "2025-03-26" (get-in init-response [:result :protocolVersion])))))
+                                  (is (= "2025-03-26" (get-in init-response [:result :protocol-version])))))
                               (p/handle (fn [x error]
                                           (json-rpc/close-connection client-context)
                                           (json-rpc/close-connection server-context)
@@ -176,14 +177,14 @@
                                           ;; Pass through
                                           (or error x))))))))
 
-(deftest protocol-negotiation-test-2025-06-18
+(deftest protocol-negotiation-test-2025-11-25
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (promesa-async-test 5000
-                      (testing "protocol negotiation with 2025-06-18"
+                      (testing "protocol negotiation with 2025-11-25"
                         (let [message-logs (atom [])
-                              ;; Client explicitly requests 2025-06-18
-                              client-session (client/create-session {:protocol-version "2025-06-18"
+                              ;; Client explicitly requests 2025-11-25
+                              client-session (client/create-session {:protocol-version "2025-11-25"
                                                                      :on-initialized nil}) ;; disable auto-requests
                               server-session (server/create-session {:on-initialized nil}) ;; disable auto-requests
                               {:keys [client-context server-context]} (setup-and-connect-client-server client-session
@@ -203,9 +204,9 @@
                                 (let [client-state @(:session client-context)
                                       server-state @(:session server-context)]
 
-                                  ;; Both should agree on 2025-06-18
-                                  (is (= "2025-06-18" (:server-protocol-version client-state)))
-                                  (is (= "2025-06-18" (:protocol-version server-state)))
+                                  ;; Both should agree on 2025-11-25
+                                  (is (= "2025-11-25" (:server-protocol-version client-state)))
+                                  (is (= "2025-11-25" (:protocol-version server-state)))
 
                                   ;; Server should have client info
                                   (is (some? (:client-info server-state)))
@@ -225,9 +226,9 @@
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (promesa-async-test 3000
-                      (testing "JSON-RPC batching is not supported in 2025-06-18"
+                      (testing "JSON-RPC batching is not supported in 2025-11-25"
                         (let [message-logs (atom [])
-                              client-session (client/create-session {:protocol-version "2025-06-18"
+                              client-session (client/create-session {:protocol-version "2025-11-25"
                                                                      :on-initialized nil})
                               server-session (server/create-session {:on-initialized nil})
                               {:keys [client-context server-context]} (setup-and-connect-client-server client-session
@@ -235,7 +236,7 @@
                                                                                                        message-logs)]
                           (-> (p/do
                                 ;; Try to send a batch request (array of requests)
-                                ;; This should be rejected in 2025-06-18
+                                ;; This should be rejected in 2025-11-25
                                 (let [batch-request [{:jsonrpc "2.0"
                                                       :method "ping"
                                                       :id 1}
@@ -251,9 +252,7 @@
                                 ;; Check that an error was returned for batch requests
                                 (let [logs @message-logs
                                       responses (filter #(= :<- (first %)) logs)]
-                                  ;; In 2025-06-18, batch requests should return an error
-                                  ;; For now, this test will fail because batching is still supported
-                                  ;; After we remove batching, this test should pass
+                                  ;; In 2025-11-25, batch requests should return an error
                                   (is (= 1 (count responses)) "Should return single error for batch request")
                                   (when (seq responses)
                                     (let [response (second (first responses))]
@@ -281,11 +280,11 @@
                                     :name "test_resource"
                                     :title "Test Resource Display Name"
                                     :description "A test resource with title"
-                                    :mimeType "text/plain"}
+                                    :mime-type "text/plain"}
           test-tool-with-title {:name "test_tool"
                                 :title "Test Tool Display Name"
                                 :description "A test tool with title"
-                                :inputSchema {:type "object"}}
+                                :input-schema {:type "object"}}
 
           ;; Create a session with test data
           session (atom {:prompt-by-name {(:name test-prompt-with-title) test-prompt-with-title}
@@ -316,31 +315,31 @@
 (deftest structured-tool-output-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
-  (testing "structured tool output with outputSchema (2025-06-18 spec)"
+  (testing "structured tool output with output-schema (2025-11-25 spec)"
     (let [test-tool-with-schema {:name "calculator"
                                  :title "Calculator Tool"
                                  :description "A calculator that returns structured results"
-                                 :inputSchema {:type "object"
-                                               :properties {:operation {:type "string"}
-                                                            :a {:type "number"}
-                                                            :b {:type "number"}}}
-                                 :outputSchema {:type "object"
-                                                :properties {:result {:type "number"}
-                                                             :formula {:type "string"}}}}
+                                 :input-schema {:type "object"
+                                                :properties {:operation {:type "string"}
+                                                             :a {:type "number"}
+                                                             :b {:type "number"}}}
+                                 :output-schema {:type "object"
+                                                 :properties {:result {:type "number"}
+                                                              :formula {:type "string"}}}}
 
           session (atom {:tool-by-name {(:name test-tool-with-schema) test-tool-with-schema}})]
 
-      ;; Test that outputSchema is included in tool list
+      ;; Test that output-schema is included in tool list
       (let [result (server.handler/tool-list-handler {:session session})
             tool (first (:tools result))]
-        (is (contains? tool :outputSchema) "Tool should include outputSchema")
-        (is (= (:outputSchema test-tool-with-schema) (:outputSchema tool)))))))
+        (is (contains? tool :output-schema) "Tool should include output-schema")
+        (is (= (:output-schema test-tool-with-schema) (:output-schema tool)))))))
 
 (deftest tool-result-resources-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (promesa-async-test 3000
-                      (testing "tool results can include resource links (2025-06-18 spec)"
+                      (testing "tool results can include resource links (2025-11-25 spec)"
                         (let [session (atom {:tool-by-name {"file_reader" {:name "file_reader"
                                                                            :title "File Reader"
                                                                            :tool-fn (fn [_ _]
@@ -350,7 +349,7 @@
                                                                                                    :text "File content here"}]
                                                                                         :resources [{:uri "file:///test.txt"
                                                                                                      :name "test.txt"
-                                                                                                     :mimeType "text/plain"}]}))}}})
+                                                                                                     :mime-type "text/plain"}]}))}}})
                               context {:session session}
                               message {:params {:name "file_reader"
                                                 :arguments {}}}]
@@ -365,7 +364,7 @@
 (deftest completion-context-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
-  (testing "completion requests can include context (2025-06-18 spec)"
+  (testing "completion requests can include context (2025-11-25 spec)"
     (let [completion-called (atom false)
           completion-context-received (atom nil)
 
@@ -377,7 +376,7 @@
                                           (reset! completion-context-received (:completion-context ctx))
                                           {:completion {:values ["value1" "value2"]
                                                         :total 2
-                                                        :hasMore false}})}}})
+                                                        :has-more false}})}}})
 
           context {:session session}
 
@@ -386,13 +385,13 @@
                                                :name "test_prompt"}
                                          :argument {:name "arg1"
                                                     :value "val"}
-                                         :context {:previousValues {:key "value"}}}}]
+                                         :context {:previous-values {:key "value"}}}}]
 
       ;; Call handler with context
       (server.handler/completion-complete-handler (assoc context :message message-with-context))
 
       (is @completion-called "Completion function should be called")
-      (is (= {:previousValues {:key "value"}} @completion-context-received)
+      (is (= {:previous-values {:key "value"}} @completion-context-received)
           "Context should be passed to completion function")
 
       ;; Reset for next test
@@ -436,4 +435,3 @@
       ;; Test has-meta?
       (is (meta-support/has-meta? {:_meta {}}))
       (is (not (meta-support/has-meta? {:name "test"}))))))
-

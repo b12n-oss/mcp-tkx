@@ -11,7 +11,7 @@
 (defn notify-progress
   "Notifies the client about progress during tool or prompt execution.
    Only sends if the current message contains a progress token.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/progress#progress-flow)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#progress-flow)
 
    Args:
      context  - The server session context
@@ -39,7 +39,7 @@
 
 (defn notify-log
   "Sends a log message to the client if it meets the current logging level threshold.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging#log-message-notifications)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/logging#log-message-notifications)
 
    Args:
      context - The server session context
@@ -63,7 +63,7 @@
   "Requests the list of root directories from the MCP client.
    Updates the session's client-root-by-uri index and calls the
    on-client-root-list-updated callback.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/client/roots#listing-roots)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/client/roots#listing-roots)
 
    Args:
      context - The server session context
@@ -84,7 +84,7 @@
 (defn request-sampling
   "Requests message sampling from the MCP client.
    Returns a promise, either resolved with the result or rejected with the error.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/client/sampling#creating-messages)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#creating-messages)
 
    Args:
      context - The server session context
@@ -105,7 +105,7 @@
 
 (defn notify-prompt-list-changed
   "Notifies the client that the server's prompt list has changed.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/prompts#list-changed-notification)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#list-changed-notification)
 
    Args:
      context - The server session context
@@ -149,7 +149,7 @@
 (defn notify-resource-updated
   "Notifies subscribed clients about a specific resource update.
    Only sends notification if the client is subscribed to the resource URI.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#subscriptions)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/resources#subscriptions)
 
    Args:
      context  - The server session context
@@ -168,7 +168,7 @@
 
 (defn notify-resource-list-changed
   "Notifies the client that the server's resource list has changed.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#list-changed-notification)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/resources#list-changed-notification)
 
    Args:
      context - The server session context
@@ -211,7 +211,7 @@
 
 (defn notify-tool-list-changed
   "Notifies the client that the server's tool list has changed.
-  (see https://modelcontextprotocol.io/specification/2025-06-18/server/tools#list-changed-notification)
+  (see https://modelcontextprotocol.io/specification/2025-11-25/server/tools#list-changed-notification)
 
    Args:
      context - The server session context
@@ -301,7 +301,7 @@
          on-initialized request-root-list
          on-client-root-list-changed request-root-list}}]
   {;; About the server
-   :server-supported-protocol-versions ["2024-11-05" "2025-03-26" "2025-06-18"]
+   :server-supported-protocol-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]
    :server-info server-info
    :server-instructions server-instructions
    :initialized false

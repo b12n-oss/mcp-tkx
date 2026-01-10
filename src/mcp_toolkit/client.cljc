@@ -8,7 +8,7 @@
 
 (defn request-set-logging-level
   "Sets the logging level on the MCP server.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging#log-levels)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/logging#log-levels)
 
    Args:
      context - The client session context
@@ -22,7 +22,7 @@
 
 (defn request-complete-prompt-param
   "Requests autocompletion for a prompt parameter from the MCP server.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/completion#data-types)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/completion#data-types)
 
    Args:
      context      - The client session context
@@ -42,7 +42,7 @@
 
 (defn request-complete-resource-uri
   "Requests autocompletion for a resource URI parameter from the MCP server.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/completion#data-types)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/completion#data-types)
 
    Args:
      context      - The client session context
@@ -64,7 +64,7 @@
   "Requests the list of available prompts from the MCP server.
    Updates the session's server-prompt-by-name index and calls the
    on-server-prompt-list-updated callback.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/prompts#listing-prompts)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#listing-prompts)
 
    Args:
      context - The client session context
@@ -82,7 +82,7 @@
 
 (defn request-prompt
   "Requests a specific prompt from the MCP server with given arguments.
-  (see https://modelcontextprotocol.io/specification/2025-06-18/server/prompts#getting-a-prompt)
+  (see https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#getting-a-prompt)
 
    Args:
      context     - The client session context
@@ -100,7 +100,7 @@
   "Requests the list of available resources from the MCP server.
    Updates the session's server-resource-by-uri index and calls the
    on-server-resource-list-updated callback.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#listing-resources)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/resources#listing-resources)
 
    Args:
      context - The client session context
@@ -119,7 +119,7 @@
 
 (defn request-resource
   "Requests a specific resource from the MCP server by URI.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#reading-resources)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/resources#reading-resources)
 
    Args:
      context      - The client session context
@@ -133,7 +133,7 @@
 
 (defn request-resource-template-list
   "Requests the list of available resource templates from the MCP server.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#resource-templates)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/resources#resource-templates)
 
    Args:
      context - The client session context
@@ -145,7 +145,7 @@
 
 (defn request-subscribe-resource
   "Subscribes to changes for a specific resource on the MCP server.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#subscriptions)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/resources#subscriptions)
 
    Args:
      context      - The client session context
@@ -159,7 +159,7 @@
 
 (defn request-unsubscribe-resource
   "Unsubscribes from changes for a specific resource on the MCP server.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/resources#subscriptions)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/resources#subscriptions)
 
    Args:
      context      - The client session context
@@ -175,7 +175,7 @@
   "Requests the list of available tools from the MCP server.
    Updates the session's server-tool-by-name index and triggers the
    on-server-tool-list-updated callback.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/tools#listing-tools)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/tools#listing-tools)
 
    Args:
      context - The client session context
@@ -194,7 +194,7 @@
 
 (defn request-tool-invocation
   "Invokes a specific tool on the MCP server with given arguments.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/server/tools#calling-tools)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/server/tools#calling-tools)
 
    Args:
      context   - The client session context
@@ -210,7 +210,7 @@
 
 (defn notify-cancel-request
   "Sends a cancellation notification for a specific request to the MCP server.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/cancellation#cancellation-flow)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#cancellation-flow)
 
    Args:
      context    - The client session context
@@ -224,7 +224,7 @@
 
 (defn notify-root-list-changed
   "Notifies the MCP server that the client's root list has been changed.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/client/roots#root-list-changes)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/client/roots#root-list-changes)
 
    Args:
      context - The client session context
@@ -268,7 +268,7 @@
   "Sends the initial handshake message to establish the MCP connection.
    Initializes the session with server capabilities and triggers the on-initialized callback
    upon receiving the server's response.
-   (see https://modelcontextprotocol.io/specification/2025-06-18/architecture#capability-negotiation)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/architecture#capability-negotiation)
 
    Args:
      context - The client session context
@@ -321,7 +321,7 @@
     :or {client-info {:name "mcp-toolkit"
                       :version "0.1.1-alpha"}
          client-capabilities {:roots {:list-changed true}}
-         protocol-version "2025-06-18"
+         protocol-version "2025-11-25"
          on-initialized default-on-initialized
          on-server-prompt-list-changed request-prompt-list
          on-server-resource-list-changed request-resource-list
