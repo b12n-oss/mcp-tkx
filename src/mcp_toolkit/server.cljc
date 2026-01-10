@@ -156,6 +156,126 @@
         {:keys [client-capabilities]} @session]
     (boolean (get-in client-capabilities [:sampling :tools]))))
 
+;; =============================================================================
+;; Elicitation (2025-11-25)
+;; =============================================================================
+
+(defn client-supports-elicitation?
+  "Returns true if the client supports elicitation requests.
+   
+   Clients must declare {:elicitation {}} or {:elicitation {:form {}}}
+   capability to receive elicitation requests."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (contains? client-capabilities :elicitation)))
+
+(defn client-supports-url-elicitation?
+  "Returns true if the client supports URL mode elicitation.
+   
+   Clients must declare {:elicitation {:url {}}} capability to receive
+   URL mode elicitation requests."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (boolean (get-in client-capabilities [:elicitation :url]))))
+
+(defn client-supports-form-elicitation?
+  "Returns true if the client supports form mode elicitation.
+   
+   Form mode is supported if client declares {:elicitation {}} (empty = form only)
+   or {:elicitation {:form {}}}."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (when-let [elicitation (:elicitation client-capabilities)]
+      ;; Empty elicitation = form only, or explicit :form key
+      (or (empty? elicitation)
+          (contains? elicitation :form)))))
+
+(defn request-elicitation
+  "Requests information from the user via elicitation.
+   Returns a promise resolved with the result or rejected with error.
+   (see https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation)
+
+   Args:
+     context - The server session context
+     params  - Elicitation request map:
+               
+               Common fields:
+               :mode    - \"form\" or \"url\" (optional, defaults to \"form\")
+               :message - Human-readable explanation (required)
+               
+               Form mode specific:
+               :requested-schema - JSON Schema for expected response (required for form)
+               
+               URL mode specific (2025-11-25):
+               :elicitation-id - Unique identifier for tracking (required for url)
+               :url            - Target URL, must be https:// (required for url)
+
+   Returns:
+     A promise that resolves to the elicitation response:
+     - :action  - \"accept\", \"decline\", or \"cancel\"
+     - :content - User-submitted data (form mode accept only)
+
+   URL Mode Flow:
+     When mode is \"url\", the response indicates user consent to navigate.
+     The actual interaction happens out-of-band. Use notify-elicitation-complete
+     to signal when the out-of-band flow finishes.
+
+   Example - Form mode:
+     (require '[mcp-toolkit.schema :as schema])
+     (request-elicitation context
+       (schema/form-elicitation
+         {:message \"Please enter your name\"
+          :requested-schema {:type \"object\"
+                             :properties {:name {:type \"string\"}}
+                             :required [\"name\"]}}))
+
+   Example - URL mode:
+     (require '[mcp-toolkit.schema :as schema])
+     (request-elicitation context
+       (schema/url-elicitation
+         {:elicitation-id (str (random-uuid))
+          :url \"https://api.example.com/oauth/authorize\"
+          :message \"Please authorize access to your account.\"}))
+
+   Notes:
+     - Form mode: MUST NOT request sensitive information (passwords, API keys)
+     - URL mode: Use for OAuth flows, payments, credential collection
+     - Returns nil if client doesn't support elicitation"
+  [context params]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session
+        mode (get params :mode "form")]
+    (when (contains? client-capabilities :elicitation)
+      ;; Check mode-specific capability
+      (when (or (and (= mode "form")
+                     (or (empty? (:elicitation client-capabilities))
+                         (contains? (:elicitation client-capabilities) :form)))
+                (and (= mode "url")
+                     (contains? (:elicitation client-capabilities) :url)))
+        (json-rpc/call-remote-method context {:method "elicitation/create"
+                                              :params params})))))
+
+(defn notify-elicitation-complete
+  "Notifies the client that a URL mode elicitation has completed.
+   
+   Servers MAY send this when an out-of-band URL interaction finishes.
+   This allows clients to automatically retry requests or update UI.
+   
+   Args:
+     context        - The server session context
+     elicitation-id - ID from the original elicitation request
+   
+   Notes:
+     - Only send to the client that initiated the elicitation
+     - Clients MAY use this to retry requests that got URLElicitationRequiredError"
+  [context elicitation-id]
+  (json-rpc/send-message context (json-rpc/notification "elicitation/complete"
+                                                        {:elicitation-id elicitation-id}))
+  nil)
+
 ;;
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
 ;;

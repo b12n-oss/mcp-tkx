@@ -562,3 +562,64 @@
             context {:session session}]
         (is (false? (server/client-supports-sampling-tools? context)))))))
 
+;; =============================================================================
+;; Elicitation Capability Tests (2025-11-25)
+;; =============================================================================
+
+(deftest elicitation-capability-test
+  (is true "yes")
+
+  (testing "client-supports-elicitation? function"
+    (testing "returns true when client declares elicitation capability"
+      (let [session (atom {:client-capabilities {:elicitation {}}})
+            context {:session session}]
+        (is (true? (server/client-supports-elicitation? context)))))
+
+    (testing "returns true when client declares form and url modes"
+      (let [session (atom {:client-capabilities {:elicitation {:form {} :url {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-elicitation? context)))))
+
+    (testing "returns false when client has no elicitation capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-elicitation? context))))))
+
+  (testing "client-supports-url-elicitation? function"
+    (testing "returns true when client declares url mode"
+      (let [session (atom {:client-capabilities {:elicitation {:url {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-url-elicitation? context)))))
+
+    (testing "returns false when client only has empty elicitation (form only)"
+      (let [session (atom {:client-capabilities {:elicitation {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-url-elicitation? context)))))
+
+    (testing "returns false when client has no elicitation capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-url-elicitation? context))))))
+
+  (testing "client-supports-form-elicitation? function"
+    (testing "returns true when client declares empty elicitation (form only per spec)"
+      (let [session (atom {:client-capabilities {:elicitation {}}})
+            context {:session session}]
+        (is (true? (server/client-supports-form-elicitation? context)))))
+
+    (testing "returns true when client explicitly declares form mode"
+      (let [session (atom {:client-capabilities {:elicitation {:form {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-form-elicitation? context)))))
+
+    (testing "returns true when client declares both form and url modes"
+      (let [session (atom {:client-capabilities {:elicitation {:form {} :url {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-form-elicitation? context)))))
+
+    (testing "returns nil when client has no elicitation capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (nil? (server/client-supports-form-elicitation? context)))))))
+
+

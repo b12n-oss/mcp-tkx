@@ -408,8 +408,7 @@
            {:role "user"
             :content {:type "tool_result"
                       :tool-use-id "call_abc"
-                      :content {:type "text"
-                                :text "OK"}}})))
+                      :content {:type "text" :text "OK"}}})))
 
     (testing "invalid messages"
       ;; Wrong role
@@ -417,10 +416,212 @@
                 {:role "assistant"
                  :content {:type "tool_result"
                            :tool-use-id "call_abc"
-                           :content {:type "text"
-                                     :text "OK"}}})))
+                           :content {:type "text" :text "OK"}}})))
 
       ;; Missing content
       (is (not (schema/valid-tool-result-message?
                 {:role "user"}))))))
+
+;; =============================================================================
+;; Elicitation Types Tests (2025-11-25)
+;; =============================================================================
+
+(deftest elicitation-mode-test
+  (testing "ElicitationMode schema validation"
+    (testing "valid modes"
+      (is (schema/valid? schema/ElicitationMode "form"))
+      (is (schema/valid? schema/ElicitationMode "url")))
+
+    (testing "invalid modes"
+      (is (not (schema/valid? schema/ElicitationMode "invalid")))
+      (is (not (schema/valid? schema/ElicitationMode ""))))))
+
+(deftest elicitation-action-test
+  (testing "ElicitationAction schema validation"
+    (testing "valid actions"
+      (is (schema/valid? schema/ElicitationAction "accept"))
+      (is (schema/valid? schema/ElicitationAction "decline"))
+      (is (schema/valid? schema/ElicitationAction "cancel")))
+
+    (testing "invalid actions"
+      (is (not (schema/valid? schema/ElicitationAction "reject")))
+      (is (not (schema/valid? schema/ElicitationAction "ok"))))))
+
+(deftest url-elicitation-request-test
+  (testing "UrlElicitationRequest schema validation"
+    (testing "valid requests"
+      (is (schema/valid? schema/UrlElicitationRequest
+                         {:mode "url"
+                          :elicitation-id "abc-123"
+                          :url "https://example.com/auth"
+                          :message "Please authorize"}))
+
+      ;; localhost allowed for development
+      (is (schema/valid? schema/UrlElicitationRequest
+                         {:mode "url"
+                          :elicitation-id "abc-123"
+                          :url "http://localhost:3000/callback"
+                          :message "Dev mode"})))
+
+    (testing "invalid requests"
+      ;; HTTP not allowed (except localhost)
+      (is (not (schema/valid? schema/UrlElicitationRequest
+                              {:mode "url"
+                               :elicitation-id "abc-123"
+                               :url "http://example.com/auth"
+                               :message "Not secure"})))
+
+      ;; Wrong mode
+      (is (not (schema/valid? schema/UrlElicitationRequest
+                              {:mode "form"
+                               :elicitation-id "abc"
+                               :url "https://example.com"
+                               :message "Wrong mode"})))
+
+      ;; Missing elicitation-id
+      (is (not (schema/valid? schema/UrlElicitationRequest
+                              {:mode "url"
+                               :url "https://example.com"
+                               :message "Missing ID"})))))
+
+  (testing "url-elicitation constructor"
+    (is (= {:mode "url"
+            :elicitation-id "abc-123"
+            :url "https://example.com/oauth"
+            :message "Please authorize"}
+           (schema/url-elicitation {:elicitation-id "abc-123"
+                                    :url "https://example.com/oauth"
+                                    :message "Please authorize"})))))
+
+(deftest url-elicitation!-test
+  (testing "url-elicitation! with validation"
+    (testing "valid request returns result"
+      (is (= {:mode "url"
+              :elicitation-id "abc"
+              :url "https://example.com/auth"
+              :message "Test"}
+             (schema/url-elicitation! {:elicitation-id "abc"
+                                       :url "https://example.com/auth"
+                                       :message "Test"}))))
+
+    (testing "invalid request throws"
+      (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                            #"Invalid URL elicitation"
+                            (schema/url-elicitation! {:elicitation-id "abc"
+                                                      :url "http://insecure.com"
+                                                      :message "Bad"}))))))
+
+(deftest form-elicitation-request-test
+  (testing "FormElicitationRequest schema validation"
+    (testing "valid requests"
+      ;; With explicit mode
+      (is (schema/valid? schema/FormElicitationRequest
+                         {:mode "form"
+                          :message "Enter your name"
+                          :requested-schema {:type "object"
+                                             :properties {:name {:type "string"}}}}))
+
+      ;; Without mode (defaults to form)
+      (is (schema/valid? schema/FormElicitationRequest
+                         {:message "Enter your name"
+                          :requested-schema {:type "object"}})))
+
+    (testing "invalid requests"
+      ;; Missing message
+      (is (not (schema/valid? schema/FormElicitationRequest
+                              {:requested-schema {:type "object"}})))
+
+      ;; Missing requested-schema
+      (is (not (schema/valid? schema/FormElicitationRequest
+                              {:message "Test"})))))
+
+  (testing "form-elicitation constructor"
+    (is (= {:mode "form"
+            :message "Enter name"
+            :requested-schema {:type "object"}}
+           (schema/form-elicitation {:message "Enter name"
+                                     :requested-schema {:type "object"}})))))
+
+(deftest form-elicitation!-test
+  (testing "form-elicitation! with validation"
+    (testing "valid request returns result"
+      (is (= {:mode "form"
+              :message "Test"
+              :requested-schema {:type "object"}}
+             (schema/form-elicitation! {:message "Test"
+                                        :requested-schema {:type "object"}}))))
+
+    (testing "invalid request throws"
+      (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                            #"Invalid form elicitation"
+                            (schema/form-elicitation! {:message "Missing schema"}))))))
+
+(deftest elicitation-response-test
+  (testing "ElicitationResponse schema validation"
+    (testing "valid responses"
+      (is (schema/valid? schema/ElicitationResponse
+                         {:action "accept"
+                          :content {:name "Alice"}}))
+
+      (is (schema/valid? schema/ElicitationResponse
+                         {:action "decline"}))
+
+      (is (schema/valid? schema/ElicitationResponse
+                         {:action "cancel"})))
+
+    (testing "invalid responses"
+      (is (not (schema/valid? schema/ElicitationResponse
+                              {:action "invalid"})))))
+
+  (testing "elicitation-response constructor"
+    (testing "accept with content"
+      (is (= {:action "accept" :content {:name "Alice"}}
+             (schema/elicitation-response {:action :accept :content {:name "Alice"}}))))
+
+    (testing "decline without content"
+      (is (= {:action "decline"}
+             (schema/elicitation-response {:action :decline}))))
+
+    (testing "cancel without content"
+      (is (= {:action "cancel"}
+             (schema/elicitation-response {:action :cancel}))))))
+
+(deftest elicitation-complete-notification-test
+  (testing "ElicitationCompleteNotification schema validation"
+    (testing "valid notification"
+      (is (schema/valid? schema/ElicitationCompleteNotification
+                         {:elicitation-id "abc-123"})))
+
+    (testing "invalid notification"
+      (is (not (schema/valid? schema/ElicitationCompleteNotification
+                              {})))))
+
+  (testing "elicitation-complete-notification constructor"
+    (is (= {:elicitation-id "abc-123"}
+           (schema/elicitation-complete-notification "abc-123")))))
+
+(deftest url-elicitation-required-error-data-test
+  (testing "UrlElicitationRequiredErrorData schema validation"
+    (testing "valid error data"
+      (is (schema/valid? schema/UrlElicitationRequiredErrorData
+                         {:elicitations [{:mode "url"
+                                          :elicitation-id "abc"
+                                          :url "https://example.com/auth"
+                                          :message "Auth required"}]})))
+
+    (testing "invalid error data"
+      ;; Empty elicitations
+      (is (not (schema/valid? schema/UrlElicitationRequiredErrorData
+                              {:elicitations []})))))
+
+  (testing "url-elicitation-required-error-data constructor"
+    (let [elicitation (schema/url-elicitation {:elicitation-id "abc"
+                                               :url "https://example.com/auth"
+                                               :message "Auth required"})]
+      (is (= {:elicitations [elicitation]}
+             (schema/url-elicitation-required-error-data [elicitation])))))
+
+  (testing "error code constant"
+    (is (= -32042 schema/URL_ELICITATION_REQUIRED_ERROR_CODE))))
+
 

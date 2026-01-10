@@ -323,3 +323,226 @@
       (throw (ex-info "Invalid tool result message" {:errors (:errors result)
                                                      :message message})))))
 
+;; =============================================================================
+;; Elicitation Types (2025-11-25)
+;; =============================================================================
+
+;; -----------------------------------------------------------------------------
+;; Modes and Actions
+;; -----------------------------------------------------------------------------
+
+(def ElicitationMode
+  "Valid modes for elicitation requests.
+   
+   Modes:
+   - \"form\" - In-band structured data collection (default)
+   - \"url\"  - Out-of-band URL navigation for sensitive data"
+  [:enum "form" "url"])
+
+(def ElicitationAction
+  "Response actions for elicitation requests.
+   
+   Actions:
+   - \"accept\"  - User approved and submitted (with data for form mode)
+   - \"decline\" - User explicitly declined the request
+   - \"cancel\"  - User dismissed without making a choice"
+  [:enum "accept" "decline" "cancel"])
+
+;; -----------------------------------------------------------------------------
+;; Request Schemas
+;; -----------------------------------------------------------------------------
+
+(def UrlElicitationRequest
+  "Schema for URL mode elicitation requests.
+   
+   URL mode directs users to external URLs for sensitive interactions
+   that must NOT pass through the MCP client (OAuth, payments, API keys).
+   
+   Fields:
+   - :mode           - Must be \"url\"
+   - :elicitation-id - Unique identifier for this elicitation
+   - :url            - The URL user should navigate to
+   - :message        - Human-readable explanation"
+  [:map
+   [:mode [:= "url"]]
+   [:elicitation-id :string]
+   [:url [:and :string
+          [:fn {:error/message "URL must be https:// or http://localhost for development"}
+           (fn [s]
+             (or (str/starts-with? s "https://")
+                 (str/starts-with? s "http://localhost")))]]]
+   [:message :string]])
+
+(def FormElicitationRequest
+  "Schema for form mode elicitation requests.
+   
+   Form mode collects structured data directly through the MCP client.
+   MUST NOT be used for sensitive information like credentials.
+   
+   Fields:
+   - :mode             - \"form\" (optional, defaults to form if omitted)
+   - :message          - Human-readable explanation
+   - :requested-schema - JSON Schema defining expected response structure"
+  [:map
+   [:mode {:optional true} [:= "form"]]
+   [:message :string]
+   [:requested-schema :map]])
+
+;; -----------------------------------------------------------------------------
+;; Response Schema
+;; -----------------------------------------------------------------------------
+
+(def ElicitationResponse
+  "Schema for elicitation response from client.
+   
+   Fields:
+   - :action  - User's response action (accept/decline/cancel)
+   - :content - Submitted data (only for form mode accept)"
+  [:map
+   [:action ElicitationAction]
+   [:content {:optional true} :map]])
+
+;; -----------------------------------------------------------------------------
+;; Notification Schema
+;; -----------------------------------------------------------------------------
+
+(def ElicitationCompleteNotification
+  "Schema for elicitation completion notification.
+   
+   Servers MAY send this when URL mode elicitation completes out-of-band.
+   
+   Fields:
+   - :elicitation-id - ID from the original elicitation request"
+  [:map
+   [:elicitation-id :string]])
+
+;; -----------------------------------------------------------------------------
+;; Error Schema
+;; -----------------------------------------------------------------------------
+
+(def UrlElicitationRequiredErrorData
+  "Schema for URL_ELICITATION_REQUIRED error data (-32042).
+   
+   Returned when a request cannot proceed until elicitation completes.
+   
+   Fields:
+   - :elicitations - Array of URL mode elicitations required"
+  [:map
+   [:elicitations [:vector {:min 1} UrlElicitationRequest]]])
+
+;; =============================================================================
+;; Elicitation Constructors
+;; =============================================================================
+
+(defn url-elicitation
+  "Creates a URL mode elicitation request.
+   
+   URL mode directs users to external URLs for sensitive interactions.
+   Use for OAuth flows, payment processing, API key collection, etc.
+   
+   Options:
+   - :elicitation-id - Unique identifier (required)
+   - :url            - Target URL, must be https:// (required)
+   - :message        - Human-readable explanation (required)
+   
+   Example:
+     (url-elicitation
+       {:elicitation-id \"550e8400-e29b-41d4-a716-446655440000\"
+        :url \"https://api.example.com/oauth/authorize\"
+        :message \"Please authorize access to your account.\"})"
+  [{:keys [elicitation-id url message]}]
+  {:mode "url"
+   :elicitation-id elicitation-id
+   :url url
+   :message message})
+
+(defn url-elicitation!
+  "Like url-elicitation, but validates and throws on invalid request."
+  [opts]
+  (let [request (url-elicitation opts)
+        result (validate UrlElicitationRequest request)]
+    (if (:valid? result)
+      request
+      (throw (ex-info "Invalid URL elicitation request" {:errors (:errors result)
+                                                         :request request})))))
+
+(defn form-elicitation
+  "Creates a form mode elicitation request.
+   
+   Form mode collects structured data through the MCP client.
+   MUST NOT be used for sensitive information like credentials.
+   
+   Options:
+   - :message          - Human-readable explanation (required)
+   - :requested-schema - JSON Schema for expected response (required)
+   
+   Example:
+     (form-elicitation
+       {:message \"Please provide your display name\"
+        :requested-schema {:type \"object\"
+                           :properties {:name {:type \"string\"}}
+                           :required [\"name\"]}})"
+  [{:keys [message requested-schema]}]
+  {:mode "form"
+   :message message
+   :requested-schema requested-schema})
+
+(defn form-elicitation!
+  "Like form-elicitation, but validates and throws on invalid request."
+  [opts]
+  (let [request (form-elicitation opts)
+        result (validate FormElicitationRequest request)]
+    (if (:valid? result)
+      request
+      (throw (ex-info "Invalid form elicitation request" {:errors (:errors result)
+                                                          :request request})))))
+
+(defn elicitation-response
+  "Creates an elicitation response.
+   
+   Options:
+   - :action  - Response action (:accept, :decline, or :cancel) (required)
+   - :content - Response data for form mode accept (optional)
+   
+   Example:
+     (elicitation-response {:action :accept
+                            :content {:name \"Alice\"}})"
+  [{:keys [action content]}]
+  (cond-> {:action (name action)}
+    content (assoc :content content)))
+
+(defn elicitation-complete-notification
+  "Creates an elicitation completion notification.
+   
+   Servers send this when URL mode elicitation completes out-of-band.
+   
+   Args:
+   - elicitation-id - ID from the original elicitation request
+   
+   Example:
+     (elicitation-complete-notification \"550e8400-e29b-41d4-a716-446655440000\")"
+  [elicitation-id]
+  {:elicitation-id elicitation-id})
+
+(defn url-elicitation-required-error-data
+  "Creates error data for URL_ELICITATION_REQUIRED error (-32042).
+   
+   Used when a request cannot proceed until elicitation completes.
+   
+   Args:
+   - elicitations - Vector of URL elicitation requests
+   
+   Example:
+     (url-elicitation-required-error-data
+       [(url-elicitation {:elicitation-id \"abc\"
+                          :url \"https://example.com/auth\"
+                          :message \"Authorization required\"})])"
+  [elicitations]
+  {:elicitations elicitations})
+
+;; Error code constant
+(def URL_ELICITATION_REQUIRED_ERROR_CODE
+  "JSON-RPC error code for URL elicitation required (-32042)."
+  -32042)
+
+
