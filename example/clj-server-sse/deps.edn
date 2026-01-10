@@ -1,11 +1,11 @@
 {:paths ["src"]
- :deps  {org.clojure/clojure        {:mvn/version "1.12.1"}
-         nrepl/nrepl                {:mvn/version "1.3.1"}
-         http-kit/http-kit          {:mvn/version "2.9.0-beta1"}
-         com.taoensso/telemere      {:mvn/version "1.0.1"}
+ :deps  {org.clojure/clojure        {:mvn/version "1.12.4"}
+         nrepl/nrepl                {:mvn/version "1.5.2"}
+         http-kit/http-kit          {:mvn/version "2.9.0-beta3"}
+         com.taoensso/telemere      {:mvn/version "1.2.1"}
          metosin/jsonista           {:mvn/version "0.3.13"}
-         metosin/reitit-ring        {:mvn/version "0.9.1"}
-         metosin/reitit-core        {:mvn/version "0.9.1"}
+         metosin/reitit-ring        {:mvn/version "0.10.0"}
+         metosin/reitit-core        {:mvn/version "0.10.0"}
          medley/medley              {:mvn/version "1.4.0"}
          fi.metosin/mcp-toolkit     {:local/root "../.."}
          example/common-mcp-content {:local/root "../common-mcp-content"}}
