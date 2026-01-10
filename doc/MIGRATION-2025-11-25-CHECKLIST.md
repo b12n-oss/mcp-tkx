@@ -128,10 +128,10 @@ These would be implemented if/when specific OAuth requirements arise.
 ---
 
 ## Final Steps
-- ⬜ Update `README.md` - add 2025-11-25 to supported versions
-- ⬜ Update `CHANGELOG.md` - document all changes
-- ⬜ Update version in `deps.edn` (e.g., `0.2.0-alpha`)
-- ⬜ Run full test suite: `./bin/kaocha`
+- ✅ Update `README.md` - add 2025-11-25 to supported versions
+- ✅ Update `CHANGELOG.md` - document all changes
+- ✅ Update version in `pom.xml` to `2025-11-25`
+- ✅ Run full test suite: `bb test`
 - ⬜ Test with MCP Inspector
 - ⬜ Test with Claude Desktop
 - ⬜ Test with Claude Code

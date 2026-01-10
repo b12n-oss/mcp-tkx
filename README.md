@@ -17,9 +17,19 @@ Tested on Claude Desktop and Claude Code, no problems found for the features imp
 
 MCP Toolkit supports automatic protocol version negotiation between clients and servers:
 
-- **2025-06-18** (latest) - Full support with all new features
+- **2025-11-25** (latest) - Full support with all new features
+- **2025-06-18** - Full support
 - **2025-03-26** - Full backward compatibility
 - **2024-11-05** - Legacy support
+
+### New in 2025-11-25
+
+- **Elicitation** - Request additional information from users via forms or URLs
+- **Tasks (Experimental)** - Durable state machines for long-running operations
+- **Sampling with tools** - LLMs can use tools during sampling requests
+- **Icons** - Visual icons for prompts, resources, tools, and templates
+- **Server description** - Human-readable server descriptions in initialization
+- **JSON Schema 2020-12** - Standard dialect for tool input/output schemas
 
 ### New in 2025-06-18
 
@@ -30,7 +40,9 @@ MCP Toolkit supports automatic protocol version negotiation between clients and 
 - **_meta field support** - Optional metadata for various message types
 - **Breaking change:** JSON-RPC batching removed (array requests no longer supported)
 
-📚 **[See the Migration Guide](MIGRATION-2025-06-18.md)** for upgrading existing MCP servers and clients.
+📚 **[See the 2025-11-25 Migration Guide](doc/MIGRATION-2025-11-25.md)** for upgrading to the latest protocol version.
+
+📚 **[See the 2025-06-18 Migration Guide](MIGRATION-2025-06-18.md)** for upgrading from older versions.
 
 ## Implemented features
 
@@ -45,17 +57,22 @@ MCP Toolkit supports automatic protocol version negotiation between clients and 
   - [x] `2024-11-05`
   - [x] `2025-03-26`
   - [x] `2025-06-18`
+  - [x] `2025-11-25`
 - MCP features implemented
   - [x] Cancellation
   - [x] Ping
   - [x] Progress
   - [x] Roots
   - [x] Sampling
+  - [x] Sampling with tools (2025-11-25)
   - [x] Prompts
   - [x] Resources
   - [x] Tools
   - [x] Completion
   - [x] Logging
+  - [x] Elicitation (2025-11-25)
+  - [x] Tasks - Experimental (2025-11-25)
+  - [x] Icons (2025-11-25)
   - [ ] Pagination
 - [Example projects](example)
   - [x] [CLJC server using STDIO](example/cljc-server-stdio)
