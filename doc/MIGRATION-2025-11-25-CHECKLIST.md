@@ -31,14 +31,14 @@
 - ✅ Update docstrings for `create-session`
 - ✅ Add test for server-info description field
 
-## Phase 3: Icons Support (Est: 2 hours)
-- ⬜ `tool-list-handler` - include `:icon` if present
-- ⬜ `prompt-list-handler` - include `:icon` if present
-- ⬜ `resource-list-handler` - include `:icon` if present
-- ⬜ `resource-templates-list-handler` - include `:icon` if present
-- ⬜ Create `mcp-toolkit.util.icons` namespace (optional)
-- ⬜ Add unit tests for icon serialization
-- ⬜ Document icon format (data URI / HTTPS URL)
+## Phase 3: Icons Support (Est: 2 hours) ✅
+- ✅ `tool-list-handler` - include `:icon` if present
+- ✅ `prompt-list-handler` - include `:icon` if present
+- ✅ `resource-list-handler` - include `:icon` if present
+- ✅ `resource-templates-list-handler` - include `:icon` if present
+- ⏭️ Create `mcp-toolkit.util.icons` namespace (optional) - not needed, icons pass through
+- ✅ Add unit tests for icon serialization
+- ✅ Document icon format (data URI / HTTPS URL) in commit
 
 ## Phase 4: EnumSchema Updates (Est: 2 hours)
 - ⬜ Create `mcp-toolkit.impl.elicitation` namespace
