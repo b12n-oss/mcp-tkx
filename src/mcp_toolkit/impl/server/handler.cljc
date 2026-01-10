@@ -43,7 +43,7 @@
                 :prompt-by-name
                 vals
                 (->> (mapv (fn [prompt]
-                             (select-keys prompt [:name :title :description :arguments])))))
+                             (select-keys prompt [:name :title :description :arguments :icon])))))
    #_#_:next-cursor "next-page-cursor"})
 
 (defn prompt-get-handler
@@ -58,7 +58,7 @@
   [{:keys [session]}]
   {:resources (-> @session :resource-by-uri vals
                   (->> (mapv (fn [resource]
-                               (select-keys resource [:uri :name :title :description :mime-type])))))
+                               (select-keys resource [:uri :name :title :description :mime-type :icon])))))
    #_#_:next-cursor "next-page-cursor"})
 
 (defn resource-read-handler
@@ -71,7 +71,9 @@
 
 (defn resource-templates-list-handler
   [{:keys [session]}]
-  {:resource-templates (-> @session :resource-templates (or []))})
+  {:resource-templates (-> @session :resource-templates (or [])
+                           (->> (mapv (fn [template]
+                                        (select-keys template [:uri-template :name :title :description :mime-type :icon])))))})
 
 (defn resource-subscribe-handler
   [{:keys [session message]}]
@@ -89,7 +91,7 @@
   [{:keys [session]}]
   {:tools (-> @session :tool-by-name vals
               (->> (mapv (fn [tool]
-                           (cond-> (select-keys tool [:name :title :description :input-schema])
+                           (cond-> (select-keys tool [:name :title :description :input-schema :icon])
                              ;; Add output-schema if present (2025-06-18 spec)
                              (:output-schema tool) (assoc :output-schema (:output-schema tool)))))))
    #_#_:next-cursor "next-page-cursor"})

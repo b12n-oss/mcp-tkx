@@ -474,3 +474,61 @@
                                           (json-rpc/close-connection server-context)
                                           ;; Pass through
                                           (or error x))))))))
+
+(deftest icon-support-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (testing "icon field support in prompts, resources, tools, and templates (2025-11-25 spec)"
+    ;; Create test data with icon fields
+    (let [test-prompt-with-icon {:name "test_prompt"
+                                 :title "Test Prompt"
+                                 :description "A test prompt with icon"
+                                 :arguments []
+                                 :icon "https://example.com/prompt-icon.png"}
+          test-resource-with-icon {:uri "test://resource"
+                                   :name "test_resource"
+                                   :title "Test Resource"
+                                   :description "A test resource with icon"
+                                   :mime-type "text/plain"
+                                   :icon "data:image/svg+xml;base64,PHN2Zy..."}
+          test-tool-with-icon {:name "test_tool"
+                               :title "Test Tool"
+                               :description "A test tool with icon"
+                               :input-schema {:type "object"}
+                               :icon "https://example.com/tool-icon.png"}
+          test-template-with-icon {:uri-template "test://resource/{id}"
+                                   :name "test_template"
+                                   :title "Test Template"
+                                   :description "A test template with icon"
+                                   :mime-type "application/json"
+                                   :icon "https://example.com/template-icon.png"}
+
+          ;; Create a session with test data
+          session (atom {:prompt-by-name {(:name test-prompt-with-icon) test-prompt-with-icon}
+                         :resource-by-uri {(:uri test-resource-with-icon) test-resource-with-icon}
+                         :tool-by-name {(:name test-tool-with-icon) test-tool-with-icon}
+                         :resource-templates [test-template-with-icon]})]
+
+      ;; Test prompt list handler includes icon
+      (let [result (server.handler/prompt-list-handler {:session session})
+            prompt (first (:prompts result))]
+        (is (contains? prompt :icon) "Prompt should have icon field")
+        (is (= "https://example.com/prompt-icon.png" (:icon prompt))))
+
+      ;; Test resource list handler includes icon
+      (let [result (server.handler/resource-list-handler {:session session})
+            resource (first (:resources result))]
+        (is (contains? resource :icon) "Resource should have icon field")
+        (is (= "data:image/svg+xml;base64,PHN2Zy..." (:icon resource))))
+
+      ;; Test tool list handler includes icon
+      (let [result (server.handler/tool-list-handler {:session session})
+            tool (first (:tools result))]
+        (is (contains? tool :icon) "Tool should have icon field")
+        (is (= "https://example.com/tool-icon.png" (:icon tool))))
+
+      ;; Test resource templates list handler includes icon
+      (let [result (server.handler/resource-templates-list-handler {:session session})
+            template (first (:resource-templates result))]
+        (is (contains? template :icon) "Resource template should have icon field")
+        (is (= "https://example.com/template-icon.png" (:icon template)))))))
