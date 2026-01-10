@@ -435,3 +435,42 @@
       ;; Test has-meta?
       (is (meta-support/has-meta? {:_meta {}}))
       (is (not (meta-support/has-meta? {:name "test"}))))))
+
+(deftest server-description-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "server-info description field (2025-11-25 spec)"
+                        (let [message-logs (atom [])
+                              client-session (client/create-session {:on-initialized nil})
+                              server-session (server/create-session
+                                              {:server-info {:name "test-server"
+                                                             :version "1.0.0"
+                                                             :description "A test server with description"}
+                                               :on-initialized nil})
+                              {:keys [client-context server-context]} (setup-and-connect-client-server client-session
+                                                                                                       server-session
+                                                                                                       message-logs)]
+                          (-> (p/do
+                                ;; Initiate the client-server communication
+                                (client/send-first-handshake-message client-context)
+
+                                ;; Wait until we have enough messages for the test.
+                                (util/assert-atom message-logs
+                                                  (fn [logs] (= (count logs) 3))
+                                                  3000
+                                                  "MCP handshake with description")
+
+                                ;; Verify description is included in server-info
+                                (let [messages @message-logs
+                                      init-response (-> messages second second)
+                                      server-info (get-in init-response [:result :server-info])]
+                                  (is (= "test-server" (:name server-info)))
+                                  (is (= "1.0.0" (:version server-info)))
+                                  (is (= "A test server with description" (:description server-info))
+                                      "Server description should be included in initialize response")))
+                              (p/handle (fn [x error]
+                                          (json-rpc/close-connection client-context)
+                                          (json-rpc/close-connection server-context)
+                                          ;; Pass through
+                                          (or error x))))))))

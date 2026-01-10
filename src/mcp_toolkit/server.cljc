@@ -281,7 +281,36 @@
   nil)
 
 (defn create-session
-  "Returns the state of a newly created session."
+  "Returns the state of a newly created session.
+   (see https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization)
+
+   Options:
+     :server-info - Map with server identification (passed to client during initialization)
+       :name        - Server name (required)
+       :version     - Server version (required)
+       :description - Human-readable description of the server (optional, 2025-11-25+)
+
+     :server-instructions - Optional instructions for the client about using this server
+
+     :prompts   - Vector of prompt definitions
+     :resources - Vector of resource definitions
+     :tools     - Vector of tool definitions
+
+     :resource-templates       - Vector of resource template definitions
+     :resource-uri-complete-fn - Function for resource URI completion
+
+     :logging-level - Minimum log level to send to client (default: \"debug\")
+
+     :on-initialized             - Callback when initialization completes (default: request-root-list)
+     :on-client-root-list-changed - Callback when client notifies root list changed
+     :on-client-root-list-updated - Callback after server updates root data
+
+   Example:
+     (create-session
+       {:server-info {:name \"my-server\"
+                      :version \"1.0.0\"
+                      :description \"A helpful MCP server for data analysis\"}
+        :tools [...]})"
   [{:keys [server-info
            server-instructions
            ;; MCP server features
