@@ -2,6 +2,7 @@
   #?@
    (:clj
     [(:require
+      [camel-snake-kebab.core :as csk]
       [example.client-content :as content]
       [jsonista.core :as j]
       [mcp-toolkit.client :as client]
@@ -18,6 +19,8 @@
     [(:require
       ["child_process" :refer [spawn]]
       ["path" :as path]
+      [camel-snake-kebab.core :as csk]
+      [camel-snake-kebab.extras :as cske]
       [clojure.string :as str]
       [example.client-content :as content]
       [mcp-toolkit.client :as client]
@@ -45,7 +48,8 @@
    (defn listen-messages [context
                           ^LineNumberingPushbackReader reader]
      (let [{:keys [send-message]} context
-           json-mapper (j/object-mapper {:decode-key-fn keyword})]
+           ;; Convert camelCase strings to kebab-case keywords
+           json-mapper (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword})]
        (loop []
          ;; line = nil means that the reader is closed
          (when-some [line (.readLine reader)]
@@ -76,7 +80,8 @@
                       (LineNumberingPushbackReader.))
            ;; Hook up the I/O functions to the context
            ctx (swap! context assoc
-                      :send-message (let [json-mapper (j/object-mapper {:encode-key-fn name})]
+                      ;; Convert kebab-case keywords to camelCase strings
+                      :send-message (let [json-mapper (j/object-mapper {:encode-key-fn csk/->camelCaseString})]
                                       (fn [message]
                                         (prn [:--> message])
                                         (.write writer (j/write-value-as-string message json-mapper))
@@ -109,9 +114,13 @@
            reader (.-stdout server-process)
            ;; Hook up the I/O functions to the context
            ctx (swap! context assoc
+                      ;; Convert kebab-case keywords to camelCase strings
                       :send-message (fn [message]
                                       (prn [:--> message])
-                                      (.write writer (str (-> message clj->js js/JSON.stringify) "\n")))
+                                      (.write writer (str (-> message
+                                                              (cske/transform-keys csk/->camelCaseString)
+                                                              clj->js
+                                                              js/JSON.stringify) "\n")))
                       :close-connection (fn []
                                           (.kill server-process)))]
 
@@ -121,9 +130,11 @@
               ;; In this simple example, we naively assume that there is a json object per line.
               (doseq [line (str/split-lines chunk)]
                 (when-some [message (try
+                                      ;; Convert camelCase to kebab-case keywords
                                       (-> line
                                           js/JSON.parse
-                                          (js->clj :keywordize-keys true))
+                                          (js->clj :keywordize-keys true)
+                                          (->> (cske/transform-keys csk/->kebab-case-keyword)))
                                       (catch js/SyntaxError e
                                         (json-rpc/send-message ctx json-rpc/parse-error-response)
                                         (js/process.stderr.write (str "<<-" line "->>"))

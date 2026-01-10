@@ -2,6 +2,7 @@
   #?@
    (:clj
     [(:require
+      [camel-snake-kebab.core :as csk]
       [example.server-content :as content]
       [jsonista.core :as j]
       [mcp-toolkit.json-rpc :as json-rpc]
@@ -12,6 +13,8 @@
       (java.io OutputStreamWriter))]
     :cljs
     [(:require
+      [camel-snake-kebab.core :as csk]
+      [camel-snake-kebab.extras :as cske]
       [clojure.string :as str]
       [example.server-content :as content]
       [mcp-toolkit.json-rpc :as json-rpc]
@@ -21,12 +24,12 @@
 ;; State
 (def session
   (atom
-    (server/create-session {:prompts [content/talk-like-pirate-prompt]
-                            :resources [content/hello-doc-resource
-                                        content/world-doc-resource]
-                            :tools [content/parentify-tool]
-                            :resource-templates content/my-resource-templates
-                            :resource-uri-complete-fn content/my-resource-uri-complete-fn})))
+   (server/create-session {:prompts [content/talk-like-pirate-prompt]
+                           :resources [content/hello-doc-resource
+                                       content/world-doc-resource]
+                           :tools [content/parentify-tool]
+                           :resource-templates content/my-resource-templates
+                           :resource-uri-complete-fn content/my-resource-uri-complete-fn})))
 
 ;; Platform-specific threading, transport & I/O stuffs
 ;; on the JVM
@@ -34,7 +37,8 @@
    (def context
      {:session session
       :send-message (let [^OutputStreamWriter writer *out*
-                          json-mapper (j/object-mapper {:encode-key-fn name})]
+                          ;; Convert kebab-case keywords to camelCase strings for wire format
+                          json-mapper (j/object-mapper {:encode-key-fn csk/->camelCaseString})]
                       (fn [message]
                         (.write writer (j/write-value-as-string message json-mapper))
                         (.write writer "\n")
@@ -43,7 +47,8 @@
    (defn listen-messages [context
                           ^LineNumberingPushbackReader reader]
      (let [{:keys [send-message]} context
-           json-mapper (j/object-mapper {:decode-key-fn keyword})]
+           ;; Convert camelCase strings to kebab-case keywords for idiomatic Clojure
+           json-mapper (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword})]
        (loop []
          ;; line = nil means that the reader is closed
          (when-some [line (.readLine reader)]
@@ -75,7 +80,9 @@
    (def context
      {:session session
       :send-message (fn [message]
+                      ;; Convert kebab-case keywords to camelCase strings for wire format
                       (js/process.stdout.write (-> message
+                                                   (cske/transform-keys csk/->camelCaseString)
                                                    clj->js
                                                    js/JSON.stringify
                                                    (str "\n"))))}))
@@ -88,9 +95,11 @@
                             ;; In this simple example, we naively assume that there is a json object per line.
                             (doseq [line (str/split-lines chunk)]
                               (when-some [message (try
+                                                    ;; Convert camelCase to kebab-case keywords for idiomatic Clojure
                                                     (-> line
                                                         js/JSON.parse
-                                                        (js->clj :keywordize-keys true))
+                                                        (js->clj :keywordize-keys true)
+                                                        (->> (cske/transform-keys csk/->kebab-case-keyword)))
                                                     (catch js/SyntaxError e
                                                       (json-rpc/send-message context json-rpc/parse-error-response)
                                                       (js/process.stderr.write (str "<<-" line "->>"))
@@ -141,11 +150,11 @@
   (some-> (server/request-sampling context {:messages [{:role "user"
                                                         :content {:type "text"
                                                                   :text "What is the capital of France?"}}]
-                                            :modelPreferences {:hints [{:name "claude-3-sonnet"}]
-                                                               :intelligencePriority 0.8
-                                                               :speedPriority 0.5}
-                                            :systemPrompt "You are a helpful assistant"
-                                            :maxTokens 100})
+                                            :model-preferences {:hints [{:name "claude-3-sonnet"}]
+                                                                :intelligence-priority 0.8
+                                                                :speed-priority 0.5}
+                                            :system-prompt "You are a helpful assistant"
+                                            :max-tokens 100})
           deref)
 
   *e)

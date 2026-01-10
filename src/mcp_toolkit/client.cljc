@@ -220,7 +220,7 @@
      nil"
   [context request-id]
   (json-rpc/send-message context (json-rpc/notification "cancelled"
-                                                        {:requestId request-id})))
+                                                        {:request-id request-id})))
 
 (defn notify-root-list-changed
   "Notifies the MCP server that the client's root list has been changed.
@@ -281,15 +281,15 @@
                 client-capabilities
                 protocol-version]} @session]
     (-> (json-rpc/call-remote-method context {:method "initialize"
-                                              :params {:clientInfo client-info
+                                              :params {:client-info client-info
                                                        :capabilities client-capabilities
-                                                       :protocolVersion protocol-version}})
-        (p/then (fn [{:keys [protocolVersion capabilities serverInfo]
+                                                       :protocol-version protocol-version}})
+        (p/then (fn [{:keys [protocol-version capabilities server-info]
                       :as result}]
                   (swap! session assoc
-                         :server-protocol-version protocolVersion
+                         :server-protocol-version protocol-version
                          :server-capabilities capabilities
-                         :server-info serverInfo
+                         :server-info server-info
                          :initialized true
                          :handler-by-method client.handler/handler-by-method-post-initialization)
                   (json-rpc/send-message context (json-rpc/notification "initialized"))
@@ -320,7 +320,7 @@
            on-server-tool-list-updated]
     :or {client-info {:name "mcp-toolkit"
                       :version "0.1.1-alpha"}
-         client-capabilities {:roots {:listChanged true}}
+         client-capabilities {:roots {:list-changed true}}
          protocol-version "2025-06-18"
          on-initialized default-on-initialized
          on-server-prompt-list-changed request-prompt-list

@@ -21,9 +21,9 @@
      nil"
   [context progress]
   (let [{:keys [message]} context]
-    (when-some [progress-token (-> message :params :_meta :progressToken)]
+    (when-some [progress-token (-> message :params :_meta :progress-token)]
       (json-rpc/send-message context (json-rpc/notification "progress"
-                                                            (-> {:progressToken progress-token}
+                                                            (-> {:progress-token progress-token}
                                                                 (into progress))))))
   nil)
 

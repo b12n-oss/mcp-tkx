@@ -35,7 +35,7 @@
                              (resource-uri-complete-fn context (:uri ref) (:name argument) (:value argument)))))
         (or {:completion {:values []
                           :total 0
-                          :hasMore false}}))))
+                          :has-more false}}))))
 
 (defn prompt-list-handler
   [{:keys [session]}]
@@ -44,7 +44,7 @@
                 vals
                 (->> (mapv (fn [prompt]
                              (select-keys prompt [:name :title :description :arguments])))))
-   #_#_:nextCursor "next-page-cursor"})
+   #_#_:next-cursor "next-page-cursor"})
 
 (defn prompt-get-handler
   [{:keys [session message]
@@ -58,20 +58,20 @@
   [{:keys [session]}]
   {:resources (-> @session :resource-by-uri vals
                   (->> (mapv (fn [resource]
-                               (select-keys resource [:uri :name :title :description :mimeType])))))
-   #_#_:nextCursor "next-page-cursor"})
+                               (select-keys resource [:uri :name :title :description :mime-type])))))
+   #_#_:next-cursor "next-page-cursor"})
 
 (defn resource-read-handler
   [{:keys [session message]}]
   (let [{:keys [uri]} (:params message)]
     (if-some [resource (-> @session :resource-by-uri (get uri))]
-      {:contents [(select-keys resource [:uri :description :mimeType :text :blob])]} ; either text or blob
+      {:contents [(select-keys resource [:uri :description :mime-type :text :blob])]} ; either text or blob
       ;; FIXME: this is wrong because it will be interpreted as result data
       (json-rpc/resource-not-found (:id message) uri))))
 
 (defn resource-templates-list-handler
   [{:keys [session]}]
-  {:resourceTemplates (-> @session :resource-templates (or []))})
+  {:resource-templates (-> @session :resource-templates (or []))})
 
 (defn resource-subscribe-handler
   [{:keys [session message]}]
@@ -89,10 +89,10 @@
   [{:keys [session]}]
   {:tools (-> @session :tool-by-name vals
               (->> (mapv (fn [tool]
-                           (cond-> (select-keys tool [:name :title :description :inputSchema])
-                             ;; Add outputSchema if present (2025-06-18 spec)
-                             (:outputSchema tool) (assoc :outputSchema (:outputSchema tool)))))))
-   #_#_:nextCursor "next-page-cursor"})
+                           (cond-> (select-keys tool [:name :title :description :input-schema])
+                             ;; Add output-schema if present (2025-06-18 spec)
+                             (:output-schema tool) (assoc :output-schema (:output-schema tool)))))))
+   #_#_:next-cursor "next-page-cursor"})
 
 (defn tool-call-handler
   [{:keys [session message]
@@ -119,7 +119,7 @@
             (p/catch (fn [exception]
                        {:content [{:type "text"
                                    :text (ex-message exception)}]
-                        :isError true}))))
+                        :is-error true}))))
       ;; FIXME: this is wrong because it will be interpreted as result data
       (json-rpc/invalid-tool-name (:id message) name))))
 
@@ -127,7 +127,7 @@
   [{:keys [session message]}]
   (when-some [is-cancelled-atom (-> @session
                                     :is-cancelled-by-request-id
-                                    (get (-> message :params :requestId)))]
+                                    (get (-> message :params :request-id)))]
     (reset! is-cancelled-atom true)))
 
 (def handler-by-method-post-initialization
@@ -150,8 +150,8 @@
 
 (defn initialize-handler
   [{:keys [session message]}]
-  (let [{client-protocol-version :protocolVersion
-         client-info :clientInfo
+  (let [{client-protocol-version :protocol-version
+         client-info :client-info
          client-capabilities :capabilities} (:params message)
 
         {:keys [server-info
@@ -165,14 +165,14 @@
            :protocol-version protocol-version
            :client-info client-info
            :client-capabilities client-capabilities)
-    (-> {:protocolVersion protocol-version
+    (-> {:protocol-version protocol-version
          :capabilities {:logging {}
                         :completions {}
-                        :prompts {:listChanged true}
+                        :prompts {:list-changed true}
                         :resources {:subscribe true
-                                    :listChanged true}
-                        :tools {:listChanged true}}
-         :serverInfo server-info}
+                                    :list-changed true}
+                        :tools {:list-changed true}}
+         :server-info server-info}
         (cond-> (some? server-instructions) (assoc :instructions server-instructions)))))
 
 (defn initialized-notification-handler
