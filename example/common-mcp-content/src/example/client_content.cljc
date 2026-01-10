@@ -15,4 +15,4 @@
    :content {:type "text"
              :text "You are absolutely right, and the answer is 42."}
    :model "The Hitchhiker's Guide to the Galaxy"
-   :stopReason "endTurn"})
+   :stop-reason "endTurn"})

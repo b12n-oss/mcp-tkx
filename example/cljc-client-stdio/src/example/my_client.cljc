@@ -30,7 +30,7 @@
 
 (def session
   (atom
-   (client/create-session {:client-capabilities {:roots {:listChanged true}
+   (client/create-session {:client-capabilities {:roots {:list-changed true}
                                                  :sampling {}}
                            :roots content/roots
                            :on-sampling-requested content/sampling-handler})))

@@ -3,7 +3,7 @@
 
    This example shows:
    - Title field for better UI display
-   - Structured output with outputSchema
+   - Structured output with output-schema
    - Resource links in tool results
    - _meta field for metadata"
   (:require
@@ -17,12 +17,12 @@
   {:name "simple_calc"
    :title "Simple Calculator" ;; NEW: Human-readable display name
    :description "Performs basic arithmetic operations"
-   :inputSchema {:type "object"
-                 :properties {:operation {:type "string"
-                                          :enum ["add" "subtract" "multiply" "divide"]}
-                              :a {:type "number"}
-                              :b {:type "number"}}
-                 :required [:operation :a :b]}
+   :input-schema {:type "object"
+                  :properties {:operation {:type "string"
+                                           :enum ["add" "subtract" "multiply" "divide"]}
+                               :a {:type "number"}
+                               :b {:type "number"}}
+                  :required [:operation :a :b]}
    :tool-fn (fn [_context arguments]
               (let [{:keys [operation a b]} arguments
                     result (case operation
@@ -33,26 +33,26 @@
                 ;; Simple string return still works (backward compatible)
                 (str "Result: " result)))})
 
-;; Example 2: Tool with structured output and outputSchema
+;; Example 2: Tool with structured output and output-schema
 (def advanced-calculator
   {:name "advanced_calc"
    :title "Advanced Calculator" ;; Display name
    :description "Calculator with structured output"
-   :inputSchema {:type "object"
-                 :properties {:operation {:type "string"
-                                          :enum ["add" "subtract" "multiply" "divide"]}
-                              :a {:type "number"}
-                              :b {:type "number"}}
-                 :required [:operation :a :b]}
+   :input-schema {:type "object"
+                  :properties {:operation {:type "string"
+                                           :enum ["add" "subtract" "multiply" "divide"]}
+                               :a {:type "number"}
+                               :b {:type "number"}}
+                  :required [:operation :a :b]}
    ;; Define the structure of the output
-   :outputSchema {:type "object"
-                  :properties {:result {:type "number"
-                                        :description "The calculated result"}
-                               :formula {:type "string"
-                                         :description "The formula used"}
-                               :precision {:type "integer"
-                                           :description "Decimal precision"}}
-                  :required [:result :formula]}
+   :output-schema {:type "object"
+                   :properties {:result {:type "number"
+                                         :description "The calculated result"}
+                                :formula {:type "string"
+                                          :description "The formula used"}
+                                :precision {:type "integer"
+                                            :description "Decimal precision"}}
+                   :required [:result :formula]}
    :tool-fn (fn [_context arguments]
               (let [{:keys [operation a b]} arguments
                     op-symbol (case operation
@@ -69,17 +69,17 @@
                 ;; Return structured response
                 {:content [{:type "text"
                             :text formula}]
-                 :isError false}))})
+                 :is-error false}))})
 
 ;; Example 3: Tool that returns resources
 (def file-analyzer
   {:name "analyze_files"
    :title "File Analyzer"
    :description "Analyzes project files and returns links to important resources"
-   :inputSchema {:type "object"
-                 :properties {:directory {:type "string"
-                                          :description "Directory to analyze"}}
-                 :required [:directory]}
+   :input-schema {:type "object"
+                  :properties {:directory {:type "string"
+                                           :description "Directory to analyze"}}
+                  :required [:directory]}
    :tool-fn (fn [_context arguments]
               (p/let [dir (:directory arguments)
                       ;; Simulate finding important files
@@ -93,11 +93,11 @@
                                     {:uri (str "file://" dir "/" file)
                                      :name file
                                      :title (str "Project file: " file) ;; Resources can have titles too
-                                     :mimeType (cond
-                                                 (clojure.string/ends-with? file ".md") "text/markdown"
-                                                 (clojure.string/ends-with? file ".edn") "application/edn"
-                                                 (clojure.string/ends-with? file ".clj") "text/x-clojure"
-                                                 :else "text/plain")})
+                                     :mime-type (cond
+                                                  (clojure.string/ends-with? file ".md") "text/markdown"
+                                                  (clojure.string/ends-with? file ".edn") "application/edn"
+                                                  (clojure.string/ends-with? file ".clj") "text/x-clojure"
+                                                  :else "text/plain")})
                                   important-files)}))})
 
 ;; Example 4: Tool with metadata
@@ -105,15 +105,15 @@
   {:name "process_data"
    :title "Data Processor with Metrics"
    :description "Processes data and includes performance metadata"
-   :inputSchema {:type "object"
-                 :properties {:data {:type "array"
-                                     :items {:type "number"}}
-                              :operation {:type "string"
-                                          :enum ["sum" "average" "min" "max"]}}
-                 :required [:data :operation]}
-   :outputSchema {:type "object"
-                  :properties {:result {:type "number"}
-                               :count {:type "integer"}}}
+   :input-schema {:type "object"
+                  :properties {:data {:type "array"
+                                      :items {:type "number"}}
+                               :operation {:type "string"
+                                           :enum ["sum" "average" "min" "max"]}}
+                  :required [:data :operation]}
+   :output-schema {:type "object"
+                   :properties {:result {:type "number"}
+                                :count {:type "integer"}}}
    :tool-fn (fn [_context arguments]
               (let [start-time (System/currentTimeMillis)
                     {:keys [data operation]} arguments
@@ -162,7 +162,7 @@
                       "table"
                       {:completion {:values ["users" "orders" "products" "customers"]
                                     :total 4
-                                    :hasMore false}}
+                                    :has-more false}}
 
                       "columns"
                       ;; Use previous context to provide relevant columns
@@ -173,8 +173,8 @@
                                                 "products" ["id" "name" "price" "category"]
                                                 "customers" ["id" "company" "contact" "phone"]
                                                 [])
-                                      :hasMore false}}
-                        {:completion {:values [] :hasMore false}})
+                                      :has-more false}}
+                        {:completion {:values [] :has-more false}})
 
                       "conditions"
                       ;; Context-aware condition suggestions
@@ -184,11 +184,11 @@
                                                 "orders" ["status = 'pending'" "total > 100"]
                                                 "products" ["price < 50" "category = 'electronics'"]
                                                 [])
-                                      :hasMore false}}
-                        {:completion {:values [] :hasMore false}})
+                                      :has-more false}}
+                        {:completion {:values [] :has-more false}})
 
                       ;; Default
-                      {:completion {:values [] :hasMore false}})))})
+                      {:completion {:values [] :has-more false}})))})
 
 ;; Example 6: Resource with title field
 (def config-resource
@@ -196,10 +196,10 @@
    :name "app_settings"
    :title "Application Settings" ;; NEW: Display name for resource
    :description "Current application configuration"
-   :mimeType "application/json"
+   :mime-type "application/json"
    :read-fn (fn [_context uri]
               {:contents [{:uri uri
-                           :mimeType "application/json"
+                           :mime-type "application/json"
                            :text (str {:version "2025-06-18"
                                        :features {:titles true
                                                   :structured-output true
@@ -236,7 +236,7 @@
 
   ;; Test advanced calculator with structured output
   (test-tool "advanced_calc" {:operation "multiply" :a 7 :b 8})
-  ;; => {:content [{:type "text", :text "7 * 8 = 56"}], :isError false}
+  ;; => {:content [{:type "text", :text "7 * 8 = 56"}], :is-error false}
 
   ;; Test file analyzer with resource links
   (test-tool "analyze_files" {:directory "/my/project"})
