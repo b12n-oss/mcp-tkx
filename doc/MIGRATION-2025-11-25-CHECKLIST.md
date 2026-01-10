@@ -40,15 +40,15 @@
 - ✅ Add unit tests for icon serialization
 - ✅ Document icon format (data URI / HTTPS URL) in commit
 
-## Phase 4: EnumSchema Updates (Est: 2 hours)
-- ⬜ Create `mcp-toolkit.impl.elicitation` namespace
-- ⬜ Implement `enum-schema` helper function
-- ⬜ Support `:enum-titles` field
-- ⬜ Support `:multi-select` field
-- ⬜ Support `:default` field for enums
-- ⬜ Implement schema validation
-- ⬜ Add unit tests
-- ⬜ Update elicitation examples
+## Phase 4: EnumSchema Updates (Est: 2 hours) ✅
+- ✅ Create `mcp-toolkit.schema` namespace (with Malli)
+- ✅ Implement `enum-schema` helper function
+- ✅ Support `:enum-titles` field
+- ✅ Support `:multi-select` field
+- ✅ Support `:default` field for enums
+- ✅ Implement schema validation with Malli
+- ✅ Add Icon schema validation
+- ✅ Add comprehensive unit tests
 
 ## Phase 5: Sampling with Tools (Est: 3 hours)
 - ⬜ Update `request-sampling` signature to accept `:tools`
@@ -147,8 +147,9 @@
 | File | Phase | Description |
 |------|-------|-------------|
 | `src/mcp_toolkit/impl/tasks.cljc` | 7 | Task management |
-| `src/mcp_toolkit/impl/elicitation.cljc` | 4 | Elicitation schemas |
+| `src/mcp_toolkit/schema.cljc` | 4 | Malli schemas and validation ✅ |
 | `src/mcp_toolkit/util/icons.cljc` | 3 | Icon utilities (optional) |
+| `test/mcp_toolkit/schema_test.cljc` | 4 | Schema tests ✅ |
 | `test/mcp_toolkit/protocol_2025_11_25_test.cljc` | All | New protocol tests |
 
 ### Files Modified (Phase 0) ✅
