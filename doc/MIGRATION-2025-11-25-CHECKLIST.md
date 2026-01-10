@@ -18,11 +18,12 @@
 - ✅ Updated client.cljc, server.cljc, impl/server/handler.cljc
 - ⏭️ No separate keys namespace needed - using csk directly at boundary
 
-## Phase 1: Protocol Version (Est: 1 hour)
-- ⬜ Add `"2025-11-25"` to `supported-protocol-versions` in `server.cljc`
-- ⬜ Update default `protocol-version` to `"2025-11-25"` in `client.cljc`
-- ⬜ Test version negotiation with 2025-11-25 client
-- ⬜ Test fallback to 2025-06-18 for older clients
+## Phase 1: Protocol Version (Est: 1 hour) ✅
+- ✅ Add `"2025-11-25"` to `supported-protocol-versions` in `server.cljc`
+- ✅ Update default `protocol-version` to `"2025-11-25"` in `client.cljc`
+- ✅ Test version negotiation with 2025-11-25 client
+- ✅ Test fallback to 2025-03-26 for older clients
+- ✅ Update documentation links to 2025-11-25 spec
 
 ## Phase 2: Description Field (Est: 30 min)
 - ⬜ Allow `:description` in `server-info` map
