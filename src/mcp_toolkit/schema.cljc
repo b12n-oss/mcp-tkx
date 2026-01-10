@@ -110,3 +110,216 @@
       schema
       (throw (ex-info "Invalid enum schema" {:errors (:errors result)
                                              :schema schema})))))
+
+;; =============================================================================
+;; Sampling Types (2025-11-25)
+;; =============================================================================
+
+;; -----------------------------------------------------------------------------
+;; Tool Choice
+;; -----------------------------------------------------------------------------
+
+(def ToolChoiceMode
+  "Valid modes for tool choice in sampling requests."
+  [:enum "auto" "required" "none"])
+
+(def ToolChoice
+  "Schema for toolChoice in sampling requests.
+   
+   Modes:
+   - \"auto\"     - Model decides whether to use tools (default)
+   - \"required\" - Model MUST use at least one tool
+   - \"none\"     - Model MUST NOT use any tools"
+  [:map
+   [:mode ToolChoiceMode]])
+
+;; -----------------------------------------------------------------------------
+;; Sampling Tool Definition
+;; -----------------------------------------------------------------------------
+
+(def SamplingTool
+  "Schema for tool definitions in sampling requests.
+   
+   Fields:
+   - :name         - Tool name (required)
+   - :description  - Human-readable description (optional)
+   - :input-schema - JSON Schema for tool input (required)"
+  [:map
+   [:name :string]
+   [:description {:optional true} :string]
+   [:input-schema :map]])
+
+;; -----------------------------------------------------------------------------
+;; Content Types
+;; -----------------------------------------------------------------------------
+
+(def TextContent
+  "Text content in messages."
+  [:map
+   [:type [:= "text"]]
+   [:text :string]])
+
+(def ImageContent
+  "Image content in messages."
+  [:map
+   [:type [:= "image"]]
+   [:data :string]
+   [:mime-type :string]])
+
+(def AudioContent
+  "Audio content in messages."
+  [:map
+   [:type [:= "audio"]]
+   [:data :string]
+   [:mime-type :string]])
+
+(def ToolUseContent
+  "Tool use request from the model.
+   Returned when the model wants to call a tool.
+   
+   Fields:
+   - :type  - Always \"tool_use\"
+   - :id    - Unique identifier for this tool use
+   - :name  - Name of the tool to call
+   - :input - Arguments to pass to the tool"
+  [:map
+   [:type [:= "tool_use"]]
+   [:id :string]
+   [:name :string]
+   [:input :map]])
+
+(def ToolResultContent
+  "Result of a tool execution.
+   Sent back to the model after executing a tool.
+   
+   Fields:
+   - :type        - Always \"tool_result\"
+   - :tool-use-id - ID of the tool_use this is responding to
+   - :content     - Result content (text, image, audio)
+   - :is-error    - Whether this represents an error (optional)"
+  [:map
+   [:type [:= "tool_result"]]
+   [:tool-use-id :string]
+   [:content [:or
+              [:map [:type :string]]
+              [:vector [:map [:type :string]]]]]
+   [:is-error {:optional true} :boolean]])
+
+;; -----------------------------------------------------------------------------
+;; Stop Reasons
+;; -----------------------------------------------------------------------------
+
+(def StopReason
+  "Reasons why model generation stopped.
+   
+   Values:
+   - \"endTurn\"      - Natural completion
+   - \"stopSequence\" - Hit a stop sequence
+   - \"maxTokens\"    - Reached token limit
+   - \"toolUse\"      - Model wants to use tools"
+  [:enum "endTurn" "stopSequence" "maxTokens" "toolUse"])
+
+;; -----------------------------------------------------------------------------
+;; Message Validation
+;; -----------------------------------------------------------------------------
+
+(def ToolResultMessage
+  "Schema for a user message containing only tool results.
+   Per MCP spec: Messages with tool results MUST contain ONLY tool results."
+  [:map
+   [:role [:= "user"]]
+   [:content [:or
+              ToolResultContent
+              [:vector {:min 1} ToolResultContent]]]])
+
+(defn valid-tool-result-message?
+  "Validates that a message contains only tool results (no mixed content).
+   Per MCP spec: Messages with tool_result cannot contain other content types."
+  [message]
+  (m/validate ToolResultMessage message))
+
+;; =============================================================================
+;; Sampling Constructors
+;; =============================================================================
+
+(defn tool-choice
+  "Creates a tool choice configuration.
+   
+   Mode can be:
+   - :auto     - Model decides whether to use tools (default)
+   - :required - Model MUST use at least one tool
+   - :none     - Model MUST NOT use any tools
+   
+   Example:
+     (tool-choice :auto)
+     (tool-choice :required)"
+  [mode]
+  {:mode (name mode)})
+
+(defn sampling-tool
+  "Creates a tool definition for sampling requests.
+   
+   Options:
+   - :name         - Tool name (required)
+   - :description  - Human-readable description (optional)
+   - :input-schema - JSON Schema for input (required)
+   
+   Example:
+     (sampling-tool {:name \"get_weather\"
+                     :description \"Get current weather for a city\"
+                     :input-schema {:type \"object\"
+                                    :properties {:city {:type \"string\"}}
+                                    :required [\"city\"]}})"
+  [{:keys [name description input-schema]}]
+  (cond-> {:name name
+           :input-schema input-schema}
+    description (assoc :description description)))
+
+(defn tool-result
+  "Creates a tool result content block.
+   
+   Options:
+   - :tool-use-id - ID of the tool_use being responded to (required)
+   - :content     - Result content, either a map or vector of content blocks (required)
+   - :is-error    - Whether this is an error result (optional)
+   
+   Example:
+     (tool-result {:tool-use-id \"call_abc123\"
+                   :content {:type \"text\" :text \"Weather: 18°C\"}})
+     
+     (tool-result {:tool-use-id \"call_def456\"
+                   :content {:type \"text\" :text \"Error: City not found\"}
+                   :is-error true})"
+  [{:keys [tool-use-id content is-error]}]
+  (cond-> {:type "tool_result"
+           :tool-use-id tool-use-id
+           :content content}
+    is-error (assoc :is-error true)))
+
+(defn tool-result-message
+  "Creates a user message containing tool results.
+   
+   Per MCP spec: Messages with tool results MUST contain ONLY tool results.
+   
+   Args:
+   - results - A single tool result or vector of tool results
+   
+   Example:
+     (tool-result-message 
+       [(tool-result {:tool-use-id \"call_abc\" :content {:type \"text\" :text \"Result 1\"}})
+        (tool-result {:tool-use-id \"call_def\" :content {:type \"text\" :text \"Result 2\"}})])"
+  [results]
+  {:role "user"
+   :content (if (vector? results) results [results])})
+
+(defn tool-result-message!
+  "Like tool-result-message, but validates the result.
+   Throws ex-info if validation fails."
+  [results]
+  (let [message (tool-result-message results)
+        result (validate ToolResultMessage message)]
+    (if (:valid? result)
+      message
+      (throw (ex-info "Invalid tool result message" {:errors (:errors result)
+                                                     :message message})))))
+

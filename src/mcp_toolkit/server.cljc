@@ -84,20 +84,77 @@
 (defn request-sampling
   "Requests message sampling from the MCP client.
    Returns a promise, either resolved with the result or rejected with the error.
-   (see https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#creating-messages)
+   (see https://modelcontextprotocol.io/specification/2025-11-25/client/sampling)
 
    Args:
      context - The server session context
-     params  - Sampling parameters map
+     params  - Sampling parameters map:
+               :messages         - Vector of message maps with :role and :content (required)
+               :system-prompt    - System prompt string (optional)
+               :max-tokens       - Maximum tokens to generate (optional)
+               :model-preferences - Model selection hints (optional)
+               :include-context  - Deprecated: use explicit context instead (optional)
+               
+               Tool use (2025-11-25, requires client sampling.tools capability):
+               :tools       - Vector of tool definitions (see mcp-toolkit.schema/sampling-tool)
+               :tool-choice - Tool choice mode map (see mcp-toolkit.schema/tool-choice)
+                              {:mode \"auto\"}     - Model decides (default)
+                              {:mode \"required\"} - Model MUST use a tool
+                              {:mode \"none\"}     - Model MUST NOT use tools
 
    Returns:
-     A promise that resolves to the sampling result from the client."
+     A promise that resolves to the sampling result:
+     - :role        - \"assistant\"
+     - :content     - Response content (text, image, audio, or tool_use)
+     - :model       - Model that was used
+     - :stop-reason - Why generation stopped (\"endTurn\", \"toolUse\", etc.)
+
+   Tool Use Flow:
+     When :stop-reason is \"toolUse\", the :content will contain tool_use blocks.
+     To continue, execute the tools and send a new request with the tool results
+     appended to :messages. Use mcp-toolkit.schema/tool-result-message to create
+     properly formatted tool result messages.
+
+   Example - Basic sampling:
+     (request-sampling context
+       {:messages [{:role \"user\"
+                    :content {:type \"text\" :text \"What is 2+2?\"}}]
+        :max-tokens 100})
+
+   Example - Sampling with tools:
+     (require '[mcp-toolkit.schema :as schema])
+     (request-sampling context
+       {:messages [{:role \"user\"
+                    :content {:type \"text\" :text \"What's the weather?\"}}]
+        :tools [(schema/sampling-tool
+                  {:name \"get_weather\"
+                   :description \"Get weather for a city\"
+                   :input-schema {:type \"object\"
+                                  :properties {:city {:type \"string\"}}
+                                  :required [\"city\"]}})]
+        :tool-choice (schema/tool-choice :auto)
+        :max-tokens 1000})
+
+   Notes:
+     - Requires client to declare :sampling capability
+     - Tool use requires client to declare :sampling {:tools {}} capability
+     - Returns nil if client doesn't support sampling"
   [context params]
   (let [{:keys [session]} context
         {:keys [client-capabilities]} @session]
     (when (contains? client-capabilities :sampling)
       (json-rpc/call-remote-method context {:method "sampling/createMessage"
                                             :params params}))))
+
+(defn client-supports-sampling-tools?
+  "Returns true if the client supports tool use in sampling requests.
+   
+   Clients must declare {:sampling {:tools {}}} capability to receive
+   tool-enabled sampling requests."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [client-capabilities]} @session]
+    (boolean (get-in client-capabilities [:sampling :tools]))))
 
 ;;
 ;; Functions typically called by hand from a REPL session while working on MCP tooling

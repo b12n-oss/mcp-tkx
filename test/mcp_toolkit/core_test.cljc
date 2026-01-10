@@ -533,3 +533,32 @@
             template (first (:resource-templates result))]
         (is (contains? template :icon) "Resource template should have icon field")
         (is (= "https://example.com/template-icon.png" (:icon template)))))))
+
+;; =============================================================================
+;; Sampling with Tools Tests (2025-11-25)
+;; =============================================================================
+
+(deftest sampling-tools-capability-test
+  (is true "yes")
+
+  (testing "client-supports-sampling-tools? function"
+    (testing "returns true when client declares sampling.tools capability"
+      (let [session (atom {:client-capabilities {:sampling {:tools {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-sampling-tools? context)))))
+
+    (testing "returns false when client only has basic sampling capability"
+      (let [session (atom {:client-capabilities {:sampling {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-sampling-tools? context)))))
+
+    (testing "returns false when client has no sampling capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-sampling-tools? context)))))
+
+    (testing "returns false when client-capabilities is nil"
+      (let [session (atom {})
+            context {:session session}]
+        (is (false? (server/client-supports-sampling-tools? context)))))))
+
