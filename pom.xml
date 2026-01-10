@@ -24,12 +24,12 @@
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
-      <version>1.12.1</version>
+      <version>1.12.4</version>
     </dependency>
     <dependency>
       <groupId>taipei.404</groupId>
       <artifactId>mate</artifactId>
-      <version>0.0.9</version>
+      <version>0.1.0</version>
     </dependency>
     <dependency>
       <groupId>funcool</groupId>
