@@ -25,6 +25,30 @@
       (is (= ["Icon must be a data:image/ URI or https:// URL"]
              (schema/explain schema/Icon "http://example.com/icon.png"))))))
 
+(deftest json-schema-dialect-test
+  (testing "JSON_SCHEMA_DIALECT constant"
+    (is (= "https://json-schema.org/draft/2020-12/schema" schema/JSON_SCHEMA_DIALECT)))
+
+  (testing "with-schema-dialect helper"
+    (testing "adds $schema to empty map"
+      (is (= {:$schema "https://json-schema.org/draft/2020-12/schema"}
+             (schema/with-schema-dialect {}))))
+
+    (testing "adds $schema to existing schema"
+      (is (= {:$schema "https://json-schema.org/draft/2020-12/schema"
+              :type "object"
+              :properties {:name {:type "string"}}}
+             (schema/with-schema-dialect
+               {:type "object"
+                :properties {:name {:type "string"}}}))))
+
+    (testing "overwrites existing $schema"
+      (is (= {:$schema "https://json-schema.org/draft/2020-12/schema"
+              :type "string"}
+             (schema/with-schema-dialect
+               {:$schema "http://json-schema.org/draft-07/schema#"
+                :type "string"}))))))
+
 (deftest enum-schema-test
   (testing "EnumSchema validation"
     (testing "valid schemas"
@@ -408,7 +432,8 @@
            {:role "user"
             :content {:type "tool_result"
                       :tool-use-id "call_abc"
-                      :content {:type "text" :text "OK"}}})))
+                      :content {:type "text"
+                                :text "OK"}}})))
 
     (testing "invalid messages"
       ;; Wrong role
@@ -416,7 +441,8 @@
                 {:role "assistant"
                  :content {:type "tool_result"
                            :tool-use-id "call_abc"
-                           :content {:type "text" :text "OK"}}})))
+                           :content {:type "text"
+                                     :text "OK"}}})))
 
       ;; Missing content
       (is (not (schema/valid-tool-result-message?
@@ -575,8 +601,10 @@
 
   (testing "elicitation-response constructor"
     (testing "accept with content"
-      (is (= {:action "accept" :content {:name "Alice"}}
-             (schema/elicitation-response {:action :accept :content {:name "Alice"}}))))
+      (is (= {:action "accept"
+              :content {:name "Alice"}}
+             (schema/elicitation-response {:action :accept
+                                           :content {:name "Alice"}}))))
 
     (testing "decline without content"
       (is (= {:action "decline"}
@@ -784,8 +812,10 @@
                (schema/tasks-list-result {:tasks [t1 t2]}))))
 
       (testing "with cursor"
-        (is (= {:tasks [t1] :next-cursor "xyz"}
-               (schema/tasks-list-result {:tasks [t1] :next-cursor "xyz"})))))))
+        (is (= {:tasks [t1]
+                :next-cursor "xyz"}
+               (schema/tasks-list-result {:tasks [t1]
+                                          :next-cursor "xyz"})))))))
 
 (deftest related-task-meta-test
   (testing "RelatedTaskMeta schema validation"

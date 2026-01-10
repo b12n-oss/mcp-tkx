@@ -75,45 +75,55 @@
 - ✅ Add comprehensive unit tests
 - ✅ Document URL elicitation flow and examples
 
-## Phase 7: Tasks Support - Experimental (Est: 8 hours)
-- ⬜ Create `mcp-toolkit.impl.tasks` namespace
-  - ⬜ `create-task`
-  - ⬜ `update-task-state`
-  - ⬜ `complete-task`
-  - ⬜ `fail-task`
-  - ⬜ `cancel-task`
-  - ⬜ `get-task-status`
-  - ⬜ `get-task-result`
-  - ⬜ `cleanup-old-tasks`
-- ⬜ Add task handlers in `server/handler.cljc`
-  - ⬜ `tasks/status` handler
-  - ⬜ `tasks/result` handler
-  - ⬜ `tasks/cancel` handler
-- ⬜ Add task notifications
-  - ⬜ `notifications/tasks/progress`
-- ⬜ Add task functions to `server.cljc`
-  - ⬜ `create-task`
-  - ⬜ `notify-task-progress`
-  - ⬜ `complete-task`
-  - ⬜ `fail-task`
-- ⬜ Initialize `:tasks-by-id` in session
-- ⬜ Add task capability in initialize response
-- ⬜ Add comprehensive unit tests
-- ⬜ Add integration tests with long-running tools
-- ⬜ Mark as experimental in documentation
+## Phase 7: Tasks Support - Experimental (Est: 8 hours) ✅
+**Status:** Implemented schemas, constructors, capability functions, and server request functions.
+Note: Tasks is experimental in 2025-11-25. Full task management (being a task host) would require
+additional implementation if needed.
 
-## Phase 8: OAuth Enhancements (Est: 4 hours) - Optional
+- ✅ Add Malli schemas in `schema.cljc`
+  - ✅ TaskStatus enum (working, input_required, completed, failed, cancelled)
+  - ✅ TaskSupportMode enum (required, optional, forbidden)
+  - ✅ Task schema with all fields (taskId, status, timestamps, ttl, pollInterval)
+  - ✅ TaskParams schema
+  - ✅ CreateTaskResult schema
+  - ✅ TasksGetRequest, TasksResultRequest, TasksCancelRequest schemas
+  - ✅ TasksListRequest, TasksListResult schemas
+  - ✅ TaskStatusNotification schema
+  - ✅ RelatedTaskMeta schema
+- ✅ Add helper constructors
+  - ✅ task, task-params, create-task-result
+  - ✅ related-task-meta, tasks-list-result
+  - ✅ terminal-status? predicate
+- ✅ Add capability functions in `server.cljc`
+  - ✅ client-supports-tasks?
+  - ✅ client-supports-task-augmented-sampling?
+  - ✅ client-supports-task-augmented-elicitation?
+  - ✅ client-supports-tasks-list?
+  - ✅ client-supports-tasks-cancel?
+- ✅ Add server request functions
+  - ✅ request-task-get (poll task status)
+  - ✅ request-task-result (get result, blocks until terminal)
+  - ✅ request-task-cancel
+  - ✅ request-tasks-list (with pagination)
+  - ✅ notify-task-status
+- ✅ Add comprehensive unit tests
+- ✅ Mark as experimental in documentation
+
+## Phase 8: OAuth Enhancements (Est: 4 hours) - Optional/Deferred
+**Status:** Deferred. OAuth enhancements are optional and typically not needed for most MCP implementations.
+These would be implemented if/when specific OAuth requirements arise.
+
 - ⬜ Review OIDC Discovery requirements
 - ⬜ Review Client ID Metadata Documents (CIMD)
 - ⬜ Review incremental scope consent
 - ⬜ Create `mcp-toolkit.auth.oidc` namespace (if needed)
 - ⬜ Document OAuth changes
 
-## Phase 9: Minor Clarifications (Est: 1 hour)
-- ⬜ Return input validation errors as Tool Execution Errors
-- ⬜ Add JSON Schema 2020-12 dialect constant
-- ⬜ Add `with-schema-dialect` helper function
-- ⬜ Review stderr logging guidance (stdio transport)
+## Phase 9: Minor Clarifications (Est: 1 hour) ✅
+- ✅ Return input validation errors as Tool Execution Errors (existing error handling)
+- ✅ Add JSON Schema 2020-12 dialect constant (JSON_SCHEMA_DIALECT)
+- ✅ Add `with-schema-dialect` helper function
+- ⬜ Review stderr logging guidance (stdio transport) - documentation only
 
 ---
 

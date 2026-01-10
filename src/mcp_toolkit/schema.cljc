@@ -9,6 +9,25 @@
    [malli.error :as me]))
 
 ;; =============================================================================
+;; JSON Schema Constants
+;; =============================================================================
+
+(def JSON_SCHEMA_DIALECT
+  "The JSON Schema dialect used by MCP (2020-12).
+   Should be specified in $schema field for tool input/output schemas."
+  "https://json-schema.org/draft/2020-12/schema")
+
+(defn with-schema-dialect
+  "Adds the JSON Schema 2020-12 dialect to a schema map.
+   
+   Example:
+     (with-schema-dialect {:type \"object\" :properties {...}})
+     ;; => {:$schema \"https://json-schema.org/draft/2020-12/schema\"
+     ;;     :type \"object\" :properties {...}}"
+  [schema]
+  (assoc schema :$schema JSON_SCHEMA_DIALECT))
+
+;; =============================================================================
 ;; Icon Schema
 ;; =============================================================================
 

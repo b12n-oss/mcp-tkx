@@ -576,7 +576,8 @@
         (is (true? (server/client-supports-elicitation? context)))))
 
     (testing "returns true when client declares form and url modes"
-      (let [session (atom {:client-capabilities {:elicitation {:form {} :url {}}}})
+      (let [session (atom {:client-capabilities {:elicitation {:form {}
+                                                               :url {}}}})
             context {:session session}]
         (is (true? (server/client-supports-elicitation? context)))))
 
@@ -613,7 +614,8 @@
         (is (true? (server/client-supports-form-elicitation? context)))))
 
     (testing "returns true when client declares both form and url modes"
-      (let [session (atom {:client-capabilities {:elicitation {:form {} :url {}}}})
+      (let [session (atom {:client-capabilities {:elicitation {:form {}
+                                                               :url {}}}})
             context {:session session}]
         (is (true? (server/client-supports-form-elicitation? context)))))
 
