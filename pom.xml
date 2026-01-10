@@ -4,7 +4,7 @@
   <packaging>jar</packaging>
   <groupId>fi.metosin</groupId>
   <artifactId>mcp-toolkit</artifactId>
-  <version>0.1.1-alpha</version>
+  <version>2025-11-25</version>
   <name>MCP Toolkit</name>
   <description>a lib to build MCP clients and MCP servers in Clojure(script)</description>
   <inceptionYear>2025</inceptionYear>
@@ -18,18 +18,18 @@
     <url>https://github.com/metosin/mcp-toolkit</url>
     <connection>scm:git:git://github.com/metosin/mcp-toolkit.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/metosin/mcp-toolkit.git</developerConnection>
-    <tag>v0.1.1-alpha</tag>
+    <tag>v2025-11-25</tag>
   </scm>
   <dependencies>
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
-      <version>1.12.1</version>
+      <version>1.12.4</version>
     </dependency>
     <dependency>
       <groupId>taipei.404</groupId>
       <artifactId>mate</artifactId>
-      <version>0.0.9</version>
+      <version>0.1.0</version>
     </dependency>
     <dependency>
       <groupId>funcool</groupId>

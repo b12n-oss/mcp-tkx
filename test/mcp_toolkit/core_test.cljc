@@ -1,13 +1,14 @@
 (ns mcp-toolkit.core-test
-  (:require [clojure.test :refer [deftest testing is are #?(:cljs async)]]
-            [mcp-toolkit.json-rpc :as json-rpc]
-            [mcp-toolkit.client :as client]
-            [mcp-toolkit.server :as server]
-            [mcp-toolkit.impl.server.handler :as server.handler]
-            [mcp-toolkit.impl.meta-support :as meta-support]
-            [mcp-toolkit.test.util :as util]
-            [promesa.core :as p]
-            [promesa.exec.csp :as sp]))
+  (:require
+   [clojure.test :refer [#?(:cljs async) deftest is testing]]
+   [mcp-toolkit.client :as client]
+   [mcp-toolkit.impl.meta-support :as meta-support]
+   [mcp-toolkit.impl.server.handler :as server.handler]
+   [mcp-toolkit.json-rpc :as json-rpc]
+   [mcp-toolkit.server :as server]
+   [mcp-toolkit.test.util :as util]
+   [promesa.core :as p]
+   [promesa.exec.csp :as sp]))
 
 (def test-root
   {:uri "file:///home/user/projects/myproject"
@@ -24,15 +25,15 @@
   {:uri "ipfs:///world/hello.md"
    :name "hello.md"
    :description "Hello world"
-   :mimeType "text/markdown"})
+   :mime-type "text/markdown"})
 
 (def test-tool
   {:name "parentify"
    :description "Parentify a text: wraps a text within parenthesis."
-   :inputSchema {:properties {:text {:description "the text to be parentified"
-                                     :type "string"}}
-                 :type "object"
-                 :required ["text"]}})
+   :input-schema {:properties {:text {:description "the text to be parentified"
+                                      :type "string"}}
+                  :type "object"
+                  :required ["text"]}})
 
 (defn setup-and-connect-client-server
   "Returns a "
@@ -110,23 +111,24 @@
                                                   "MCP handshake")
 
                                 ;; Test if the messages are what we expect.
+                                ;; Note: Internal format uses kebab-case keys
                                 (is (= [[:-> {:jsonrpc "2.0"
                                               :method "initialize"
-                                              :params {:clientInfo {:name "mcp-toolkit"
-                                                                    :version "0.1.1-alpha"}
-                                                       :protocolVersion "2025-06-18"
-                                                       :capabilities {:roots {:listChanged true}}}
+                                              :params {:client-info {:name "mcp-toolkit"
+                                                                     :version "0.1.1-alpha"}
+                                                       :protocol-version "2025-11-25"
+                                                       :capabilities {:roots {:list-changed true}}}
                                               :id 0}]
                                         [:<- {:jsonrpc "2.0"
-                                              :result {:serverInfo {:name "mcp-toolkit"
-                                                                    :version "0.1.1-alpha"}
-                                                       :protocolVersion "2025-06-18"
+                                              :result {:server-info {:name "mcp-toolkit"
+                                                                     :version "0.1.1-alpha"}
+                                                       :protocol-version "2025-11-25"
                                                        :capabilities {:logging {}
                                                                       :completions {}
-                                                                      :prompts {:listChanged true}
-                                                                      :resources {:listChanged true
+                                                                      :prompts {:list-changed true}
+                                                                      :resources {:list-changed true
                                                                                   :subscribe true}
-                                                                      :tools {:listChanged true}}}
+                                                                      :tools {:list-changed true}}}
                                               :id 0}]
                                         [:-> {:jsonrpc "2.0"
                                               :method "notifications/initialized"}]]
@@ -166,9 +168,9 @@
                                       init-request (-> messages first second)
                                       init-response (-> messages second second)]
                                   ;; Client requests 2025-03-26
-                                  (is (= "2025-03-26" (get-in init-request [:params :protocolVersion])))
+                                  (is (= "2025-03-26" (get-in init-request [:params :protocol-version])))
                                   ;; Server should respond with 2025-03-26 (negotiated version)
-                                  (is (= "2025-03-26" (get-in init-response [:result :protocolVersion])))))
+                                  (is (= "2025-03-26" (get-in init-response [:result :protocol-version])))))
                               (p/handle (fn [x error]
                                           (json-rpc/close-connection client-context)
                                           (json-rpc/close-connection server-context)
@@ -176,14 +178,14 @@
                                           ;; Pass through
                                           (or error x))))))))
 
-(deftest protocol-negotiation-test-2025-06-18
+(deftest protocol-negotiation-test-2025-11-25
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (promesa-async-test 5000
-                      (testing "protocol negotiation with 2025-06-18"
+                      (testing "protocol negotiation with 2025-11-25"
                         (let [message-logs (atom [])
-                              ;; Client explicitly requests 2025-06-18
-                              client-session (client/create-session {:protocol-version "2025-06-18"
+                              ;; Client explicitly requests 2025-11-25
+                              client-session (client/create-session {:protocol-version "2025-11-25"
                                                                      :on-initialized nil}) ;; disable auto-requests
                               server-session (server/create-session {:on-initialized nil}) ;; disable auto-requests
                               {:keys [client-context server-context]} (setup-and-connect-client-server client-session
@@ -203,9 +205,9 @@
                                 (let [client-state @(:session client-context)
                                       server-state @(:session server-context)]
 
-                                  ;; Both should agree on 2025-06-18
-                                  (is (= "2025-06-18" (:server-protocol-version client-state)))
-                                  (is (= "2025-06-18" (:protocol-version server-state)))
+                                  ;; Both should agree on 2025-11-25
+                                  (is (= "2025-11-25" (:server-protocol-version client-state)))
+                                  (is (= "2025-11-25" (:protocol-version server-state)))
 
                                   ;; Server should have client info
                                   (is (some? (:client-info server-state)))
@@ -225,9 +227,9 @@
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (promesa-async-test 3000
-                      (testing "JSON-RPC batching is not supported in 2025-06-18"
+                      (testing "JSON-RPC batching is not supported in 2025-11-25"
                         (let [message-logs (atom [])
-                              client-session (client/create-session {:protocol-version "2025-06-18"
+                              client-session (client/create-session {:protocol-version "2025-11-25"
                                                                      :on-initialized nil})
                               server-session (server/create-session {:on-initialized nil})
                               {:keys [client-context server-context]} (setup-and-connect-client-server client-session
@@ -235,7 +237,7 @@
                                                                                                        message-logs)]
                           (-> (p/do
                                 ;; Try to send a batch request (array of requests)
-                                ;; This should be rejected in 2025-06-18
+                                ;; This should be rejected in 2025-11-25
                                 (let [batch-request [{:jsonrpc "2.0"
                                                       :method "ping"
                                                       :id 1}
@@ -251,9 +253,7 @@
                                 ;; Check that an error was returned for batch requests
                                 (let [logs @message-logs
                                       responses (filter #(= :<- (first %)) logs)]
-                                  ;; In 2025-06-18, batch requests should return an error
-                                  ;; For now, this test will fail because batching is still supported
-                                  ;; After we remove batching, this test should pass
+                                  ;; In 2025-11-25, batch requests should return an error
                                   (is (= 1 (count responses)) "Should return single error for batch request")
                                   (when (seq responses)
                                     (let [response (second (first responses))]
@@ -281,11 +281,11 @@
                                     :name "test_resource"
                                     :title "Test Resource Display Name"
                                     :description "A test resource with title"
-                                    :mimeType "text/plain"}
+                                    :mime-type "text/plain"}
           test-tool-with-title {:name "test_tool"
                                 :title "Test Tool Display Name"
                                 :description "A test tool with title"
-                                :inputSchema {:type "object"}}
+                                :input-schema {:type "object"}}
 
           ;; Create a session with test data
           session (atom {:prompt-by-name {(:name test-prompt-with-title) test-prompt-with-title}
@@ -316,31 +316,31 @@
 (deftest structured-tool-output-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
-  (testing "structured tool output with outputSchema (2025-06-18 spec)"
+  (testing "structured tool output with output-schema (2025-11-25 spec)"
     (let [test-tool-with-schema {:name "calculator"
                                  :title "Calculator Tool"
                                  :description "A calculator that returns structured results"
-                                 :inputSchema {:type "object"
-                                               :properties {:operation {:type "string"}
-                                                            :a {:type "number"}
-                                                            :b {:type "number"}}}
-                                 :outputSchema {:type "object"
-                                                :properties {:result {:type "number"}
-                                                             :formula {:type "string"}}}}
+                                 :input-schema {:type "object"
+                                                :properties {:operation {:type "string"}
+                                                             :a {:type "number"}
+                                                             :b {:type "number"}}}
+                                 :output-schema {:type "object"
+                                                 :properties {:result {:type "number"}
+                                                              :formula {:type "string"}}}}
 
           session (atom {:tool-by-name {(:name test-tool-with-schema) test-tool-with-schema}})]
 
-      ;; Test that outputSchema is included in tool list
+      ;; Test that output-schema is included in tool list
       (let [result (server.handler/tool-list-handler {:session session})
             tool (first (:tools result))]
-        (is (contains? tool :outputSchema) "Tool should include outputSchema")
-        (is (= (:outputSchema test-tool-with-schema) (:outputSchema tool)))))))
+        (is (contains? tool :output-schema) "Tool should include output-schema")
+        (is (= (:output-schema test-tool-with-schema) (:output-schema tool)))))))
 
 (deftest tool-result-resources-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (promesa-async-test 3000
-                      (testing "tool results can include resource links (2025-06-18 spec)"
+                      (testing "tool results can include resource links (2025-11-25 spec)"
                         (let [session (atom {:tool-by-name {"file_reader" {:name "file_reader"
                                                                            :title "File Reader"
                                                                            :tool-fn (fn [_ _]
@@ -350,7 +350,7 @@
                                                                                                    :text "File content here"}]
                                                                                         :resources [{:uri "file:///test.txt"
                                                                                                      :name "test.txt"
-                                                                                                     :mimeType "text/plain"}]}))}}})
+                                                                                                     :mime-type "text/plain"}]}))}}})
                               context {:session session}
                               message {:params {:name "file_reader"
                                                 :arguments {}}}]
@@ -365,7 +365,7 @@
 (deftest completion-context-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
-  (testing "completion requests can include context (2025-06-18 spec)"
+  (testing "completion requests can include context (2025-11-25 spec)"
     (let [completion-called (atom false)
           completion-context-received (atom nil)
 
@@ -377,7 +377,7 @@
                                           (reset! completion-context-received (:completion-context ctx))
                                           {:completion {:values ["value1" "value2"]
                                                         :total 2
-                                                        :hasMore false}})}}})
+                                                        :has-more false}})}}})
 
           context {:session session}
 
@@ -386,13 +386,13 @@
                                                :name "test_prompt"}
                                          :argument {:name "arg1"
                                                     :value "val"}
-                                         :context {:previousValues {:key "value"}}}}]
+                                         :context {:previous-values {:key "value"}}}}]
 
       ;; Call handler with context
       (server.handler/completion-complete-handler (assoc context :message message-with-context))
 
       (is @completion-called "Completion function should be called")
-      (is (= {:previousValues {:key "value"}} @completion-context-received)
+      (is (= {:previous-values {:key "value"}} @completion-context-received)
           "Context should be passed to completion function")
 
       ;; Reset for next test
@@ -436,4 +436,266 @@
       ;; Test has-meta?
       (is (meta-support/has-meta? {:_meta {}}))
       (is (not (meta-support/has-meta? {:name "test"}))))))
+
+(deftest server-description-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "server-info description field (2025-11-25 spec)"
+                        (let [message-logs (atom [])
+                              client-session (client/create-session {:on-initialized nil})
+                              server-session (server/create-session
+                                              {:server-info {:name "test-server"
+                                                             :version "1.0.0"
+                                                             :description "A test server with description"}
+                                               :on-initialized nil})
+                              {:keys [client-context server-context]} (setup-and-connect-client-server client-session
+                                                                                                       server-session
+                                                                                                       message-logs)]
+                          (-> (p/do
+                                ;; Initiate the client-server communication
+                                (client/send-first-handshake-message client-context)
+
+                                ;; Wait until we have enough messages for the test.
+                                (util/assert-atom message-logs
+                                                  (fn [logs] (= (count logs) 3))
+                                                  3000
+                                                  "MCP handshake with description")
+
+                                ;; Verify description is included in server-info
+                                (let [messages @message-logs
+                                      init-response (-> messages second second)
+                                      server-info (get-in init-response [:result :server-info])]
+                                  (is (= "test-server" (:name server-info)))
+                                  (is (= "1.0.0" (:version server-info)))
+                                  (is (= "A test server with description" (:description server-info))
+                                      "Server description should be included in initialize response")))
+                              (p/handle (fn [x error]
+                                          (json-rpc/close-connection client-context)
+                                          (json-rpc/close-connection server-context)
+                                          ;; Pass through
+                                          (or error x))))))))
+
+(deftest icon-support-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (testing "icon field support in prompts, resources, tools, and templates (2025-11-25 spec)"
+    ;; Create test data with icon fields
+    (let [test-prompt-with-icon {:name "test_prompt"
+                                 :title "Test Prompt"
+                                 :description "A test prompt with icon"
+                                 :arguments []
+                                 :icon "https://example.com/prompt-icon.png"}
+          test-resource-with-icon {:uri "test://resource"
+                                   :name "test_resource"
+                                   :title "Test Resource"
+                                   :description "A test resource with icon"
+                                   :mime-type "text/plain"
+                                   :icon "data:image/svg+xml;base64,PHN2Zy..."}
+          test-tool-with-icon {:name "test_tool"
+                               :title "Test Tool"
+                               :description "A test tool with icon"
+                               :input-schema {:type "object"}
+                               :icon "https://example.com/tool-icon.png"}
+          test-template-with-icon {:uri-template "test://resource/{id}"
+                                   :name "test_template"
+                                   :title "Test Template"
+                                   :description "A test template with icon"
+                                   :mime-type "application/json"
+                                   :icon "https://example.com/template-icon.png"}
+
+          ;; Create a session with test data
+          session (atom {:prompt-by-name {(:name test-prompt-with-icon) test-prompt-with-icon}
+                         :resource-by-uri {(:uri test-resource-with-icon) test-resource-with-icon}
+                         :tool-by-name {(:name test-tool-with-icon) test-tool-with-icon}
+                         :resource-templates [test-template-with-icon]})]
+
+      ;; Test prompt list handler includes icon
+      (let [result (server.handler/prompt-list-handler {:session session})
+            prompt (first (:prompts result))]
+        (is (contains? prompt :icon) "Prompt should have icon field")
+        (is (= "https://example.com/prompt-icon.png" (:icon prompt))))
+
+      ;; Test resource list handler includes icon
+      (let [result (server.handler/resource-list-handler {:session session})
+            resource (first (:resources result))]
+        (is (contains? resource :icon) "Resource should have icon field")
+        (is (= "data:image/svg+xml;base64,PHN2Zy..." (:icon resource))))
+
+      ;; Test tool list handler includes icon
+      (let [result (server.handler/tool-list-handler {:session session})
+            tool (first (:tools result))]
+        (is (contains? tool :icon) "Tool should have icon field")
+        (is (= "https://example.com/tool-icon.png" (:icon tool))))
+
+      ;; Test resource templates list handler includes icon
+      (let [result (server.handler/resource-templates-list-handler {:session session})
+            template (first (:resource-templates result))]
+        (is (contains? template :icon) "Resource template should have icon field")
+        (is (= "https://example.com/template-icon.png" (:icon template)))))))
+
+;; =============================================================================
+;; Sampling with Tools Tests (2025-11-25)
+;; =============================================================================
+
+(deftest sampling-tools-capability-test
+  (is true "yes")
+
+  (testing "client-supports-sampling-tools? function"
+    (testing "returns true when client declares sampling.tools capability"
+      (let [session (atom {:client-capabilities {:sampling {:tools {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-sampling-tools? context)))))
+
+    (testing "returns false when client only has basic sampling capability"
+      (let [session (atom {:client-capabilities {:sampling {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-sampling-tools? context)))))
+
+    (testing "returns false when client has no sampling capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-sampling-tools? context)))))
+
+    (testing "returns false when client-capabilities is nil"
+      (let [session (atom {})
+            context {:session session}]
+        (is (false? (server/client-supports-sampling-tools? context)))))))
+
+;; =============================================================================
+;; Elicitation Capability Tests (2025-11-25)
+;; =============================================================================
+
+(deftest elicitation-capability-test
+  (is true "yes")
+
+  (testing "client-supports-elicitation? function"
+    (testing "returns true when client declares elicitation capability"
+      (let [session (atom {:client-capabilities {:elicitation {}}})
+            context {:session session}]
+        (is (true? (server/client-supports-elicitation? context)))))
+
+    (testing "returns true when client declares form and url modes"
+      (let [session (atom {:client-capabilities {:elicitation {:form {}
+                                                               :url {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-elicitation? context)))))
+
+    (testing "returns false when client has no elicitation capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-elicitation? context))))))
+
+  (testing "client-supports-url-elicitation? function"
+    (testing "returns true when client declares url mode"
+      (let [session (atom {:client-capabilities {:elicitation {:url {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-url-elicitation? context)))))
+
+    (testing "returns false when client only has empty elicitation (form only)"
+      (let [session (atom {:client-capabilities {:elicitation {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-url-elicitation? context)))))
+
+    (testing "returns false when client has no elicitation capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-url-elicitation? context))))))
+
+  (testing "client-supports-form-elicitation? function"
+    (testing "returns true when client declares empty elicitation (form only per spec)"
+      (let [session (atom {:client-capabilities {:elicitation {}}})
+            context {:session session}]
+        (is (true? (server/client-supports-form-elicitation? context)))))
+
+    (testing "returns true when client explicitly declares form mode"
+      (let [session (atom {:client-capabilities {:elicitation {:form {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-form-elicitation? context)))))
+
+    (testing "returns true when client declares both form and url modes"
+      (let [session (atom {:client-capabilities {:elicitation {:form {}
+                                                               :url {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-form-elicitation? context)))))
+
+    (testing "returns nil when client has no elicitation capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (nil? (server/client-supports-form-elicitation? context)))))))
+
+;; =============================================================================
+;; Tasks Capability Tests (2025-11-25 - Experimental)
+;; =============================================================================
+
+(deftest tasks-capability-test
+  (is true "yes")
+
+  (testing "client-supports-tasks? function"
+    (testing "returns true when client declares tasks capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (true? (server/client-supports-tasks? context)))))
+
+    (testing "returns true when client declares full tasks capability"
+      (let [session (atom {:client-capabilities {:tasks {:list {}
+                                                         :cancel {}
+                                                         :requests {:sampling {:create-message {}}}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-tasks? context)))))
+
+    (testing "returns false when client has no tasks capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-tasks? context))))))
+
+  (testing "client-supports-task-augmented-sampling? function"
+    (testing "returns true when client declares sampling.createMessage task support"
+      (let [session (atom {:client-capabilities {:tasks {:requests {:sampling {:create-message {}}}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-task-augmented-sampling? context)))))
+
+    (testing "returns false when client only has basic tasks capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-task-augmented-sampling? context)))))
+
+    (testing "returns false when client has no tasks capability"
+      (let [session (atom {:client-capabilities {}})
+            context {:session session}]
+        (is (false? (server/client-supports-task-augmented-sampling? context))))))
+
+  (testing "client-supports-task-augmented-elicitation? function"
+    (testing "returns true when client declares elicitation.create task support"
+      (let [session (atom {:client-capabilities {:tasks {:requests {:elicitation {:create {}}}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-task-augmented-elicitation? context)))))
+
+    (testing "returns false when client only has basic tasks capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-task-augmented-elicitation? context))))))
+
+  (testing "client-supports-tasks-list? function"
+    (testing "returns true when client declares tasks.list capability"
+      (let [session (atom {:client-capabilities {:tasks {:list {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-tasks-list? context)))))
+
+    (testing "returns false when client has no list capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-tasks-list? context))))))
+
+  (testing "client-supports-tasks-cancel? function"
+    (testing "returns true when client declares tasks.cancel capability"
+      (let [session (atom {:client-capabilities {:tasks {:cancel {}}}})
+            context {:session session}]
+        (is (true? (server/client-supports-tasks-cancel? context)))))
+
+    (testing "returns false when client has no cancel capability"
+      (let [session (atom {:client-capabilities {:tasks {}}})
+            context {:session session}]
+        (is (false? (server/client-supports-tasks-cancel? context)))))))
+
 

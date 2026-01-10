@@ -18,7 +18,7 @@
                                              (str value "~#!")
                                              (str value "!#@!!")]
                                     :total 3
-                                    :hasMore false}})))
+                                    :has-more false}})))
    :prompt-fn (fn [_context {:keys [expressions]}]
                 {:description (str "A talk-like-a-pirate prompt which includes the expressions: " expressions)
                  :messages [{:role "user"
@@ -35,7 +35,7 @@
   {:uri "file:///doc/hello.md"
    :name "hello.md"
    :description "First part of the \"hello world\" resources"
-   :mimeType "text/markdown; charset=UTF-8"
+   :mime-type "text/markdown; charset=UTF-8"
    ;;:blob ,,,
    :text "Hello"})
 
@@ -43,15 +43,15 @@
   {:uri "file:///doc/world.md"
    :name "world.md"
    :description "Second part of the \"hello world\" resources"
-   :mimeType "text/markdown; charset=UTF-8"
+   :mime-type "text/markdown; charset=UTF-8"
    ;;:blob ,,,
    :text "world!"})
 
 (def my-resource-templates
-  [{:uriTemplate "file:///doc/{path}"
+  [{:uri-template "file:///doc/{path}"
     :name "Documentation files"
     :description "The documentation files"
-    :mimeType "text/markdown; charset=UTF-8"}])
+    :mime-type "text/markdown; charset=UTF-8"}])
 
 (defn my-resource-uri-complete-fn
   [_context uri name value]
@@ -61,15 +61,15 @@
           values (filterv (fn [path] (str/starts-with? path value)) paths)]
       {:completion {:values (take 100 values)
                     :total (count values)
-                    :hasMore (> (count values) 100)}})))
+                    :has-more (> (count values) 100)}})))
 
 (def parentify-tool
   {:name "parentify"
    :description "Parentify a text: wraps a text within parenthesis."
-   :inputSchema {:type "object"
-                 :properties {:text {:type "string"
-                                     :description "the text to be parentified"}}
-                 :required [:text]}
+   :input-schema {:type "object"
+                  :properties {:text {:type "string"
+                                      :description "the text to be parentified"}}
+                  :required [:text]}
    :tool-fn (fn [context arguments]
               (-> (p/let [text (str "(" (:text arguments) ")")
                           _ (p/delay 1000)
@@ -86,8 +86,8 @@
                           _ (p/delay 1000)]
                     {:content [{:type "text"
                                 :text text}]
-                     :isError false})
+                     :is-error false})
                   (p/catch (fn [exception]
                              {:content [{:type "text"
                                          :text (str "Something went wrong: " (ex-message exception))}]
-                              :isError true}))))})
+                              :is-error true}))))})

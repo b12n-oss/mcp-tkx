@@ -1,14 +1,17 @@
 (ns example.transport.sse
   "This namespace provides a 2024-11-05 compatible SSE transport for MCP Toolkit."
   (:require
+   [camel-snake-kebab.core :as csk]
    [clojure.string :as str]
    [jsonista.core :as j]
    [mcp-toolkit.json-rpc :as json-rpc]
    [org.httpkit.server :as http-kit]
    [taoensso.telemere :as tel]))
 
+;; Convert camelCase ↔ kebab-case at the JSON boundary
 (def object-mapper
-  (j/object-mapper {:decode-key-fn keyword :encode-key-fn name}))
+  (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword
+                    :encode-key-fn csk/->camelCaseString}))
 
 (defn parse-message
   [ctx]

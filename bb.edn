@@ -1,0 +1,602 @@
+{:min-bb-version "1.3.0"
+
+ :tasks
+ {:requires ([babashka.process :as p]
+             [babashka.fs :as fs]
+             [clojure.string :as str])
+
+  :init
+  (do
+    (def bold "\033[1m")
+    (def green "\033[0;32m")
+    (def yellow "\033[1;33m")
+    (def red "\033[0;31m")
+    (def cyan "\033[0;36m")
+    (def reset "\033[0m")
+
+    (defn color [c text] (str c text reset))
+    (defn step [n text] (println (color yellow (str "Step " n ":")) text))
+    (defn success [text] (println (color green (str "✅ " text))))
+    (defn error-msg [text] (println (color red (str "❌ " text))))
+    (defn info [text] (println (color cyan (str "ℹ️  " text))))
+    (defn warn [text] (println (color yellow (str "⚠️  " text))))
+    (defn header [text]
+      (println)
+      (println (color bold text))
+      (println (apply str (repeat (count text) "=")))))
+
+  ;; =============================================================================
+  ;; Development Tasks
+  ;; =============================================================================
+
+  dev
+  {:doc "Start nREPL with CIDER middleware for development"
+   :task (do
+           (header "🔧 Starting Development REPL")
+           (info "nREPL server with CIDER middleware on port 7777")
+           (p/shell "clj" "-M:dev:nrepl" "-m" "nrepl.cmdline"
+                    "--port" "7777"
+                    "--middleware" "[cider.nrepl/cider-middleware]"
+                    "--interactive"))}
+
+  nrepl
+  {:doc "Start plain nREPL server on port 7777"
+   :task (do
+           (header "🔧 Starting nREPL Server")
+           (info "nREPL listening on port 7777")
+           (p/shell "clj" "-M:nrepl"))}
+
+  repl
+  {:doc "Start basic Clojure REPL"
+   :override-builtin true
+   :task (do
+           (info "Starting Clojure REPL...")
+           (p/shell "clj" "-M:dev"))}
+
+  ;; =============================================================================
+  ;; Example Servers
+  ;; =============================================================================
+
+  example:server:stdio
+  {:doc "Run example stdio MCP server (CLJ)"
+   :task (do
+           (header "🚀 Starting Example Stdio Server (CLJ)")
+           (info "MCP server communicating via stdin/stdout")
+           (p/shell {:dir "example/cljc-server-stdio"}
+                    "clj" "-M" "-m" "example.my-server"))}
+
+  example:server:sse
+  {:doc "Run example SSE MCP server"
+   :task (do
+           (header "🚀 Starting Example SSE Server")
+           (info "MCP server with SSE transport")
+           (p/shell {:dir "example/clj-server-sse"}
+                    "clj" "-M" "-m" "example.my-server"))}
+
+  example:client:stdio
+  {:doc "Run example stdio MCP client (CLJ)"
+   :task (do
+           (header "🔌 Starting Example Stdio Client (CLJ)")
+           (info "MCP client connecting to a server")
+           (p/shell {:dir "example/cljc-client-stdio"}
+                    "clj" "-M" "-m" "example.my-client"))}
+
+  ;; =============================================================================
+  ;; Testing
+  ;; =============================================================================
+
+  test
+  {:doc "Run all tests with Kaocha"
+   :task (do
+           (header "🧪 Running Tests")
+           (let [{:keys [exit]} (p/shell {:continue true} "clj" "-M:test")]
+             (System/exit exit)))}
+
+  test:watch
+  {:doc "Run tests in watch mode"
+   :task (do
+           (header "🧪 Running Tests (Watch Mode)")
+           (info "Tests will re-run on file changes")
+           (p/shell "clj" "-M:test" "--watch"))}
+
+  test:focus
+  {:doc "Run focused tests (use --focus flag)"
+   :task (let [args *command-line-args*]
+           (header "🧪 Running Focused Tests")
+           (if (empty? args)
+             (do
+               (info "Usage: bb test:focus <namespace>")
+               (info "Example: bb test:focus mcp-toolkit.core-test"))
+             (let [{:keys [exit]} (p/shell {:continue true}
+                                           "clj" "-M:test" "--focus" (first args))]
+               (System/exit exit))))}
+
+  test:cljs
+  {:doc "Run ClojureScript tests"
+   :task (do
+           (header "🧪 Running ClojureScript Tests")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clj" "-M:test" "--focus" ":kaocha/type :kaocha.type/cljs")]
+             (System/exit exit)))}
+
+  ;; =============================================================================
+  ;; Linting (clj-kondo)
+  ;; =============================================================================
+
+  lint
+  {:doc "Run clj-kondo linter on source files"
+   :task (let [{:keys [exit]} (p/shell {:continue true} "clj-kondo" "--lint" "src")]
+           (System/exit exit))}
+
+  lint:all
+  {:doc "Lint src, test, and example directories"
+   :task (let [{:keys [exit]} (p/shell {:continue true}
+                                       "clj-kondo" "--lint" "src" "test" "example")]
+           (System/exit exit))}
+
+  ;; =============================================================================
+  ;; LSP Tasks (clojure-lsp)
+  ;; =============================================================================
+
+  lsp:format
+  {:doc "Format all Clojure files"
+   :task (do
+           (println "\n🎨 Formatting Code with clojure-lsp")
+           (println "===================================")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "format"
+                                         "--project-root" (str (fs/cwd)))]
+             (if (zero? exit)
+               (println "✅ Code formatted!")
+               (do
+                 (println "❌ Formatting failed")
+                 (System/exit exit)))))}
+
+  lsp:format-check
+  {:doc "Check formatting without making changes (dry run)"
+   :task (do
+           (println "\n🔍 Checking Code Formatting")
+           (println "===========================")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "format" "--dry"
+                                         "--project-root" (str (fs/cwd)))]
+             (if (zero? exit)
+               (println "✅ All files properly formatted!")
+               (do
+                 (println "⚠️  Files need formatting (see diff above)")
+                 (println "ℹ️  Run 'bb lsp:format' to fix")
+                 (System/exit 1)))))}
+
+  lsp:clean-ns
+  {:doc "Clean and organize ns forms"
+   :task (do
+           (println "\n🧹 Cleaning Namespace Forms")
+           (println "===========================")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "clean-ns"
+                                         "--project-root" (str (fs/cwd)))]
+             (if (zero? exit)
+               (println "✅ Namespaces cleaned!")
+               (do
+                 (println "❌ clean-ns failed")
+                 (System/exit exit)))))}
+
+  lsp:clean-ns-check
+  {:doc "Check ns forms without making changes (dry run)"
+   :task (do
+           (println "\n🔍 Checking Namespace Forms")
+           (println "===========================")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "clean-ns" "--dry"
+                                         "--project-root" (str (fs/cwd)))]
+             (if (zero? exit)
+               (println "✅ All namespace forms are clean!")
+               (do
+                 (println "⚠️  Namespaces need cleaning (see diff above)")
+                 (println "ℹ️  Run 'bb lsp:clean-ns' to fix")
+                 (System/exit exit)))))}
+
+  lsp:diagnostics
+  {:doc "Run clojure-lsp diagnostics"
+   :task (do
+           (println "\n🔬 Running LSP Diagnostics")
+           (println "=========================")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "diagnostics"
+                                         "--project-root" (str (fs/cwd)))]
+             (if (zero? exit)
+               (println "✅ No diagnostics found!")
+               (do
+                 (println "⚠️  Diagnostics found (see above)")
+                 (System/exit exit)))))}
+
+  lsp:check
+  {:doc "Run all LSP checks (format + clean-ns + diagnostics) - dry run"
+   :task (do
+           (println "\n🔍 Running All LSP Checks")
+           (println "=========================")
+           (step 1 "Checking code formatting...")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "format" "--dry"
+                                         "--project-root" (str (fs/cwd)))]
+             (when-not (zero? exit)
+               (println "⚠️  Formatting issues found")
+               (println "ℹ️  Run 'bb lsp:format' to fix")))
+           (println)
+           (step 2 "Checking namespace forms...")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "clean-ns" "--dry"
+                                         "--project-root" (str (fs/cwd)))]
+             (when-not (zero? exit)
+               (println "⚠️  Namespace issues found")
+               (println "ℹ️  Run 'bb lsp:clean-ns' to fix")))
+           (println)
+           (step 3 "Running diagnostics...")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "diagnostics"
+                                         "--project-root" (str (fs/cwd)))]
+             (if (zero? exit)
+               (println "\n✅ All LSP checks passed!")
+               (do
+                 (println "\n⚠️  Some issues found (see above)")
+                 (System/exit 1)))))}
+
+  lsp:fix
+  {:doc "Fix all auto-fixable issues (format + clean-ns)"
+   :task (do
+           (println "\n🔧 Fixing Code with LSP")
+           (println "=======================")
+           (step 1 "Formatting code...")
+           (p/shell {:continue true}
+                    "clojure-lsp" "format"
+                    "--project-root" (str (fs/cwd)))
+           (println)
+           (step 2 "Cleaning namespaces...")
+           (p/shell {:continue true}
+                    "clojure-lsp" "clean-ns"
+                    "--project-root" (str (fs/cwd)))
+           (println "\n✅ All auto-fixes applied!")
+           (println "ℹ️  Run 'bb lsp:diagnostics' to check remaining issues"))}
+
+  ;; =============================================================================
+  ;; Code Quality Checks
+  ;; =============================================================================
+
+  check
+  {:doc "⭐ Fast checks (compile + lint) - use before committing"
+   :task (do
+           (println "🔍 Running fast checks...")
+           (println "")
+           (step 1 "Compile check...")
+           (p/shell "clj" "-M:dev" "-e" "(require 'mcp-toolkit.server)")
+           (println)
+           (step 2 "Lint check...")
+           (let [{:keys [exit]} (p/shell {:continue true} "clj-kondo" "--lint" "src")]
+             (if (zero? exit)
+               (println "\n✅ All fast checks passed!")
+               (do
+                 (println "\n⚠️  Lint warnings found (see above)")
+                 (System/exit exit)))))}
+
+  check:full
+  {:doc "Comprehensive checks (compile + lint + LSP format + clean-ns)"
+   :task (do
+           (println "\n🔍 Running Comprehensive Pre-commit Checks")
+           (println "==========================================")
+           (step 1 "Checking compilation...")
+           (p/shell "clj" "-M:dev" "-e" "(require 'mcp-toolkit.server)")
+           (println)
+           (step 2 "Running clj-kondo lint...")
+           (let [{:keys [exit]} (p/shell {:continue true} "clj-kondo" "--lint" "src")]
+             (when-not (zero? exit)
+               (println "⚠️  Lint warnings found")))
+           (println)
+           (step 3 "Checking code formatting...")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "format" "--dry"
+                                         "--project-root" (str (fs/cwd)))]
+             (when-not (zero? exit)
+               (println "⚠️  Formatting issues found")
+               (println "ℹ️  Run 'bb lsp:format' to fix")))
+           (println)
+           (step 4 "Checking namespace forms...")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "clojure-lsp" "clean-ns" "--dry"
+                                         "--project-root" (str (fs/cwd)))]
+             (when-not (zero? exit)
+               (println "⚠️  Namespace issues found")
+               (println "ℹ️  Run 'bb lsp:clean-ns' to fix")))
+           (println "\n✅ All comprehensive checks complete!")
+           (println "ℹ️  Fix issues with 'bb lsp:fix' if needed"))}
+
+  ci
+  {:doc "Full CI pipeline (clean + compile + lint + test)"
+   :task (do
+           (step 1 "Cleaning...")
+           (doseq [dir ["target" ".cpcache" "classes"]]
+             (fs/delete-tree dir))
+           (println)
+           (step 2 "Compiling...")
+           (p/shell "clj" "-M:dev" "-e" "(require 'mcp-toolkit.server)")
+           (println)
+           (step 3 "Linting...")
+           (p/shell "clj-kondo" "--lint" "src")
+           (println)
+           (step 4 "Running tests...")
+           (p/shell "clj" "-M:test")
+           (println "\n✅ CI checks complete!"))}
+
+  ;; =============================================================================
+  ;; Git Hooks
+  ;; =============================================================================
+
+  hooks:install
+  {:doc "Install FAST git pre-commit hook (lint only, ~2s)"
+   :task (do
+           (println "\n🪝 Installing FAST Git Pre-commit Hook")
+           (println "======================================")
+           (let [hook-path ".git/hooks/pre-commit"
+                 hook-content "#!/bin/bash
+
+# mcp-toolkit pre-commit hook (FAST - lint only)
+# For comprehensive checks, run 'bb check' or 'bb check:full' manually
+
+set -e
+
+echo \"🔍 Running fast pre-commit check (lint only)...\"
+echo \"================================================\"
+
+# Quick lint check only - takes ~2 seconds
+clj-kondo --lint src
+
+echo \"\"
+echo \"✅ Lint check passed!\"
+echo \"ℹ️  For full checks: bb check (or bb check:full for LSP)\"
+"]
+             (spit hook-path hook-content)
+             (p/shell "chmod" "+x" hook-path)
+             (println "✅ Fast pre-commit hook installed (lint only, ~2s)")
+             (println "ℹ️  Hook will run automatically on 'git commit'")
+             (println "ℹ️  To skip: git commit --no-verify")
+             (println "ℹ️  For full hook: bb hooks:install:full")))}
+
+  hooks:install:full
+  {:doc "Install FULL git pre-commit hook (compile + lint + LSP, ~30s)"
+   :task (do
+           (println "\n🪝 Installing FULL Git Pre-commit Hook")
+           (println "======================================")
+           (let [hook-path ".git/hooks/pre-commit"
+                 hook-content "#!/bin/bash
+
+# mcp-toolkit pre-commit hook (FULL - compile + lint + LSP)
+# For faster iteration, use 'bb hooks:install' instead
+
+set -e
+
+echo \"🔍 Running FULL pre-commit checks...\"
+echo \"=====================================\"
+
+# Step 1: Compile check
+echo \"\"
+echo \"Step 1: Checking compilation...\"
+clojure -M:dev -e \"(require 'mcp-toolkit.server)\"
+
+# Step 2: Lint check
+echo \"\"
+echo \"Step 2: Running clj-kondo lint...\"
+clj-kondo --lint src
+
+# Step 3: Format check
+echo \"\"
+echo \"Step 3: Checking code formatting...\"
+clojure-lsp format --dry --project-root \"$(pwd)\" || {
+    echo \"❌ Files need formatting. Run 'bb lsp:format' to fix.\"
+    exit 1
+}
+echo \"✅ Formatting OK\"
+
+# Step 4: Clean-ns check
+echo \"\"
+echo \"Step 4: Checking namespace forms...\"
+clojure-lsp clean-ns --dry --project-root \"$(pwd)\" || {
+    echo \"❌ Namespaces need cleaning. Run 'bb lsp:clean-ns' to fix.\"
+    exit 1
+}
+echo \"✅ Namespaces OK\"
+
+echo \"\"
+echo \"=====================================\"
+echo \"✅ All pre-commit checks passed!\"
+"]
+             (spit hook-path hook-content)
+             (p/shell "chmod" "+x" hook-path)
+             (println "✅ Full pre-commit hook installed (compile + lint + LSP)")
+             (println "ℹ️  Hook will run automatically on 'git commit'")
+             (println "ℹ️  To skip: git commit --no-verify")
+             (println "ℹ️  For fast hook: bb hooks:install")))}
+
+  hooks:uninstall
+  {:doc "Remove git pre-commit hook"
+   :task (do
+           (let [hook-path ".git/hooks/pre-commit"]
+             (when (fs/exists? hook-path)
+               (fs/delete hook-path)
+               (println "✅ Pre-commit hook removed!"))
+             (when-not (fs/exists? hook-path)
+               (println "ℹ️  No pre-commit hook found"))))}
+
+  ;; =============================================================================
+  ;; Build & Deploy
+  ;; =============================================================================
+
+  clean
+  {:doc "Clean build artifacts"
+   :task (do
+           (header "🧹 Cleaning Build Artifacts")
+           (doseq [dir ["target" ".cpcache" "classes" "out"]]
+             (fs/delete-tree dir))
+           (success "Cleaned"))}
+
+  jar
+  {:doc "Build library JAR"
+   :task (do
+           (header "📦 Building JAR")
+           (p/shell "clj" "-X:jar")
+           (success "JAR built"))}
+
+  deploy
+  {:doc "Deploy to Clojars (requires CLOJARS credentials)"
+   :task (do
+           (header "🚀 Deploying to Clojars")
+           (if (and (System/getenv "CLOJARS_USERNAME")
+                    (System/getenv "CLOJARS_PASSWORD"))
+             (do
+               (p/shell "clj" "-X:deploy")
+               (success "Deployed to Clojars!"))
+             (do
+               (error-msg "CLOJARS_USERNAME and CLOJARS_PASSWORD must be set")
+               (System/exit 1))))}
+
+  ;; =============================================================================
+  ;; Dependencies
+  ;; =============================================================================
+
+  deps
+  {:doc "Download and cache dependencies"
+   :task (do
+           (header "📦 Downloading Dependencies")
+           (p/shell "clj" "-P")
+           (p/shell "clj" "-P" "-M:dev")
+           (p/shell "clj" "-P" "-M:test")
+           (success "Dependencies cached"))}
+
+  deps:tree
+  {:doc "Show dependency tree"
+   :task (p/shell "clj" "-Stree")}
+
+  outdated
+  {:doc "Check for outdated dependencies"
+   :task (do
+           (header "🔍 Checking Outdated Dependencies")
+           (p/shell {:continue true} "clj" "-M:outdated"))}
+
+  outdated:upgrade
+  {:doc "Upgrade outdated dependencies"
+   :task (do
+           (header "⬆️  Upgrading Dependencies")
+           (p/shell "clj" "-M:outdated" "--upgrade"))}
+
+  ;; =============================================================================
+  ;; Utilities
+  ;; =============================================================================
+
+  loc
+  {:doc "Count lines of code"
+   :task (let [clj-files (concat (fs/glob "src" "**/*.clj")
+                                 (fs/glob "src" "**/*.cljc")
+                                 (fs/glob "src" "**/*.cljs"))
+               lines (map (fn [f] (count (str/split-lines (slurp (str f))))) clj-files)
+               total (reduce + 0 lines)]
+           (println (str "📊 Source lines: " total))
+           (println (str "📁 Files: " (count clj-files))))}
+
+  loc:all
+  {:doc "Count lines of code (including tests and examples)"
+   :task (let [all-files (concat
+                          (fs/glob "src" "**/*.clj")
+                          (fs/glob "src" "**/*.cljc")
+                          (fs/glob "src" "**/*.cljs")
+                          (fs/glob "test" "**/*.clj")
+                          (fs/glob "test" "**/*.cljc")
+                          (fs/glob "test" "**/*.cljs")
+                          (fs/glob "example" "**/*.clj")
+                          (fs/glob "example" "**/*.cljc")
+                          (fs/glob "example" "**/*.cljs"))
+               lines (map (fn [f] (count (str/split-lines (slurp (str f))))) all-files)
+               total (reduce + 0 lines)]
+           (println (str "📊 Total lines: " total))
+           (println (str "📁 Files: " (count all-files))))}
+
+  ;; =============================================================================
+  ;; MCP Inspector (for testing MCP servers)
+  ;; =============================================================================
+
+  inspector
+  {:doc "Test MCP server with MCP Inspector (requires npx)"
+   :task (let [args *command-line-args*]
+           (header "🔬 MCP Inspector")
+           (if (empty? args)
+             (do
+               (info "Usage: bb inspector <command>")
+               (println "")
+               (println "Examples:")
+               (println "  bb inspector clojure -M -m example.my-server")
+               (println "  bb inspector node path/to/server.js"))
+             (apply p/shell "npx" "@modelcontextprotocol/inspector" args)))}
+
+  ;; =============================================================================
+  ;; Help
+  ;; =============================================================================
+
+  help
+  {:doc "Show help and available tasks"
+   :override-builtin true
+   :task (do
+           (println "📦 mcp-toolkit")
+           (println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+           (println "MCP (Model Context Protocol) toolkit for Clojure/ClojureScript")
+           (println "")
+           (println "🔧 Development:")
+           (println "   bb dev           Start CIDER nREPL (port 7777)")
+           (println "   bb nrepl         Start plain nREPL (port 7777)")
+           (println "   bb repl          Start basic Clojure REPL")
+           (println "")
+           (println "🚀 Example Servers:")
+           (println "   bb example:server:stdio  Run stdio server (CLJ)")
+           (println "   bb example:server:sse    Run SSE server")
+           (println "   bb example:client:stdio  Run stdio client (CLJ)")
+           (println "")
+           (println "🧪 Testing:")
+           (println "   bb test          Run all tests")
+           (println "   bb test:watch    Watch mode")
+           (println "   bb test:focus    Focus on specific test")
+           (println "   bb test:cljs     Run ClojureScript tests")
+           (println "")
+           (println "🔍 Code Quality:")
+           (println "   bb check          ⭐ Fast check (compile + lint)")
+           (println "   bb check:full     Comprehensive (+ LSP format/clean-ns)")
+           (println "   bb ci             Full CI pipeline")
+           (println "   bb lint           Lint src with clj-kondo")
+           (println "   bb lint:all       Lint src + test + example")
+           (println "")
+           (println "🎨 LSP (clojure-lsp):")
+           (println "   bb lsp:format       Format all files")
+           (println "   bb lsp:format-check Check formatting (dry run)")
+           (println "   bb lsp:clean-ns     Clean namespace forms")
+           (println "   bb lsp:clean-ns-check Check namespaces (dry run)")
+           (println "   bb lsp:diagnostics  Find warnings/errors")
+           (println "   bb lsp:check        All LSP checks (dry run)")
+           (println "   bb lsp:fix          Auto-fix format + clean-ns")
+           (println "")
+           (println "🪝 Git Hooks:")
+           (println "   bb hooks:install       Fast hook (lint only, ~2s)")
+           (println "   bb hooks:install:full  Full hook (compile+lint+LSP)")
+           (println "   bb hooks:uninstall     Remove pre-commit hook")
+           (println "")
+           (println "📦 Build & Deploy:")
+           (println "   bb clean         Clean build artifacts")
+           (println "   bb jar           Build library JAR")
+           (println "   bb deploy        Deploy to Clojars")
+           (println "")
+           (println "📊 Utilities:")
+           (println "   bb loc           Count lines of code")
+           (println "   bb loc:all       Count all lines (inc. tests/examples)")
+           (println "   bb deps          Download dependencies")
+           (println "   bb deps:tree     Show dependency tree")
+           (println "   bb outdated      Check outdated deps")
+           (println "   bb outdated:upgrade  Upgrade deps")
+           (println "")
+           (println "🔬 MCP Inspector:")
+           (println "   bb inspector <cmd>  Test MCP server")
+           (println "")
+           (println "Run 'bb tasks' for all available tasks"))}}}
