@@ -1,4 +1,4 @@
-(ns tool-2025-06-18-features.cljc
+(ns tool-2025-06-18-features
   "Example tool demonstrating 2025-06-18 features.
 
    This example shows:
