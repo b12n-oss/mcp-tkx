@@ -28,13 +28,13 @@
   nil)
 
 (def ^:private log-level->importance
-  {"debug" 0
-   "info" 1
-   "notice" 2
-   "warning" 3
-   "error" 4
-   "critical" 5
-   "alert" 6
+  {"debug"     0
+   "info"      1
+   "notice"    2
+   "warning"   3
+   "error"     4
+   "critical"  5
+   "alert"     6
    "emergency" 7})
 
 (defn notify-log
@@ -94,7 +94,7 @@
                :max-tokens       - Maximum tokens to generate (optional)
                :model-preferences - Model selection hints (optional)
                :include-context  - Deprecated: use explicit context instead (optional)
-               
+
                Tool use (2025-11-25, requires client sampling.tools capability):
                :tools       - Vector of tool definitions (see mcp-toolkit.schema/sampling-tool)
                :tool-choice - Tool choice mode map (see mcp-toolkit.schema/tool-choice)
@@ -148,7 +148,7 @@
 
 (defn client-supports-sampling-tools?
   "Returns true if the client supports tool use in sampling requests.
-   
+
    Clients must declare {:sampling {:tools {}}} capability to receive
    tool-enabled sampling requests."
   [context]
@@ -162,7 +162,7 @@
 
 (defn client-supports-elicitation?
   "Returns true if the client supports elicitation requests.
-   
+
    Clients must declare {:elicitation {}} or {:elicitation {:form {}}}
    capability to receive elicitation requests."
   [context]
@@ -172,7 +172,7 @@
 
 (defn client-supports-url-elicitation?
   "Returns true if the client supports URL mode elicitation.
-   
+
    Clients must declare {:elicitation {:url {}}} capability to receive
    URL mode elicitation requests."
   [context]
@@ -182,7 +182,7 @@
 
 (defn client-supports-form-elicitation?
   "Returns true if the client supports form mode elicitation.
-   
+
    Form mode is supported if client declares {:elicitation {}} (empty = form only)
    or {:elicitation {:form {}}}."
   [context]
@@ -201,14 +201,14 @@
    Args:
      context - The server session context
      params  - Elicitation request map:
-               
+
                Common fields:
                :mode    - \"form\" or \"url\" (optional, defaults to \"form\")
                :message - Human-readable explanation (required)
-               
+
                Form mode specific:
                :requested-schema - JSON Schema for expected response (required for form)
-               
+
                URL mode specific (2025-11-25):
                :elicitation-id - Unique identifier for tracking (required for url)
                :url            - Target URL, must be https:// (required for url)
@@ -260,14 +260,14 @@
 
 (defn notify-elicitation-complete
   "Notifies the client that a URL mode elicitation has completed.
-   
+
    Servers MAY send this when an out-of-band URL interaction finishes.
    This allows clients to automatically retry requests or update UI.
-   
+
    Args:
      context        - The server session context
      elicitation-id - ID from the original elicitation request
-   
+
    Notes:
      - Only send to the client that initiated the elicitation
      - Clients MAY use this to retry requests that got URLElicitationRequiredError"
@@ -282,7 +282,7 @@
 
 (defn client-supports-tasks?
   "Returns true if the client supports any task operations.
-   
+
    Clients must declare {:tasks {...}} capability."
   [context]
   (let [{:keys [session]} context
@@ -291,7 +291,7 @@
 
 (defn client-supports-task-augmented-sampling?
   "Returns true if the client supports task-augmented sampling/createMessage.
-   
+
    Clients must declare {:tasks {:requests {:sampling {:create-message {}}}}}."
   [context]
   (let [{:keys [session]} context
@@ -300,7 +300,7 @@
 
 (defn client-supports-task-augmented-elicitation?
   "Returns true if the client supports task-augmented elicitation/create.
-   
+
    Clients must declare {:tasks {:requests {:elicitation {:create {}}}}}."
   [context]
   (let [{:keys [session]} context
@@ -309,7 +309,7 @@
 
 (defn client-supports-tasks-list?
   "Returns true if the client supports the tasks/list operation.
-   
+
    Clients must declare {:tasks {:list {}}}."
   [context]
   (let [{:keys [session]} context
@@ -318,7 +318,7 @@
 
 (defn client-supports-tasks-cancel?
   "Returns true if the client supports the tasks/cancel operation.
-   
+
    Clients must declare {:tasks {:cancel {}}}."
   [context]
   (let [{:keys [session]} context
@@ -413,14 +413,14 @@
 
 (defn notify-task-status
   "Notifies the requestor that a task's status has changed.
-   
+
    Receivers MAY send this when task status changes.
    Requestors MUST NOT rely on receiving this notification.
-   
+
    Args:
      context - The server session context
      task    - The full Task object with updated status
-   
+
    Notes:
      - Only send to the requestor that created the task
      - Requestors should continue polling via tasks/get"

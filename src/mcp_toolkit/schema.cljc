@@ -1,7 +1,7 @@
 (ns mcp-toolkit.schema
   "Malli schemas for MCP protocol types.
    Provides validation and schema construction helpers.
-   
+
    See: https://modelcontextprotocol.io/specification/2025-11-25"
   (:require
    [clojure.string :as str]
@@ -19,7 +19,7 @@
 
 (defn with-schema-dialect
   "Adds the JSON Schema 2020-12 dialect to a schema map.
-   
+
    Example:
      (with-schema-dialect {:type \"object\" :properties {...}})
      ;; => {:$schema \"https://json-schema.org/draft/2020-12/schema\"
@@ -46,7 +46,7 @@
 
 (def EnumSchema
   "Schema for MCP EnumSchema (2025-11-25 spec).
-   
+
    Supports:
    - :type        - Must be \"string\"
    - :enum        - Required vector of string values
@@ -96,18 +96,18 @@
 
 (defn enum-schema
   "Creates an enum schema map (2025-11-25 spec).
-   
+
    Options:
    - :values       - Vector of string values (required)
    - :titles       - Vector of display titles (optional, must match values length)
    - :multi-select - Allow multiple selections (default: false)
    - :default      - Default value(s)
-   
+
    Example:
      (enum-schema {:values [\"low\" \"medium\" \"high\"]
                    :titles [\"Low\" \"Medium\" \"High\"]
                    :default \"medium\"})
-     
+
      (enum-schema {:values [\"email\" \"sms\" \"push\"]
                    :multi-select true
                    :default [\"email\"]})"
@@ -120,7 +120,7 @@
 
 (defn enum-schema!
   "Like enum-schema, but validates the result and throws on invalid schema.
-   
+
    Throws ex-info with :errors key if validation fails."
   [opts]
   (let [schema (enum-schema opts)
@@ -144,7 +144,7 @@
 
 (def ToolChoice
   "Schema for toolChoice in sampling requests.
-   
+
    Modes:
    - \"auto\"     - Model decides whether to use tools (default)
    - \"required\" - Model MUST use at least one tool
@@ -158,7 +158,7 @@
 
 (def SamplingTool
   "Schema for tool definitions in sampling requests.
-   
+
    Fields:
    - :name         - Tool name (required)
    - :description  - Human-readable description (optional)
@@ -195,7 +195,7 @@
 (def ToolUseContent
   "Tool use request from the model.
    Returned when the model wants to call a tool.
-   
+
    Fields:
    - :type  - Always \"tool_use\"
    - :id    - Unique identifier for this tool use
@@ -210,7 +210,7 @@
 (def ToolResultContent
   "Result of a tool execution.
    Sent back to the model after executing a tool.
-   
+
    Fields:
    - :type        - Always \"tool_result\"
    - :tool-use-id - ID of the tool_use this is responding to
@@ -230,7 +230,7 @@
 
 (def StopReason
   "Reasons why model generation stopped.
-   
+
    Values:
    - \"endTurn\"      - Natural completion
    - \"stopSequence\" - Hit a stop sequence
@@ -263,12 +263,12 @@
 
 (defn tool-choice
   "Creates a tool choice configuration.
-   
+
    Mode can be:
    - :auto     - Model decides whether to use tools (default)
    - :required - Model MUST use at least one tool
    - :none     - Model MUST NOT use any tools
-   
+
    Example:
      (tool-choice :auto)
      (tool-choice :required)"
@@ -277,12 +277,12 @@
 
 (defn sampling-tool
   "Creates a tool definition for sampling requests.
-   
+
    Options:
    - :name         - Tool name (required)
    - :description  - Human-readable description (optional)
    - :input-schema - JSON Schema for input (required)
-   
+
    Example:
      (sampling-tool {:name \"get_weather\"
                      :description \"Get current weather for a city\"
@@ -296,16 +296,16 @@
 
 (defn tool-result
   "Creates a tool result content block.
-   
+
    Options:
    - :tool-use-id - ID of the tool_use being responded to (required)
    - :content     - Result content, either a map or vector of content blocks (required)
    - :is-error    - Whether this is an error result (optional)
-   
+
    Example:
      (tool-result {:tool-use-id \"call_abc123\"
                    :content {:type \"text\" :text \"Weather: 18°C\"}})
-     
+
      (tool-result {:tool-use-id \"call_def456\"
                    :content {:type \"text\" :text \"Error: City not found\"}
                    :is-error true})"
@@ -317,14 +317,14 @@
 
 (defn tool-result-message
   "Creates a user message containing tool results.
-   
+
    Per MCP spec: Messages with tool results MUST contain ONLY tool results.
-   
+
    Args:
    - results - A single tool result or vector of tool results
-   
+
    Example:
-     (tool-result-message 
+     (tool-result-message
        [(tool-result {:tool-use-id \"call_abc\" :content {:type \"text\" :text \"Result 1\"}})
         (tool-result {:tool-use-id \"call_def\" :content {:type \"text\" :text \"Result 2\"}})])"
   [results]
@@ -352,7 +352,7 @@
 
 (def ElicitationMode
   "Valid modes for elicitation requests.
-   
+
    Modes:
    - \"form\" - In-band structured data collection (default)
    - \"url\"  - Out-of-band URL navigation for sensitive data"
@@ -360,7 +360,7 @@
 
 (def ElicitationAction
   "Response actions for elicitation requests.
-   
+
    Actions:
    - \"accept\"  - User approved and submitted (with data for form mode)
    - \"decline\" - User explicitly declined the request
@@ -373,10 +373,10 @@
 
 (def UrlElicitationRequest
   "Schema for URL mode elicitation requests.
-   
+
    URL mode directs users to external URLs for sensitive interactions
    that must NOT pass through the MCP client (OAuth, payments, API keys).
-   
+
    Fields:
    - :mode           - Must be \"url\"
    - :elicitation-id - Unique identifier for this elicitation
@@ -394,10 +394,10 @@
 
 (def FormElicitationRequest
   "Schema for form mode elicitation requests.
-   
+
    Form mode collects structured data directly through the MCP client.
    MUST NOT be used for sensitive information like credentials.
-   
+
    Fields:
    - :mode             - \"form\" (optional, defaults to form if omitted)
    - :message          - Human-readable explanation
@@ -413,7 +413,7 @@
 
 (def ElicitationResponse
   "Schema for elicitation response from client.
-   
+
    Fields:
    - :action  - User's response action (accept/decline/cancel)
    - :content - Submitted data (only for form mode accept)"
@@ -427,9 +427,9 @@
 
 (def ElicitationCompleteNotification
   "Schema for elicitation completion notification.
-   
+
    Servers MAY send this when URL mode elicitation completes out-of-band.
-   
+
    Fields:
    - :elicitation-id - ID from the original elicitation request"
   [:map
@@ -441,9 +441,9 @@
 
 (def UrlElicitationRequiredErrorData
   "Schema for URL_ELICITATION_REQUIRED error data (-32042).
-   
+
    Returned when a request cannot proceed until elicitation completes.
-   
+
    Fields:
    - :elicitations - Array of URL mode elicitations required"
   [:map
@@ -455,15 +455,15 @@
 
 (defn url-elicitation
   "Creates a URL mode elicitation request.
-   
+
    URL mode directs users to external URLs for sensitive interactions.
    Use for OAuth flows, payment processing, API key collection, etc.
-   
+
    Options:
    - :elicitation-id - Unique identifier (required)
    - :url            - Target URL, must be https:// (required)
    - :message        - Human-readable explanation (required)
-   
+
    Example:
      (url-elicitation
        {:elicitation-id \"550e8400-e29b-41d4-a716-446655440000\"
@@ -487,14 +487,14 @@
 
 (defn form-elicitation
   "Creates a form mode elicitation request.
-   
+
    Form mode collects structured data through the MCP client.
    MUST NOT be used for sensitive information like credentials.
-   
+
    Options:
    - :message          - Human-readable explanation (required)
    - :requested-schema - JSON Schema for expected response (required)
-   
+
    Example:
      (form-elicitation
        {:message \"Please provide your display name\"
@@ -518,11 +518,11 @@
 
 (defn elicitation-response
   "Creates an elicitation response.
-   
+
    Options:
    - :action  - Response action (:accept, :decline, or :cancel) (required)
    - :content - Response data for form mode accept (optional)
-   
+
    Example:
      (elicitation-response {:action :accept
                             :content {:name \"Alice\"}})"
@@ -532,12 +532,12 @@
 
 (defn elicitation-complete-notification
   "Creates an elicitation completion notification.
-   
+
    Servers send this when URL mode elicitation completes out-of-band.
-   
+
    Args:
    - elicitation-id - ID from the original elicitation request
-   
+
    Example:
      (elicitation-complete-notification \"550e8400-e29b-41d4-a716-446655440000\")"
   [elicitation-id]
@@ -545,12 +545,12 @@
 
 (defn url-elicitation-required-error-data
   "Creates error data for URL_ELICITATION_REQUIRED error (-32042).
-   
+
    Used when a request cannot proceed until elicitation completes.
-   
+
    Args:
    - elicitations - Vector of URL elicitation requests
-   
+
    Example:
      (url-elicitation-required-error-data
        [(url-elicitation {:elicitation-id \"abc\"
@@ -574,7 +574,7 @@
 
 (def TaskStatus
   "Valid task execution states.
-   
+
    States:
    - \"working\"        - Request is currently being processed
    - \"input_required\" - Receiver needs input from requestor
@@ -585,7 +585,7 @@
 
 (def TaskSupportMode
   "Tool execution task support modes.
-   
+
    Modes:
    - \"required\"  - Tool MUST be invoked as a task
    - \"optional\"  - Tool MAY be invoked as a task or normal request
@@ -598,9 +598,9 @@
 
 (def Task
   "Schema for a task object representing execution state.
-   
+
    A task is a durable state machine for tracking long-running operations.
-   
+
    Fields:
    - :task-id        - Unique identifier (receiver-generated)
    - :status         - Current execution state
@@ -624,9 +624,9 @@
 
 (def TaskParams
   "Schema for task augmentation parameters in requests.
-   
+
    Include this in request params to create a task-augmented request.
-   
+
    Fields:
    - :ttl - Requested duration (ms) to retain task from creation (optional)"
   [:map
@@ -634,10 +634,10 @@
 
 (def CreateTaskResult
   "Schema for task creation response.
-   
+
    Returned when a receiver accepts a task-augmented request.
    The actual operation result comes later via tasks/result.
-   
+
    Fields:
    - :task - The created task object"
   [:map
@@ -665,7 +665,7 @@
 
 (def TasksListResult
   "Schema for tasks/list response.
-   
+
    Fields:
    - :tasks       - Array of task objects
    - :next-cursor - Pagination cursor for next page (optional)"
@@ -675,15 +675,15 @@
 
 (def TaskStatusNotification
   "Schema for notifications/tasks/status notification params.
-   
+
    Sent when a task's status changes. Includes full task state."
   Task)
 
 (def RelatedTaskMeta
   "Schema for io.modelcontextprotocol/related-task metadata.
-   
+
    MUST be included in _meta for all task-related messages.
-   
+
    Fields:
    - :task-id - ID of the associated task"
   [:map
@@ -695,10 +695,10 @@
 
 (defn task-params
   "Creates task augmentation parameters for a request.
-   
+
    Options:
    - :ttl - Requested retention duration in milliseconds (optional)
-   
+
    Example:
      ;; Request with 1-hour TTL
      {:name \"analyze_data\"
@@ -712,7 +712,7 @@
 
 (defn task
   "Creates a task object.
-   
+
    Options:
    - :task-id         - Unique identifier (required)
    - :status          - Task status (required, default \"working\")
@@ -721,7 +721,7 @@
    - :last-updated-at - ISO 8601 timestamp (required)
    - :ttl             - Retention duration in ms, nil for unlimited (required)
    - :poll-interval   - Suggested polling interval in ms (optional)
-   
+
    Example:
      (task {:task-id (str (random-uuid))
             :status \"working\"
@@ -741,10 +741,10 @@
 
 (defn create-task-result
   "Creates a task creation response.
-   
+
    Args:
    - task-obj - The task object to wrap
-   
+
    Example:
      (create-task-result
        (task {:task-id \"abc-123\"
@@ -757,12 +757,12 @@
 
 (defn related-task-meta
   "Creates related task metadata for _meta field.
-   
+
    MUST be included in all task-related messages.
-   
+
    Args:
    - task-id - ID of the associated task
-   
+
    Example:
      {:_meta {\"io.modelcontextprotocol/related-task\"
               (related-task-meta \"abc-123\")}}"
@@ -771,11 +771,11 @@
 
 (defn tasks-list-result
   "Creates a tasks/list response.
-   
+
    Options:
    - :tasks       - Vector of task objects (required)
    - :next-cursor - Pagination cursor for next page (optional)
-   
+
    Example:
      (tasks-list-result {:tasks [task1 task2]
                          :next-cursor \"cursor-xyz\"})"
@@ -785,9 +785,7 @@
 
 (defn terminal-status?
   "Returns true if the status is a terminal state.
-   
+
    Terminal states: completed, failed, cancelled"
   [status]
   (contains? #{"completed" "failed" "cancelled"} status))
-
-

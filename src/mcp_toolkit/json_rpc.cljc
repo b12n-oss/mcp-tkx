@@ -165,8 +165,12 @@
                             ;; We avoided using p/finally because it does not allow chaining further promises.
                             (or error result))))))))
     ;; Method call response
-    (if (and (contains? message :id) (or (contains? message :result) (contains? message :error)))
-      (if-some [handler (-> @session :handler-by-called-method-id (get (:id message)))]
+    (if (and (contains? message :id)
+             (or (contains? message :result)
+                 (contains? message :error)))
+      (if-some [handler (-> @session
+                            :handler-by-called-method-id
+                            (get (:id message)))]
         (do
           (handler context)
           nil)
