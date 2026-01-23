@@ -1,33 +1,54 @@
-{:paths ["src"]
- :deps {taipei.404/mate {:mvn/version "0.1.0"}
-        funcool/promesa {:mvn/version "11.0.678"}
-        metosin/malli {:mvn/version "0.20.0"}
-        org.clojure/tools.cli {:mvn/version "1.3.250"}
-        camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}}
- :aliases {:dev {:extra-deps {org.clojure/clojure {:mvn/version "1.12.4"}
-                              org.clojure/clojurescript {:mvn/version "1.12.134"}}}
-           ;; ./bin/kaocha --watch
-           :test {:extra-paths ["test"]
-                  :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}
-                               lambdaisland/kaocha-cljs {:mvn/version "1.8.163"}}
-                  :main-opts ["-m" "kaocha.runner"]}
-           ;; clojure -M:outdated --upgrade
-           :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
-                      :main-opts  ["-m" "antq.core"]}
-           ;; Starts a nREPL server on port 7888 so that the Clojure-MCP tool can work on that codebase
-           ;; clojure -M:nrepl
-           :nrepl {:extra-paths ["test"]
-                   :extra-deps {nrepl/nrepl {:mvn/version "1.5.2"}}
-                   :jvm-opts ["-Djdk.attach.allowAttachSelf"]
-                   :main-opts ["-m" "nrepl.cmdline" "--port" "7777"]} ;; before that it was "7888"
-           :jar  {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
-                  :exec-fn hf.depstar/jar
-                  :exec-args {:sync-pom true
-                              :group-id "fi.metosin"
-                              :artifact-id "mcp-toolkit"
-                              :version "2025-11-25"
-                              :jar "mcp-toolkit.jar"}}
-           :deploy {:extra-deps {slipset/deps-deploy {:mvn/version "0.2.2"}}
-                    :exec-fn deps-deploy.deps-deploy/deploy
-                    :exec-args {:installer :remote
-                                :artifact "mcp-toolkit-2025-11-25.jar"}}}}
+{:paths
+ ["src"]
+
+ :deps
+ {taipei.404/mate                     {:mvn/version "0.1.0"}
+  funcool/promesa                     {:mvn/version "11.0.678"}
+  metosin/malli                       {:mvn/version "0.20.0"}
+  org.clojure/tools.cli               {:mvn/version "1.3.250"}
+  camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}}
+
+ :aliases
+ {:dev      {:extra-deps {org.clojure/clojure       {:mvn/version "1.12.4"}
+                          org.clojure/clojurescript {:mvn/version "1.12.134"}}}
+  ;; ./bin/kaocha --watch
+  :test     {:extra-paths ["test"]
+             :extra-deps  {lambdaisland/kaocha      {:mvn/version "1.91.1392"}
+                           lambdaisland/kaocha-cljs {:mvn/version "1.8.163"}}
+             :main-opts   ["-m" "kaocha.runner"]}
+  ;; clojure -M:outdated --upgrade
+  :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
+             :main-opts  ["-m" "antq.core"]}
+
+  :nrepl
+  {:extra-paths ["test"]
+   :extra-deps  {cider/cider-nrepl                        {:mvn/version "0.58.0"}
+                 clj-kondo/clj-kondo                      {:mvn/version "2025.06.05"}
+                 com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.6.1"}
+                 criterium/criterium                      {:mvn/version "0.4.6"}
+                 dev.weavejester/cljfmt                   {:mvn/version "0.13.1"}
+                 io.github.tonsky/clj-reload              {:mvn/version "1.0.0"}
+                 nrepl/nrepl                              {:mvn/version "1.5.2"}
+                 org.clojure/tools.cli                    {:mvn/version "1.1.230"}
+                 org.slf4j/slf4j-api                      {:mvn/version "2.0.17"}
+                 org.slf4j/slf4j-simple                   {:mvn/version "2.0.17"}
+                 refactor-nrepl/refactor-nrepl            {:mvn/version "3.11.0"}
+                 rewrite-clj/rewrite-clj                  {:mvn/version "1.1.47"}}
+   :jvm-opts    ["-Djdk.attach.allowAttachSelf"]
+   ;; NOTE: keep this different so we can start each NREPL and connect to it
+   :main-opts   ["-m" "nrepl.cmdline" "--port" "7777"]}
+
+  :jar
+  {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
+   :exec-fn      hf.depstar/jar
+   :exec-args    {:sync-pom    true
+                  :group-id    "fi.metosin"
+                  :artifact-id "mcp-toolkit"
+                  :version     "2025-11-25"
+                  :jar         "mcp-toolkit.jar"}}
+
+  :deploy
+  {:extra-deps {slipset/deps-deploy {:mvn/version "0.2.2"}}
+   :exec-fn    deps-deploy.deps-deploy/deploy
+   :exec-args  {:installer :remote
+                :artifact  "mcp-toolkit-2025-11-25.jar"}}}}
