@@ -63,10 +63,37 @@
    #_#_:next-cursor "next-page-cursor"})
 
 (defn resource-read-handler
-  [{:keys [session message]}]
+  "Handle resources/read requests.
+   
+   Resources can provide content in two ways:
+   1. Static content: :text or :blob keys in the resource definition
+   2. Dynamic content: :read-fn function that generates content on-demand
+   
+   If :read-fn is provided, it will be called with (read-fn context uri)
+   and should return a map with :contents or :error.
+   
+   The :read-fn receives the full handler context (including :session, :message)
+   and the URI being read."
+  [{:keys [session message]
+    :as context}]
   (let [{:keys [uri]} (:params message)]
     (if-some [resource (-> @session :resource-by-uri (get uri))]
-      {:contents [(select-keys resource [:uri :description :mime-type :text :blob])]} ; either text or blob
+      (if-some [read-fn (:read-fn resource)]
+        ;; Dynamic content via :read-fn
+        (-> (read-fn context uri)
+            (p/then (fn [result]
+                      (if (:error result)
+                        result
+                        ;; Ensure contents is returned
+                        (if (:contents result)
+                          result
+                          {:contents [(merge (select-keys resource [:uri :description :mime-type])
+                                             result)]}))))
+            (p/catch (fn [exception]
+                       {:error {:code "read-error"
+                                :message (ex-message exception)}})))
+        ;; Static content from :text or :blob
+        {:contents [(select-keys resource [:uri :description :mime-type :text :blob])]})
       ;; FIXME: this is wrong because it will be interpreted as result data
       (json-rpc/resource-not-found (:id message) uri))))
 

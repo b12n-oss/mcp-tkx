@@ -80,6 +80,50 @@ MCP Toolkit supports automatic protocol version negotiation between clients and 
   - [x] [CLJ server using HTTP/SSE](example/clj-server-sse)
   - [ ] CLJ server using Streamable HTTP (PR welcome)
 
+
+## Dynamic Resources
+
+Resources can provide content in two ways:
+
+### 1. Static Content
+
+Resources with static content include `:text` or `:blob` directly in their definition:
+
+```clojure
+{:uri "config://settings"
+ :name "Settings"
+ :description "Application settings"
+ :mime-type "application/json"
+ :text "{\"theme\": \"dark\"}"}
+```
+
+### 2. Dynamic Content (NEW)
+
+Resources can use a `:read-fn` to generate content on-demand when `resources/read` is called:
+
+```clojure
+{:uri "config://status"
+ :name "Server Status"
+ :description "Current server status (dynamic)"
+ :mime-type "application/json"
+ :read-fn (fn [context uri]
+            ;; Return a map with :text or :blob, or full :contents
+            {:text (json/write-str {:status "running"
+                                    :uptime (get-uptime)})})}
+```
+
+The `:read-fn` receives:
+- `context` - Full handler context including `:session` and `:message`
+- `uri` - The URI being read
+
+It should return one of:
+- `{:text "..."}` - Text content (will be merged with resource metadata)
+- `{:blob "..."}` - Binary content as base64
+- `{:contents [...]}` - Full MCP contents array
+- `{:error {:code "..." :message "..."}}` - Error response
+
+The function can be async (return a Promise).
+
 ## Usage
 
 See the `README.md` in the `example/cljc-server-stdio/` project to learn:
