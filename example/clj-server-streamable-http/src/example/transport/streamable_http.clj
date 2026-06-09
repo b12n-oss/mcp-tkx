@@ -37,7 +37,9 @@
 (defn matches-port-wildcard? [pattern value]
   (when (str/ends-with? pattern ":*")
     (let [base (subs pattern 0 (- (count pattern) 2))]
-      (str/starts-with? value (str base ":")))))
+      (when (str/starts-with? value (str base ":"))
+        (let [port-part (subs value (inc (count base)))]
+          (boolean (re-matches #"\d+" port-part)))))))
 
 (defn valid-host?
   ([host allowed-hosts]
@@ -234,12 +236,16 @@
     :else nil))
 
 ;; ── Protocol-Version header gate (≥ 2025-06-18 sessions) ──────────────────
-(def supported-protocol-versions
+(def ^:private supported-protocol-versions
   #{"2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"})
 
 (defn- requires-protocol-header? [session]
   (let [pv (:protocol-version @(:session/data session))]
-    (and pv (>= (compare pv "2025-06-18") 0))))
+    ;; nil = initialize handshake not yet completed for this session; be
+    ;; conservative and require the header (a non-initialize request against
+    ;; an un-initialized session is anomalous).
+    (or (nil? pv)
+        (>= (compare pv "2025-06-18") 0))))
 
 (defn valid-protocol-version?
   "True when the request carries an acceptable MCP-Protocol-Version header, or

@@ -17,7 +17,9 @@
     (is (true?  (t/valid-host? "127.0.0.1:7926" #{"127.0.0.1:*"})))
     (is (true?  (t/valid-host? "127.0.0.1:1"    #{"127.0.0.1:*"})))
     (is (false? (t/valid-host? "evil.com:80"    #{"127.0.0.1:*"})))
-    (is (false? (t/valid-host? ""               #{"127.0.0.1:*"}))))
+    (is (false? (t/valid-host? ""               #{"127.0.0.1:*"})))
+    (is (false? (t/valid-host? "127.0.0.1:80@evil.com" #{"127.0.0.1:*"})) "userinfo injection rejected")
+    (is (false? (t/valid-host? "127.0.0.1:notaport"    #{"127.0.0.1:*"})) "non-numeric port rejected"))
   (testing "origin: blank is allowed, otherwise must match"
     (is (true?  (t/valid-origin? ""                       #{"http://localhost:7926"})))
     (is (true?  (t/valid-origin? "http://localhost:7926"  #{"http://localhost:7926"})))
@@ -62,9 +64,14 @@
               session-id (assoc "mcp-session-id" session-id))
    :body (t/->json method-map)})
 
-(defn- seed-session! [ctx]
+(defn- seed-session!
+  "Create a session and mark it as initialized (protocol-version set).
+   An un-initialized session (nil version) is covered separately in
+   `protocol-version-header-gate`."
+  [ctx]
   (let [sid (t/new-session-id)
-        data ((:create-session-fn ctx) ctx sid)]
+        data ((:create-session-fn ctx) ctx sid)
+        _ (swap! data assoc :protocol-version "2025-03-26")]
     (t/assoc-session! ctx sid data)
     sid))
 
@@ -200,7 +207,9 @@
                                                                   "origin" "http://evil.com"}))))))
     (testing "GET with bad Host → 421"
       (is (= 421 (:status (t/handle-get ctx {:headers {"host" "evil.com"
-                                                       "mcp-session-id" "x"}})))))))
+                                                       "mcp-session-id" "x"}})))))
+    (testing "DELETE with bad Host → 421"
+      (is (= 421 (:status (t/handle-delete ctx {:headers {"host" "evil.com" "mcp-session-id" "x"}})))))))
 
 ;; ── P5.T2: MCP-Protocol-Version header gate ─────────────────────────────────
 
@@ -215,4 +224,8 @@
       (is (false? (t/valid-protocol-version? {:headers {}} s)))))
   (testing "<2025-06-18 session does not require the header"
     (let [s (session-with-version "2025-03-26")]
-      (is (true? (t/valid-protocol-version? {:headers {}} s))))))
+      (is (true? (t/valid-protocol-version? {:headers {}} s)))))
+  (testing "un-initialized session (nil version) requires the header"
+    (let [s (session-with-version nil)]
+      (is (false? (t/valid-protocol-version? {:headers {}} s)))
+      (is (true?  (t/valid-protocol-version? {:headers {"mcp-protocol-version" "2025-11-25"}} s))))))
