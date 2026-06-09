@@ -98,3 +98,12 @@
   (let [ctx (test-ctx)
         resp (t/handle-post ctx (json-req {:jsonrpc "2.0" :id 1 :method "tools/list"} :session-id "ghost"))]
     (is (= 404 (:status resp)))))
+
+(deftest post-notification-returns-202
+  (let [ctx (test-ctx)
+        sid (handshake! ctx)
+        ;; a ping notification-style message with no id produces no response
+        resp (t/handle-post ctx (json-req {:jsonrpc "2.0" :method "notifications/cancelled"
+                                           :params {:request-id 999}} :session-id sid))]
+    (is (= 202 (:status resp)))
+    (is (= "Accepted" (:body resp)))))
