@@ -163,3 +163,10 @@
     (is (= 2 (count (t/events-after s 1))) "frames with id > 1")
     (is (re-find #"^id: 2\n" (first (t/events-after s 1))))
     (is (= 0 (count (t/events-after s 99))))))
+
+;; ── P4.T3: GET replays buffered frames after Last-Event-Id ───────────────────
+
+(deftest parse-last-event-id-header
+  (is (= 5 (t/last-event-id {:headers {"last-event-id" "5"}})))
+  (is (nil? (t/last-event-id {:headers {}})))
+  (is (nil? (t/last-event-id {:headers {"last-event-id" "abc"}}))))

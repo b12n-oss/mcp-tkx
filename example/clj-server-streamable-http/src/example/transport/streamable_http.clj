@@ -160,6 +160,11 @@
        (filter (fn [{:keys [id]}] (> id last-event-id)))
        (mapv :frame)))
 
+(defn last-event-id
+  "Parsed `Last-Event-Id` request header as a long, or nil if absent/invalid."
+  [req]
+  (some-> (get-in req [:headers "last-event-id"]) parse-long))
+
 ;; ── Request POST → as-channel (JSON or SSE) ─────────────────────────────────
 (defn- json-response-map [session-id body]
   {:status 200
@@ -249,8 +254,10 @@
        {;; Single GET stream per session: the cond above guards the common case; concurrent GETs are not a supported scenario for this example.
         :on-open  (fn [channel]
                     (reset! (:session/get-channel session) channel)
-                    (send-sse-headers! channel session-id))
-                    ;; Phase 4 inserts Last-Event-Id replay here
+                    (send-sse-headers! channel session-id)
+                    (when-some [leid (last-event-id req)]
+                      (doseq [frame (events-after session leid)]
+                        (http-kit/send! channel frame false))))
         :on-close (fn [_channel _status]
                     (reset! (:session/get-channel session) nil))}))))
 
