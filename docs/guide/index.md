@@ -29,6 +29,8 @@ This guide focuses on the **reusable building blocks** — the patterns that lif
 
 **Plugging your server into Claude?** [Claude Desktop / Claude Code setup](claude-desktop-setup.md) covers `claude_desktop_config.json` and `claude mcp add`, plus the STDIO vs SSE transport choices.
 
+**Serving your server over HTTP to modern / remote clients?** [Streamable HTTP transport](streamable-http.md) covers the current `2025-03-26`+ transport — the single `/mcp` endpoint, `Mcp-Session-Id` sessions, JSON-or-SSE responses, `Last-Event-Id` resumability — and how it differs from the older HTTP+SSE example.
+
 **Iterating on tools while a client is connected?** [REPL workflow](repl-workflow.md) is the live-development story — `add-tool` / `remove-tool` / `notify-resource-updated` from a REPL.
 
 **Lifting a piece of the toolkit into a different MCP server?** [Extraction recipes](extraction-recipes.md) is the worked-example index — how to copy the kebab-case transport, the Malli schema registry, the dynamic-resource handler, the session lifecycle, and the cancellation pattern.
@@ -45,6 +47,7 @@ This guide focuses on the **reusable building blocks** — the patterns that lif
 | [Dynamic resources](dynamic-resources.md) | `:read-fn` pattern for on-demand resource content, return-shape contract (`:text` / `:blob` / `:contents` / `:error`), Promesa async support, when to use vs. static `:text` / `:blob` |
 | [2025-11-25 features](2025-11-25-features.md) | Elicitation (form + URL mode for OAuth), Tasks (experimental long-running state machines), Sampling with Tools (LLM tool use during sampling), Icons (data: URIs / https:// URLs), Server Description, JSON Schema 2020-12 dialect, capability detection helpers |
 | [Claude Desktop / Claude Code setup](claude-desktop-setup.md) | `claude_desktop_config.json` STDIO config, `claude mcp add` for Claude Code, SSE transport for Claude Code (not yet supported by Desktop), Docker-based server config, MCP Inspector for debugging |
+| [Streamable HTTP transport](streamable-http.md) | The current remote transport (`2025-03-26`+): single `/mcp` endpoint, `Mcp-Session-Id` sessions, JSON-or-SSE responses (the "flip"), `Last-Event-Id` resumability, Host/Origin + `MCP-Protocol-Version` security; how it differs from the HTTP+SSE example |
 | [REPL workflow](repl-workflow.md) | nREPL embedded in your STDIO server, `add-tool` / `remove-tool` / `notify-resource-updated` from the REPL while a client is connected, Claude Desktop log tailing for diagnostics |
 | [Extraction recipes](extraction-recipes.md) | Worked recipes — kebab-case transport for any JSON-RPC service, Malli protocol-schema registry pattern, dynamic-resource `:read-fn`, multi-version handshake negotiation, cancellation via `is-cancelled` atom, REPL-aware notification helpers |
 
@@ -56,6 +59,7 @@ This guide focuses on the **reusable building blocks** — the patterns that lif
 | Build an MCP server in ClojureScript / Node.js | [Getting started](getting-started.md), [Kebab-case key transformation](kebab-case-transformation.md) (cljs section) |
 | Plug my server into Claude Desktop | [Claude Desktop / Claude Code setup](claude-desktop-setup.md) |
 | Plug my server into Claude Code via SSE | [Claude Desktop / Claude Code setup](claude-desktop-setup.md) (SSE section) |
+| Serve my MCP server over Streamable HTTP (current remote transport) | [Streamable HTTP transport](streamable-http.md) |
 | Add a tool that streams progress notifications | [Architecture](architecture.md) (`notify-progress`), [REPL workflow](repl-workflow.md) |
 | Add a resource whose content is computed at request time | [Dynamic resources](dynamic-resources.md) |
 | Add a tool with structured output | [Schema validation](schema-validation.md), [Protocol versions](protocol-versions.md) (2025-06-18 §`output-schema`) |

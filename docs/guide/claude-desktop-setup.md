@@ -166,7 +166,11 @@ Make sure the server is running before starting Claude Code; the SSE transport r
 
 **Claude Desktop does not currently support SSE** (as of the 2025-11-25 spec release). Use STDIO for Claude Desktop and SSE for Claude Code if you need both.
 
-The SSE example uses the [older 2024-11-05 SSE transport](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports), not the newer Streamable HTTP from 2025-03-26+. Streamable HTTP is on the README's wishlist; PR welcome upstream.
+The SSE example uses the [older 2024-11-05 SSE transport](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports). For the current `2025-03-26`+ transport, use the [`clj-server-streamable-http`](../../example/clj-server-streamable-http/) example (single `/mcp` endpoint, `Mcp-Session-Id` sessions, `Last-Event-Id` resumability) — see the [Streamable HTTP transport](streamable-http.md) guide. Register it with Claude Code via:
+
+```sh
+claude mcp add toolkit-http --transport http http://127.0.0.1:7926/mcp
+```
 
 ## MCP Inspector — for development
 
