@@ -10,9 +10,25 @@
    [taoensso.telemere :as tel]))
 
 ;; ── JSON boundary (camelCase ↔ kebab-case) ──────────────────────────────────
+;; MCP uses `_meta` (leading underscore) as a protocol-defined metadata key.
+;; camel-snake-kebab strips leading underscores in both directions
+;; (_meta → :meta on decode; :_meta → "meta" on encode), which silently drops
+;; the progressToken that drives server/notify-progress.
+;; Preserve any key starting with "_" verbatim in both directions.
+(defn- decode-key [k]
+  (if (str/starts-with? k "_")
+    (keyword k)
+    (csk/->kebab-case-keyword k)))
+
+(defn- encode-key [k]
+  (let [n (name k)]
+    (if (str/starts-with? n "_")
+      n
+      (csk/->camelCaseString k))))
+
 (def object-mapper
-  (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword
-                    :encode-key-fn csk/->camelCaseString}))
+  (j/object-mapper {:decode-key-fn decode-key
+                    :encode-key-fn encode-key}))
 
 (defn parse-message [ctx]
   (try (j/read-value (-> ctx :req :body) object-mapper)
