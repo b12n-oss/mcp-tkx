@@ -170,3 +170,12 @@
   (is (= 5 (t/last-event-id {:headers {"last-event-id" "5"}})))
   (is (nil? (t/last-event-id {:headers {}})))
   (is (nil? (t/last-event-id {:headers {"last-event-id" "abc"}}))))
+
+(deftest record-event-evicts-by-count
+  (let [s (bare-session)]
+    ;; 1003 events, all within the age window (ts span ~1s) → only count-eviction applies
+    (dotimes [n 1003] (t/record-event! s {:jsonrpc "2.0" :method "x"} (+ 1000 n)))
+    (let [ids (mapv :id (:events @(:session/event-log s)))]
+      (is (= 1000 (count ids)) "ring capped at max-events (1000)")
+      (is (= 4 (first ids)) "oldest 3 (ids 1-3) evicted")
+      (is (= 1003 (last ids))))))

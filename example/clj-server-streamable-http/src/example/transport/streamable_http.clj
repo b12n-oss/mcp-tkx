@@ -132,21 +132,25 @@
 
 (defn record-event!
   "Allocate a monotonic per-session id, build the SSE frame, append to the
-   bounded ring (evict oldest by age then count; log on count-eviction).
-   Returns {:id <n> :frame <sse-string>}."
+   bounded ring (prune by age, then evict oldest beyond max-events). Logs a
+   :warn only on real count-eviction — age-pruning is normal and not logged.
+   Returns {:id <n> :frame <sse-string>}.
+
+   Public for testability and for the no-stream buffering path in
+   session-default-send-message."
   [session message now]
-  (let [[old new] (swap-vals!
-                   (:session/event-log session)
+  (let [new (swap! (:session/event-log session)
                    (fn [{:keys [next-id events]}]
                      (let [id    (inc next-id)
                            frame (str "id: " id "\nevent: message\ndata: " (->json message) "\n\n")
                            base  (conj (prune-by-age events now) {:id id :ts now :frame frame})
                            over  (max 0 (- (count base) max-events))]
-                       {:next-id id :events (if (pos? over) (subvec base over) base)})))
-        evicted (max 0 (- (inc (count (:events old))) (count (:events new))))
-        ev      (peek (:events new))]
-    (when (pos? evicted)
-      (tel/log! {:level :warn :id :sht/event-evicted :data {:evicted evicted}}))
+                       {:next-id id
+                        :events  (if (pos? over) (subvec base over) base)
+                        :evicted over})))
+        ev  (peek (:events new))]
+    (when (pos? (:evicted new))
+      (tel/log! {:level :warn :id :sht/event-evicted :data {:evicted (:evicted new)}}))
     {:id (:id ev) :frame (:frame ev)}))
 
 (defn- send-frame! [channel session message]
@@ -154,7 +158,12 @@
     (http-kit/send! channel frame false)))
 
 (defn events-after
-  "Buffered SSE frame strings with event id > `last-event-id`, in order."
+  "Buffered SSE frame strings with event id > `last-event-id`, in order.
+   NOTE: the ring is bounded (max-events / max-age-ms), so if the requested
+   id was already evicted the replay is silently lossy — a client cannot
+   distinguish 'nothing missed' from 'missed but evicted'. Acceptable for this
+   example; a production server would track the oldest-retained id and signal
+   the gap to the client."
   [session last-event-id]
   (->> (:events @(:session/event-log session))
        (filter (fn [{:keys [id]}] (> id last-event-id)))
@@ -255,6 +264,7 @@
         :on-open  (fn [channel]
                     (reset! (:session/get-channel session) channel)
                     (send-sse-headers! channel session-id)
+                    ;; Best-effort replay: under concurrent server-initiated sends a live frame could interleave with replay; not a concern for the single-client example.
                     (when-some [leid (last-event-id req)]
                       (doseq [frame (events-after session leid)]
                         (http-kit/send! channel frame false))))
