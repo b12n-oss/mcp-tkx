@@ -165,7 +165,12 @@
                      (http-kit/send! channel
                                      (if buffered (json-response-map session-id buffered)
                                          accepted-response)
-                                     true))))))))})))  ; true = close after
+                                     true)))))
+              (p/catch
+               (fn [err]
+                 (tel/log! {:level :error :id :sht/request-error
+                            :data {:err (ex-message err)}})
+                 (http-kit/close channel))))))})))  ; true = close after
 
 (defn- session-default-send-message
   "For server-initiated traffic (notifications/initialized → roots/list, REPL
@@ -219,7 +224,8 @@
       :else
       (http-kit/as-channel
        req
-       {:on-open  (fn [channel]
+       {;; Single GET stream per session: the cond above guards the common case; concurrent GETs are not a supported scenario for this example.
+        :on-open  (fn [channel]
                     (reset! (:session/get-channel session) channel)
                     (send-sse-headers! channel session-id))
                     ;; Phase 4 inserts Last-Event-Id replay here
