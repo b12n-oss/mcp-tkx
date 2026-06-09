@@ -209,6 +209,23 @@
             (error-response "Session not found" 404)))
         (error-response "Could not parse message" 400)))))
 
+;; ── GET /mcp server→client stream ────────────────────────────────────────────
+(defn handle-get [ctx req]
+  (let [session-id (get-in req [:headers "mcp-session-id"])
+        session    (fetch-session! ctx session-id)]
+    (cond
+      (nil? session)                       (error-response "Session not found" 404)
+      @(:session/get-channel session)      (error-response "Stream already open" 405)
+      :else
+      (http-kit/as-channel
+       req
+       {:on-open  (fn [channel]
+                    (reset! (:session/get-channel session) channel)
+                    (send-sse-headers! channel session-id))
+                    ;; Phase 4 inserts Last-Event-Id replay here
+        :on-close (fn [_channel _status]
+                    (reset! (:session/get-channel session) nil))}))))
+
 ;; ── Lifecycle / routes ──────────────────────────────────────────────────────
 (defn ctx-start [ctx]
   (assoc ctx ::sessions (atom {})))

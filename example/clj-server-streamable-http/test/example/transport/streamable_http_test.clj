@@ -109,3 +109,15 @@
         sampling-req {:jsonrpc "2.0" :id 0 :method "sampling/createMessage" :params {}}]
     (send! sampling-req)  ; a server->client REQUEST (different id, has :method) → flip
     (is (= [[:open-sse] [:frame sampling-req]] @calls))))
+
+;; ── P3.T3: GET /mcp stream guard ────────────────────────────────────────────
+
+(deftest get-stream-conflicts-when-already-open
+  (let [ctx (test-ctx)
+        sid (seed-session! ctx)
+        session (t/fetch-session! ctx sid)]
+    (testing "unknown session → 404"
+      (is (= 404 (:status (t/handle-get ctx {:headers {"mcp-session-id" "ghost"}})))))
+    (testing "a second open is 405 while a channel is registered"
+      (reset! (:session/get-channel session) ::fake-channel)
+      (is (= 405 (:status (t/handle-get ctx {:headers {"mcp-session-id" sid}})))))))
