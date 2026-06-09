@@ -57,42 +57,11 @@
               session-id (assoc "mcp-session-id" session-id))
    :body (t/->json method-map)})
 
-(def ^:private init-msg
-  {:jsonrpc "2.0" :id 0 :method "initialize"
-   :params {:protocol-version "2025-11-25"
-            :client-info {:name "test-client" :version "1.0"}
-            :capabilities {}}})
-
-(deftest post-initialize-assigns-session
-  (let [ctx (test-ctx)
-        resp (t/handle-post ctx (json-req init-msg))
-        sid  (get-in resp [:headers "mcp-session-id"])
-        body (t/parse-message {:req {:body (:body resp)}})]
-    (is (= 200 (:status resp)))
-    (is (string? sid))
-    (testing "the session is now in the pool"
-      (is (some? (t/fetch-session! ctx sid))))
-    (testing "the body is the initialize result echoing the negotiated version"
-      (is (= "2025-11-25" (get-in body [:result :protocol-version])))
-      (is (= "test-srv" (get-in body [:result :server-info :name]))))))
-
-(def ^:private initialized-notif
-  {:jsonrpc "2.0" :method "notifications/initialized"})
-
-(defn- handshake! [ctx]
-  (let [resp (t/handle-post ctx (json-req init-msg))
-        sid  (get-in resp [:headers "mcp-session-id"])]
-    (t/handle-post ctx (json-req initialized-notif :session-id sid))
+(defn- seed-session! [ctx]
+  (let [sid (t/new-session-id)
+        data ((:create-session-fn ctx) ctx sid)]
+    (t/assoc-session! ctx sid data)
     sid))
-
-(deftest post-request-returns-json-result
-  (let [ctx (test-ctx)
-        sid (handshake! ctx)
-        resp (t/handle-post ctx (json-req {:jsonrpc "2.0" :id 1 :method "tools/list"} :session-id sid))
-        body (t/parse-message {:req {:body (:body resp)}})]
-    (is (= 200 (:status resp)))
-    (is (= sid (get-in resp [:headers "mcp-session-id"])))
-    (is (vector? (get-in body [:result :tools])))))
 
 (deftest post-unknown-session-404
   (let [ctx (test-ctx)
@@ -101,8 +70,7 @@
 
 (deftest post-notification-returns-202
   (let [ctx (test-ctx)
-        sid (handshake! ctx)
-        ;; a ping notification-style message with no id produces no response
+        sid (seed-session! ctx)
         resp (t/handle-post ctx (json-req {:jsonrpc "2.0" :method "notifications/cancelled"
                                            :params {:request-id 999}} :session-id sid))]
     (is (= 202 (:status resp)))

@@ -6,6 +6,7 @@
    [jsonista.core :as j]
    [mcp-toolkit.json-rpc :as json-rpc]
    [org.httpkit.server :as http-kit]
+   [promesa.core :as p]
    [taoensso.telemere :as tel]))
 
 ;; ── JSON boundary (camelCase ↔ kebab-case) ──────────────────────────────────
@@ -108,51 +109,104 @@
                    (frame! message))))
      state]))
 
-;; ── Outbound: Phase-2 capturing send-message (JSON only; streaming in Phase 3) ─
-(defn- capturing-send-message [captured]
-  (fn [message] (reset! captured message)))
+;; ── Phase-2 accepted-response (reused in Phase 3) ──────────────────────────
+(def ^:private accepted-response
+  {:status 202 :headers {"content-type" "text/plain"} :body "Accepted"})
 
-(defn- json-response [session-id body]
+;; ── SSE framing ─────────────────────────────────────────────────────────────
+(def ^:private base-sse-headers
+  {"Content-Type" "text/event-stream"
+   "Cache-Control" "no-cache, no-transform"})
+
+(defn- send-sse-headers! [channel session-id]
+  (http-kit/send! channel
+                  {:status 200 :headers (assoc base-sse-headers "mcp-session-id" session-id)}
+                  false))                                   ; false = keep open
+
+(defn- next-event-id! [session]
+  (:next-id (swap! (:session/event-log session) update :next-id inc)))
+
+(defn- send-frame!
+  "Write one server->client message as an SSE frame tagged with a per-session
+   monotonic event id. Phase 4 extends this to also buffer for replay."
+  [channel session message]
+  (let [eid (next-event-id! session)]
+    (http-kit/send! channel
+                    (str "id: " eid "\nevent: message\ndata: " (->json message) "\n\n")
+                    false)))
+
+;; ── Request POST → as-channel (JSON or SSE) ─────────────────────────────────
+(defn- json-response-map [session-id body]
   {:status 200
    :headers {"content-type" "application/json" "mcp-session-id" session-id}
    :body (->json body)})
 
-(def ^:private accepted-response
-  {:status 202 :headers {"content-type" "text/plain"} :body "Accepted"})
+;; NOTE: `accepted-response` is reused from Phase 2 (P2.T2) — do NOT redeclare it.
 
-(defn- run-message!
-  "Runs one inbound message against `session-data` with a capturing send-message.
-   Returns a ring response: JSON when the message produced a response, else 202."
-  [session-id session-data message]
-  (let [captured (atom nil)
-        mcp-ctx {:session session-data
-                 :send-message (capturing-send-message captured)}]
+(defn- handle-request-over-channel [ctx session req-message]
+  (let [request-id (:id req-message)
+        session-id (:session/id session)]
+    (http-kit/as-channel
+     (:req ctx)
+     {:on-open
+      (fn [channel]
+        (let [sink {:open-sse! #(send-sse-headers! channel session-id)
+                    :frame!    #(send-frame! channel session %)}
+              [send-message state] (make-request-send-message request-id sink)
+              mcp-ctx {:session (:session/data session)
+                       :send-message send-message
+                       :close-connection #(http-kit/close channel)}]
+          (-> (json-rpc/handle-message mcp-ctx req-message)
+              (p/then
+               (fn [_]
+                 (let [{:keys [sse? buffered]} @state]
+                   (if sse?
+                     (http-kit/close channel)               ; response already streamed
+                     (http-kit/send! channel
+                                     (if buffered (json-response-map session-id buffered)
+                                         accepted-response)
+                                     true))))))))})))  ; true = close after
+
+(defn- session-default-send-message
+  "For server-initiated traffic (notifications/initialized → roots/list, REPL
+   mutations). Targets the open GET stream; drops+logs if none is open.
+   Phase 4 replaces the drop with buffering into the event log."
+  [session]
+  (fn [message]
+    (if-let [ch @(:session/get-channel session)]
+      (send-frame! ch session message)
+      (tel/log! {:level :debug :id :sht/no-get-stream :data {:method (:method message)}}))))
+
+(defn- run-notification! [session message]
+  (let [mcp-ctx {:session (:session/data session)
+                 :send-message (session-default-send-message session)}]
     @(json-rpc/handle-message mcp-ctx message)
-    (if-some [resp @captured]
-      (json-response session-id resp)
-      accepted-response)))
+    accepted-response))
 
-(defn- handle-initialize-post [ctx message]
-  (let [session-id   (new-session-id)
-        session-data ((:create-session-fn ctx) ctx session-id)]
-    (assoc-session! ctx session-id session-data)
-    (run-message! session-id session-data message)))
-
-(defn- handle-session-post [ctx req message]
-  (let [session-id (get-in req [:headers "mcp-session-id"])
-        session    (fetch-session! ctx session-id)]
-    (if (nil? session)
-      (error-response "Session not found" 404)
-      (run-message! session-id (:session/data session) message))))
+(defn- request-message? [message]
+  (and (contains? message :method) (contains? message :id)))
 
 (defn handle-post [ctx req]
   (let [ctx (assoc ctx :req req)]
     (if-not (valid-content-type? ctx)
       (error-response "Invalid Content-Type header" 400)
       (if-some [message (parse-message ctx)]
-        (if (= "initialize" (:method message))
-          (handle-initialize-post ctx message)
-          (handle-session-post ctx req message))
+        (cond
+          (= "initialize" (:method message))
+          (let [session-id   (new-session-id)
+                session-data ((:create-session-fn ctx) ctx session-id)
+                session      (assoc-session! ctx session-id session-data)]
+            (handle-request-over-channel ctx session message))
+
+          (request-message? message)
+          (if-some [session (fetch-session! ctx (get-in req [:headers "mcp-session-id"]))]
+            (handle-request-over-channel ctx session message)
+            (error-response "Session not found" 404))
+
+          :else                                            ; notification or client response
+          (if-some [session (fetch-session! ctx (get-in req [:headers "mcp-session-id"]))]
+            (run-notification! session message)
+            (error-response "Session not found" 404)))
         (error-response "Could not parse message" 400)))))
 
 ;; ── Lifecycle / routes ──────────────────────────────────────────────────────
