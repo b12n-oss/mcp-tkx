@@ -45,11 +45,16 @@
       (is (nil? (t/fetch-session! ctx "sid-1"))))))
 
 (defn- test-ctx []
-  (-> (t/ctx-start {:settings {:allowed-hosts #{"127.0.0.1:*"}}})
+  (-> (t/ctx-start {:settings {:allowed-hosts   #{"127.0.0.1:*"}
+                               :allowed-origins #{"http://localhost:7926"}}})
       (assoc :create-session-fn
              (fn [_ctx _sid]
-               (atom (server/create-session
-                      {:server-info {:name "test-srv" :version "9.9"}}))))))
+               (atom (server/create-session {:server-info {:name "test-srv" :version "9.9"}}))))))
+
+(defn- json-req* [message headers]
+  {:request-method :post
+   :headers (merge {"content-type" "application/json"} headers)
+   :body (t/->json message)})
 
 (defn- json-req [method-map & {:keys [session-id]}]
   {:request-method :post
@@ -115,8 +120,8 @@
 (deftest delete-removes-session
   (let [ctx (test-ctx)
         sid (seed-session! ctx)]
-    (is (= 404 (:status (t/handle-delete ctx {:headers {"mcp-session-id" "ghost"}}))))
-    (let [resp (t/handle-delete ctx {:headers {"mcp-session-id" sid}})]
+    (is (= 404 (:status (t/handle-delete ctx {:headers {"host" "127.0.0.1:7926" "mcp-session-id" "ghost"}}))))
+    (let [resp (t/handle-delete ctx {:headers {"host" "127.0.0.1:7926" "mcp-session-id" sid}})]
       (is (= 204 (:status resp)))
       (is (nil? (t/fetch-session! ctx sid))))))
 
@@ -127,10 +132,10 @@
         sid (seed-session! ctx)
         session (t/fetch-session! ctx sid)]
     (testing "unknown session → 404"
-      (is (= 404 (:status (t/handle-get ctx {:headers {"mcp-session-id" "ghost"}})))))
+      (is (= 404 (:status (t/handle-get ctx {:headers {"host" "127.0.0.1:7926" "mcp-session-id" "ghost"}})))))
     (testing "a second open is 405 while a channel is registered"
       (reset! (:session/get-channel session) ::fake-channel)
-      (is (= 405 (:status (t/handle-get ctx {:headers {"mcp-session-id" sid}})))))))
+      (is (= 405 (:status (t/handle-get ctx {:headers {"host" "127.0.0.1:7926" "mcp-session-id" sid}})))))))
 
 ;; ── P4.T1: bounded per-session event ring ────────────────────────────────────
 
@@ -179,3 +184,20 @@
       (is (= 1000 (count ids)) "ring capped at max-events (1000)")
       (is (= 4 (first ids)) "oldest 3 (ids 1-3) evicted")
       (is (= 1003 (last ids))))))
+
+;; ── P5.T1: Host / Origin validation on all verbs ────────────────────────────
+
+(def ^:private init-msg
+  {:jsonrpc "2.0" :id 1 :method "initialize"
+   :params {:protocol-version "2025-11-25" :capabilities {} :client-info {:name "test" :version "0"}}})
+
+(deftest rejects-bad-host-and-origin
+  (let [ctx (test-ctx)]
+    (testing "bad Host → 421"
+      (is (= 421 (:status (t/handle-post ctx (json-req* init-msg {"host" "evil.com"}))))))
+    (testing "good Host, bad Origin → 400"
+      (is (= 400 (:status (t/handle-post ctx (json-req* init-msg {"host" "127.0.0.1:7926"
+                                                                  "origin" "http://evil.com"}))))))
+    (testing "GET with bad Host → 421"
+      (is (= 421 (:status (t/handle-get ctx {:headers {"host" "evil.com"
+                                                       "mcp-session-id" "x"}})))))))

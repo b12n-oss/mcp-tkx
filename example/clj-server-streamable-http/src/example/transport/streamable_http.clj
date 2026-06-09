@@ -224,62 +224,74 @@
     @(json-rpc/handle-message mcp-ctx message)
     accepted-response))
 
+(defn- validate-common
+  "Host/Origin checks shared by all verbs. Returns an error-response or nil.
+   `ctx` must already have :req assoc'd."
+  [ctx]
+  (cond
+    (not (valid-host? ctx))   (error-response "Invalid Host header" 421)
+    (not (valid-origin? ctx)) (error-response "Invalid Origin header" 400)
+    :else nil))
+
 (defn- request-message? [message]
   (and (contains? message :method) (contains? message :id)))
 
 (defn handle-post [ctx req]
   (let [ctx (assoc ctx :req req)]
-    (if-not (valid-content-type? ctx)
-      (error-response "Invalid Content-Type header" 400)
-      (if-some [message (parse-message ctx)]
-        (cond
-          (= "initialize" (:method message))
-          (let [session-id   (new-session-id)
-                session-data ((:create-session-fn ctx) ctx session-id)
-                session      (assoc-session! ctx session-id session-data)]
-            (handle-request-over-channel ctx session message))
+    (or (validate-common ctx)
+        (if-not (valid-content-type? ctx)
+          (error-response "Invalid Content-Type header" 400)
+          (if-some [message (parse-message ctx)]
+            (cond
+              (= "initialize" (:method message))
+              (let [session-id   (new-session-id)
+                    session-data ((:create-session-fn ctx) ctx session-id)
+                    session      (assoc-session! ctx session-id session-data)]
+                (handle-request-over-channel ctx session message))
 
-          (request-message? message)
-          (if-some [session (fetch-session! ctx (get-in req [:headers "mcp-session-id"]))]
-            (handle-request-over-channel ctx session message)
-            (error-response "Session not found" 404))
+              (request-message? message)
+              (if-some [session (fetch-session! ctx (get-in req [:headers "mcp-session-id"]))]
+                (handle-request-over-channel ctx session message)
+                (error-response "Session not found" 404))
 
-          :else                                            ; notification or client response
-          (if-some [session (fetch-session! ctx (get-in req [:headers "mcp-session-id"]))]
-            (run-notification! session message)
-            (error-response "Session not found" 404)))
-        (error-response "Could not parse message" 400)))))
+              :else
+              (if-some [session (fetch-session! ctx (get-in req [:headers "mcp-session-id"]))]
+                (run-notification! session message)
+                (error-response "Session not found" 404)))
+            (error-response "Could not parse message" 400))))))
 
 ;; ── GET /mcp server→client stream ────────────────────────────────────────────
 (defn handle-get [ctx req]
-  (let [session-id (get-in req [:headers "mcp-session-id"])
-        session    (fetch-session! ctx session-id)]
-    (cond
-      (nil? session)                       (error-response "Session not found" 404)
-      @(:session/get-channel session)      (error-response "Stream already open" 405)
-      :else
-      (http-kit/as-channel
-       req
-       {;; Single GET stream per session: the cond above guards the common case; concurrent GETs are not a supported scenario for this example.
-        :on-open  (fn [channel]
-                    (reset! (:session/get-channel session) channel)
-                    (send-sse-headers! channel session-id)
-                    ;; Best-effort replay: under concurrent server-initiated sends a live frame could interleave with replay; not a concern for the single-client example.
-                    (when-some [leid (last-event-id req)]
-                      (doseq [frame (events-after session leid)]
-                        (http-kit/send! channel frame false))))
-        :on-close (fn [_channel _status]
-                    (reset! (:session/get-channel session) nil))}))))
+  (let [ctx (assoc ctx :req req)]
+    (or (validate-common ctx)
+        (let [session-id (get-in req [:headers "mcp-session-id"])
+              session    (fetch-session! ctx session-id)]
+          (cond
+            (nil? session)                  (error-response "Session not found" 404)
+            @(:session/get-channel session) (error-response "Stream already open" 405)
+            :else
+            (http-kit/as-channel
+             req
+             {:on-open  (fn [channel]
+                          (reset! (:session/get-channel session) channel)
+                          (send-sse-headers! channel session-id)
+                          (when-some [leid (last-event-id req)]
+                            (doseq [frame (events-after session leid)]
+                              (http-kit/send! channel frame false))))
+              :on-close (fn [_channel _status]
+                          (reset! (:session/get-channel session) nil))}))))))
 
 ;; ── DELETE /mcp teardown ─────────────────────────────────────────────────────
 (defn handle-delete [ctx req]
-  (let [session-id (get-in req [:headers "mcp-session-id"])
-        session    (fetch-session! ctx session-id)]
-    (if (nil? session)
-      (error-response "Session not found" 404)
-      (do (when-let [ch @(:session/get-channel session)] (http-kit/close ch))
-          (dissoc-session! ctx session-id)
-          {:status 204 :headers {} :body nil}))))
+  (let [ctx (assoc ctx :req req)]
+    (or (validate-common ctx)
+        (let [session-id (get-in req [:headers "mcp-session-id"])
+              session    (fetch-session! ctx session-id)]
+          (if (nil? session)
+            (error-response "Session not found" 404)
+            (do (when-let [ch @(:session/get-channel session)] (http-kit/close ch))
+                (dissoc-session! ctx session-id)
+                {:status 204 :headers {} :body nil}))))))
 
 ;; ── Lifecycle / routes ──────────────────────────────────────────────────────
 (defn ctx-start [ctx]

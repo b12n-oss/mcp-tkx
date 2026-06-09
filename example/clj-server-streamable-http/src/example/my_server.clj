@@ -27,7 +27,8 @@
 (def default-transport-env
   {:dev? true
    :create-session-fn create-session
-   :settings {:allowed-hosts ["127.0.0.1:*"]}})
+   :settings {:allowed-hosts   #{"127.0.0.1:*"}
+              :allowed-origins #{"http://localhost:7926" "http://127.0.0.1:7926"}}})
 
 (defn log-request [{:keys [uri request-method] :as req} {:keys [body status] :as resp}]
   (tel/log! {:level :info :msg (str (str/upper-case (name request-method)) " " uri)
