@@ -105,7 +105,6 @@ bb tasks                     # list every task with its docstring
 ## Not covered yet
 
 - **Pagination** — listed as `[ ]` in the README's feature matrix; not yet wired through `prompts/list`, `resources/list`, `tools/list`. Implementations leave a `#_#_:next-cursor "next-page-cursor"` placeholder in the handler.
-- **Streamable HTTP transport** — listed as PR-welcome in the README; the `clj-server-sse` example uses the older 2024-11-05 SSE transport, not the newer Streamable HTTP from 2025-03-26+.
 - **Babashka support** — the CLJC core is JVM + JS (shadow-cljs); the JVM path uses `jsonista` (a Jackson wrapper) which doesn't run on bb's smaller classpath. Listed as `[ ]` in the upstream feature matrix.
 
 ## See also
