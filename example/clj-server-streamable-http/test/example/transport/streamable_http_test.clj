@@ -152,3 +152,14 @@
     (t/record-event! s {:jsonrpc "2.0" :method "new"} 400000)       ; 400s later → old pruned
     (let [ids (mapv :id (:events @(:session/event-log s)))]
       (is (= [2] ids) "the >5min-old event was pruned"))))
+
+;; ── P4.T2: frames flow through the ring; events-after replay slice ───────────
+
+(deftest events-after-slices-by-id
+  (let [s (bare-session)]
+    (t/record-event! s {:jsonrpc "2.0" :method "a"} 1)
+    (t/record-event! s {:jsonrpc "2.0" :method "b"} 2)
+    (t/record-event! s {:jsonrpc "2.0" :method "c"} 3)
+    (is (= 2 (count (t/events-after s 1))) "frames with id > 1")
+    (is (re-find #"^id: 2\n" (first (t/events-after s 1))))
+    (is (= 0 (count (t/events-after s 99))))))

@@ -149,12 +149,16 @@
       (tel/log! {:level :warn :id :sht/event-evicted :data {:evicted evicted}}))
     {:id (:id ev) :frame (:frame ev)}))
 
-(defn- send-frame!
-  "Write one server->client message as an SSE frame tagged with a per-session
-   monotonic event id. Routes through record-event! for buffering."
-  [channel session message]
+(defn- send-frame! [channel session message]
   (let [{:keys [frame]} (record-event! session message (System/currentTimeMillis))]
     (http-kit/send! channel frame false)))
+
+(defn events-after
+  "Buffered SSE frame strings with event id > `last-event-id`, in order."
+  [session last-event-id]
+  (->> (:events @(:session/event-log session))
+       (filter (fn [{:keys [id]}] (> id last-event-id)))
+       (mapv :frame)))
 
 ;; ── Request POST → as-channel (JSON or SSE) ─────────────────────────────────
 (defn- json-response-map [session-id body]
@@ -193,15 +197,12 @@
                             :data {:err (ex-message err)}})
                  (http-kit/close channel))))))})))  ; true = close after
 
-(defn- session-default-send-message
-  "For server-initiated traffic (notifications/initialized → roots/list, REPL
-   mutations). Targets the open GET stream; drops+logs if none is open.
-   Phase 4 replaces the drop with buffering into the event log."
-  [session]
+(defn- session-default-send-message [session]
   (fn [message]
     (if-let [ch @(:session/get-channel session)]
       (send-frame! ch session message)
-      (tel/log! {:level :debug :id :sht/no-get-stream :data {:method (:method message)}}))))
+      (do (record-event! session message (System/currentTimeMillis))
+          (tel/log! {:level :debug :id :sht/buffered-no-stream :data {:method (:method message)}})))))
 
 (defn- run-notification! [session message]
   (let [mcp-ctx {:session (:session/data session)
