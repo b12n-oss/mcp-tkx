@@ -49,14 +49,15 @@ curl -s -X POST http://127.0.0.1:7926/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-4. **Call `parentify`** — emits progress, so the response is an SSE stream:
+4. **Call `parentify`** — include `_meta.progressToken` to opt into progress streaming
+   (without it the server returns a plain JSON response instead of SSE):
 
 ```sh
 curl -N -X POST http://127.0.0.1:7926/mcp \
   -H 'content-type: application/json' -H "mcp-session-id: $SID" \
   -H 'mcp-protocol-version: 2025-11-25' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
-       "params":{"name":"parentify","arguments":{"text":"hi"}}}'
+       "params":{"name":"parentify","arguments":{"text":"hi"},"_meta":{"progressToken":"tok"}}}'
 # → text/event-stream: progress frames, then the result frame "(hi)", then close
 ```
 
