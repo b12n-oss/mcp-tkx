@@ -113,6 +113,13 @@
     (assoc-session! ctx session-id session-data)
     (run-message! session-id session-data message)))
 
+(defn- handle-session-post [ctx req message]
+  (let [session-id (get-in req [:headers "mcp-session-id"])
+        session    (fetch-session! ctx session-id)]
+    (if (nil? session)
+      (error-response "Session not found" 404)
+      (run-message! session-id (:session/data session) message))))
+
 (defn handle-post [ctx req]
   (let [ctx (assoc ctx :req req)]
     (if-not (valid-content-type? ctx)
@@ -120,8 +127,7 @@
       (if-some [message (parse-message ctx)]
         (if (= "initialize" (:method message))
           (handle-initialize-post ctx message)
-          ;; non-initialize handled in P2.T3
-          (error-response "Session not found" 404))
+          (handle-session-post ctx req message))
         (error-response "Could not parse message" 400)))))
 
 ;; ── Lifecycle / routes ──────────────────────────────────────────────────────
