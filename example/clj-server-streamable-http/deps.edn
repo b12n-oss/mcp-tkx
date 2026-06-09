@@ -8,6 +8,7 @@
          metosin/reitit-ring        {:mvn/version "0.10.0"}
          metosin/reitit-core        {:mvn/version "0.10.0"}
          medley/medley              {:mvn/version "1.4.0"}
+         funcool/promesa            {:mvn/version "11.0.678"}
          fi.metosin/mcp-toolkit     {:local/root "../.."}
          example/common-mcp-content {:local/root "../common-mcp-content"}}
  :aliases

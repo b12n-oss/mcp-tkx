@@ -107,3 +107,37 @@
                                            :params {:request-id 999}} :session-id sid))]
     (is (= 202 (:status resp)))
     (is (= "Accepted" (:body resp)))))
+
+;; ── P3.T1: flip-decision tests ───────────────────────────────────────────────
+
+(defn- recording-sink []
+  (let [calls (atom [])]
+    {:calls calls
+     :sink {:open-sse! (fn [] (swap! calls conj [:open-sse]))
+            :frame!    (fn [m] (swap! calls conj [:frame m]))}}))
+
+(deftest flip-pure-json-when-only-response
+  (let [{:keys [calls sink]} (recording-sink)
+        [send! state] (t/make-request-send-message 7 sink)]
+    (send! {:jsonrpc "2.0" :id 7 :result {:ok true}})
+    (is (= [] @calls) "no streaming for a lone response")
+    (is (false? (:sse? @state)))
+    (is (= {:jsonrpc "2.0" :id 7 :result {:ok true}} (:buffered @state)))))
+
+(deftest flip-to-sse-on-progress-then-response
+  (let [{:keys [calls sink]} (recording-sink)
+        [send! state] (t/make-request-send-message 7 sink)
+        progress {:jsonrpc "2.0" :method "notifications/progress" :params {:progress 1}}
+        response {:jsonrpc "2.0" :id 7 :result {:ok true}}]
+    (send! progress)   ; first non-response → flip
+    (send! response)   ; now in SSE mode → framed, not buffered
+    (is (= [[:open-sse] [:frame progress] [:frame response]] @calls))
+    (is (true? (:sse? @state)))
+    (is (nil? (:buffered @state)))))
+
+(deftest flip-server-request-during-handling-streams
+  (let [{:keys [calls sink]} (recording-sink)
+        [send! _state] (t/make-request-send-message 7 sink)
+        sampling-req {:jsonrpc "2.0" :id 0 :method "sampling/createMessage" :params {}}]
+    (send! sampling-req)  ; a server->client REQUEST (different id, has :method) → flip
+    (is (= [[:open-sse] [:frame sampling-req]] @calls))))

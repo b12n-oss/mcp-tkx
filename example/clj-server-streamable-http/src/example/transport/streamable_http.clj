@@ -83,6 +83,31 @@
   (swap! (::sessions ctx) dissoc session-id)
   nil)
 
+;; ── The JSON↔SSE flip (pure decision; sink fns injected by the http layer) ───
+(defn- final-response?
+  "True iff `message` is THE response to this POST's request `request-id`."
+  [message request-id]
+  (and (= (:id message) request-id)
+       (or (contains? message :result) (contains? message :error))
+       (not (contains? message :method))))
+
+(defn make-request-send-message
+  "Returns [send-message state-atom]. `sink` = {:open-sse! fn, :frame! fn}.
+   On the first non-response outbound message the stream flips to SSE; from then
+   on every message (including the final response) is framed. A lone final
+   response is buffered as the JSON body. After handling, inspect @state:
+   {:sse? bool :buffered <response-or-nil>}."
+  [request-id {:keys [open-sse! frame!]}]
+  (let [state (atom {:sse? false :buffered nil})]
+    [(fn [message]
+       (cond
+         (:sse? @state)                       (frame! message)
+         (final-response? message request-id) (swap! state assoc :buffered message)
+         :else (do (open-sse!)
+                   (swap! state assoc :sse? true)
+                   (frame! message))))
+     state]))
+
 ;; ── Outbound: Phase-2 capturing send-message (JSON only; streaming in Phase 3) ─
 (defn- capturing-send-message [captured]
   (fn [message] (reset! captured message)))
