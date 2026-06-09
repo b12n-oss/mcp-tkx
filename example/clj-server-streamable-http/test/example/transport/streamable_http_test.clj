@@ -1,7 +1,8 @@
 (ns example.transport.streamable-http-test
   (:require
    [clojure.test :refer [deftest is testing]]
-   [example.transport.streamable-http :as t]))
+   [example.transport.streamable-http :as t]
+   [mcp-toolkit.server :as server]))
 
 (deftest json-round-trip
   (testing "->json encodes kebab keys as camelCase; parse-message decodes camelCase to kebab"
@@ -42,3 +43,35 @@
     (testing "dissoc-session! removes it"
       (t/dissoc-session! ctx "sid-1")
       (is (nil? (t/fetch-session! ctx "sid-1"))))))
+
+(defn- test-ctx []
+  (-> (t/ctx-start {:settings {:allowed-hosts #{"127.0.0.1:*"}}})
+      (assoc :create-session-fn
+             (fn [_ctx _sid]
+               (atom (server/create-session
+                      {:server-info {:name "test-srv" :version "9.9"}}))))))
+
+(defn- json-req [method-map & {:keys [session-id]}]
+  {:request-method :post
+   :headers (cond-> {"content-type" "application/json" "host" "127.0.0.1:7926"}
+              session-id (assoc "mcp-session-id" session-id))
+   :body (t/->json method-map)})
+
+(def ^:private init-msg
+  {:jsonrpc "2.0" :id 0 :method "initialize"
+   :params {:protocol-version "2025-11-25"
+            :client-info {:name "test-client" :version "1.0"}
+            :capabilities {}}})
+
+(deftest post-initialize-assigns-session
+  (let [ctx (test-ctx)
+        resp (t/handle-post ctx (json-req init-msg))
+        sid  (get-in resp [:headers "mcp-session-id"])
+        body (t/parse-message {:req {:body (:body resp)}})]
+    (is (= 200 (:status resp)))
+    (is (string? sid))
+    (testing "the session is now in the pool"
+      (is (some? (t/fetch-session! ctx sid))))
+    (testing "the body is the initialize result echoing the negotiated version"
+      (is (= "2025-11-25" (get-in body [:result :protocol-version])))
+      (is (= "test-srv" (get-in body [:result :server-info :name]))))))

@@ -83,13 +83,51 @@
   (swap! (::sessions ctx) dissoc session-id)
   nil)
 
+;; ── Outbound: Phase-2 capturing send-message (JSON only; streaming in Phase 3) ─
+(defn- capturing-send-message [captured]
+  (fn [message] (reset! captured message)))
+
+(defn- json-response [session-id body]
+  {:status 200
+   :headers {"content-type" "application/json" "mcp-session-id" session-id}
+   :body (->json body)})
+
+(def ^:private accepted-response
+  {:status 202 :headers {"content-type" "text/plain"} :body "Accepted"})
+
+(defn- run-message!
+  "Runs one inbound message against `session-data` with a capturing send-message.
+   Returns a ring response: JSON when the message produced a response, else 202."
+  [session-id session-data message]
+  (let [captured (atom nil)
+        mcp-ctx {:session session-data
+                 :send-message (capturing-send-message captured)}]
+    @(json-rpc/handle-message mcp-ctx message)
+    (if-some [resp @captured]
+      (json-response session-id resp)
+      accepted-response)))
+
+(defn- handle-initialize-post [ctx message]
+  (let [session-id   (new-session-id)
+        session-data ((:create-session-fn ctx) ctx session-id)]
+    (assoc-session! ctx session-id session-data)
+    (run-message! session-id session-data message)))
+
+(defn handle-post [ctx req]
+  (let [ctx (assoc ctx :req req)]
+    (if-not (valid-content-type? ctx)
+      (error-response "Invalid Content-Type header" 400)
+      (if-some [message (parse-message ctx)]
+        (if (= "initialize" (:method message))
+          (handle-initialize-post ctx message)
+          ;; non-initialize handled in P2.T3
+          (error-response "Session not found" 404))
+        (error-response "Could not parse message" 400)))))
+
 ;; ── Lifecycle / routes ──────────────────────────────────────────────────────
 (defn ctx-start [ctx]
   (assoc ctx ::sessions (atom {})))
 
-(defn routes
-  "reitit route data. Replaced incrementally through Phases 2–5."
-  [_ctx]
-  ["" ["/health" {:get (fn [_req] {:status 200
-                                   :headers {"content-type" "text/plain"}
-                                   :body "ok"})}]])
+(defn routes [ctx]
+  ["" ["/health" {:get (fn [_req] {:status 200 :headers {"content-type" "text/plain"} :body "ok"})}]
+   ["/mcp"    {:post (fn [req] (handle-post ctx req))}]])
