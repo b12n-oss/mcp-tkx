@@ -201,3 +201,18 @@
     (testing "GET with bad Host → 421"
       (is (= 421 (:status (t/handle-get ctx {:headers {"host" "evil.com"
                                                        "mcp-session-id" "x"}})))))))
+
+;; ── P5.T2: MCP-Protocol-Version header gate ─────────────────────────────────
+
+(defn- session-with-version [v]
+  {:session/id "s" :session/data (atom {:protocol-version v})})
+
+(deftest protocol-version-header-gate
+  (testing "≥2025-06-18 session requires a valid header"
+    (let [s (session-with-version "2025-11-25")]
+      (is (true?  (t/valid-protocol-version? {:headers {"mcp-protocol-version" "2025-11-25"}} s)))
+      (is (false? (t/valid-protocol-version? {:headers {"mcp-protocol-version" "bogus"}} s)))
+      (is (false? (t/valid-protocol-version? {:headers {}} s)))))
+  (testing "<2025-06-18 session does not require the header"
+    (let [s (session-with-version "2025-03-26")]
+      (is (true? (t/valid-protocol-version? {:headers {}} s))))))

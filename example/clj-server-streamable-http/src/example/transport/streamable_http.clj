@@ -233,6 +233,23 @@
     (not (valid-origin? ctx)) (error-response "Invalid Origin header" 400)
     :else nil))
 
+;; ── Protocol-Version header gate (≥ 2025-06-18 sessions) ──────────────────
+(def supported-protocol-versions
+  #{"2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"})
+
+(defn- requires-protocol-header? [session]
+  (let [pv (:protocol-version @(:session/data session))]
+    (and pv (>= (compare pv "2025-06-18") 0))))
+
+(defn valid-protocol-version?
+  "True when the request carries an acceptable MCP-Protocol-Version header, or
+   when the session's negotiated version predates the header requirement."
+  [req session]
+  (if (requires-protocol-header? session)
+    (let [hv (get-in req [:headers "mcp-protocol-version"])]
+      (boolean (and hv (contains? supported-protocol-versions hv))))
+    true))
+
 (defn- request-message? [message]
   (and (contains? message :method) (contains? message :id)))
 
@@ -251,12 +268,16 @@
 
               (request-message? message)
               (if-some [session (fetch-session! ctx (get-in req [:headers "mcp-session-id"]))]
-                (handle-request-over-channel ctx session message)
+                (if (valid-protocol-version? req session)
+                  (handle-request-over-channel ctx session message)
+                  (error-response "Missing or unsupported MCP-Protocol-Version header" 400))
                 (error-response "Session not found" 404))
 
               :else
               (if-some [session (fetch-session! ctx (get-in req [:headers "mcp-session-id"]))]
-                (run-notification! session message)
+                (if (valid-protocol-version? req session)
+                  (run-notification! session message)
+                  (error-response "Missing or unsupported MCP-Protocol-Version header" 400))
                 (error-response "Session not found" 404)))
             (error-response "Could not parse message" 400))))))
 
