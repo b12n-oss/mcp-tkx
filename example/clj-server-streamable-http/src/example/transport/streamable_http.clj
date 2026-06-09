@@ -61,3 +61,14 @@
 ;; ── Session ids ─────────────────────────────────────────────────────────────
 (defn new-session-id []
   (str (java.util.UUID/randomUUID)))
+
+;; ── Lifecycle / routes ──────────────────────────────────────────────────────
+(defn ctx-start [ctx]
+  (assoc ctx ::sessions (atom {})))
+
+(defn routes
+  "reitit route data. Replaced incrementally through Phases 2–5."
+  [_ctx]
+  ["" ["/health" {:get (fn [_req] {:status 200
+                                   :headers {"content-type" "text/plain"}
+                                   :body "ok"})}]])
