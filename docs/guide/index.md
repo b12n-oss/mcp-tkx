@@ -97,6 +97,7 @@ bb dev                       # nREPL on :7777 with CIDER middleware
 bb example:server:stdio      # run example STDIO server
 bb example:server:sse        # run example SSE server (clj-server-sse)
 bb example:client:stdio      # run example STDIO client
+bb info                      # grouped, categorised cheat-sheet of all tasks
 bb tasks                     # list every task with its docstring
 ```
 

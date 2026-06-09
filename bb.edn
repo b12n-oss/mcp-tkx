@@ -599,4 +599,38 @@ echo \"✅ All pre-commit checks passed!\"
            (println "🔬 MCP Inspector:")
            (println "   bb inspector <cmd>  Test MCP server")
            (println "")
-           (println "Run 'bb tasks' for all available tasks"))}}}
+           (println "ℹ️  Run 'bb info' for a grouped cheat-sheet, or 'bb tasks' for the full list"))}
+
+  ;; =============================================================================
+  ;; Cheat-sheet
+  ;; =============================================================================
+
+  info
+  {:doc "Grouped cheat-sheet of all bb tasks (categorised; easier to scan than the flat `bb tasks`)."
+   :task (let [tasks   (:tasks (clojure.edn/read-string (slurp "bb.edn")))
+               brief   (fn [t]
+                         (let [d (str/trim (str (:doc (get tasks (symbol t)))))
+                               d (first (str/split-lines d))]
+                           (if (> (count d) 80) (str (subs d 0 79) "…") d)))
+               line    (fn [t]
+                         (println (str "  " (color cyan (format "%-26s" (str "bb " t))) (brief t))))
+               groups  [["Development"          ["dev" "nrepl" "repl"]]
+                        ["Example servers"      ["example:server:stdio" "example:server:sse" "example:client:stdio"]]
+                        ["Testing"              ["test" "test:watch" "test:focus" "test:cljs"]]
+                        ["Code quality"         ["check" "check:full" "ci" "lint" "lint:all"]]
+                        ["LSP (clojure-lsp)"    ["lsp:format" "lsp:format-check" "lsp:clean-ns" "lsp:clean-ns-check" "lsp:diagnostics" "lsp:check" "lsp:fix"]]
+                        ["Git hooks"            ["hooks:install" "hooks:install:full" "hooks:uninstall"]]
+                        ["Build & deploy"       ["clean" "jar" "deploy"]]
+                        ["Dependencies"         ["deps" "deps:tree" "outdated" "outdated:upgrade"]]
+                        ["Utilities"            ["loc" "loc:all" "inspector"]]
+                        ["Help & misc"          ["help" "info"]]]
+               grouped (into #{} (mapcat second groups))
+               other   (->> (keys tasks) (filter symbol?) (map str) (remove grouped) sort)]
+           (doseq [[title names] groups]
+             (header title)
+             (doseq [t names :when (contains? tasks (symbol t))] (line t)))
+           (when (seq other)
+             (header "Other (ungrouped)")
+             (doseq [t other] (line t)))
+           (println)
+           (println "  Run any with `bb <task>` · full flat list: `bb tasks`"))}}}
