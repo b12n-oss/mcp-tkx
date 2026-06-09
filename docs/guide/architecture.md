@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the namespace map, the message lifecycle, and the session/context split. For day-to-day API reference, see [`doc/api-design.md`](../../doc/api-design.md), [`doc/session.md`](../../doc/session.md), [`doc/context.md`](../../doc/context.md), [`doc/using-the-library.md`](../../doc/using-the-library.md). This page is the architecture-level orientation.
+This page is the namespace map, the message lifecycle, and the session/context split. For day-to-day API reference, see [`docs/reference/api-design.md`](../reference/api-design.md), [`docs/reference/session.md`](../reference/session.md), [`docs/reference/context.md`](../reference/context.md), [`docs/reference/using-the-library.md`](../reference/using-the-library.md). This page is the architecture-level orientation.
 
 ## Namespace map
 
@@ -195,7 +195,7 @@ This is the basis of [the REPL workflow](repl-workflow.md): you can add a tool, 
 
 ## See also
 
-- [`doc/api-design.md`](../../doc/api-design.md), [`doc/session.md`](../../doc/session.md), [`doc/context.md`](../../doc/context.md) — the upstream Metosin reference docs.
+- [`docs/reference/api-design.md`](../reference/api-design.md), [`docs/reference/session.md`](../reference/session.md), [`docs/reference/context.md`](../reference/context.md) — the upstream Metosin reference docs.
 - [Kebab-case key transformation](kebab-case-transformation.md) — the JSON ↔ Clojure boundary that this page treats as a black box.
 - [Protocol versions](protocol-versions.md) — the version-negotiation algorithm.
 - [REPL workflow](repl-workflow.md) — using the REPL-mutation fns above in practice.

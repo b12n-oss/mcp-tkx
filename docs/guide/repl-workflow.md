@@ -278,5 +278,5 @@ Most of these are useful in your own server too — copy the pattern. The `*e` a
 - [Architecture](architecture.md) §"REPL-time mutations" — the toolkit fns that are designed for REPL use.
 - [Getting started](getting-started.md) — the canonical wiring.
 - [Dynamic resources](dynamic-resources.md) — when REPL-mutating a resource, you might prefer a `:read-fn` instead.
-- [`doc/repl-story.md`](../../doc/repl-story.md) — the upstream Metosin take on the REPL workflow.
+- [`docs/reference/repl-story.md`](../reference/repl-story.md) — the upstream Metosin take on the REPL workflow.
 - [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc) — the rich-comment block at the bottom.

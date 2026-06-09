@@ -1,0 +1,10 @@
+{:cljdoc.doc/tree [["Readme" {:file "README.md"}]
+                   ["Changes" {:file "CHANGELOG.md"}]
+                   ["Introduction" {:file "docs/reference/introduction.md"}]
+                   ["API design" {:file "docs/reference/api-design.md"}]
+                   ["Session" {:file "docs/reference/session.md"}]
+                   ["Context" {:file "docs/reference/context.md"}]
+                   ["Using the library" {:file "docs/reference/using-the-library.md"}]
+                   ["REPL story" {:file "docs/reference/repl-story.md"}]
+                   ["Migration Guides" [["2025-11-25 Migration" {:file "docs/reference/MIGRATION-2025-11-25.md"}]
+                                        ["2025-06-18 Migration" {:file "docs/reference/MIGRATION-2025-06-18.md"}]]]]}

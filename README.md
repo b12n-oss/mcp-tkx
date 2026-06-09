@@ -40,7 +40,7 @@ MCP Toolkit supports automatic protocol version negotiation between clients and 
 - **_meta field support** - Optional metadata for various message types
 - **Breaking change:** JSON-RPC batching removed (array requests no longer supported)
 
-📚 **[See the 2025-11-25 Migration Guide](doc/MIGRATION-2025-11-25.md)** for upgrading to the latest protocol version.
+📚 **[See the 2025-11-25 Migration Guide](docs/reference/MIGRATION-2025-11-25.md)** for upgrading to the latest protocol version.
 
 📚 **[See the 2025-06-18 Migration Guide](MIGRATION-2025-06-18.md)** for upgrading from older versions.
 
@@ -131,7 +131,7 @@ See the `README.md` in the `example/cljc-server-stdio/` project to learn:
 - how to develop its components (prompts, resources and tools) via the REPL
 while the server is running.
 
-Additionally, see the documentation on CLJDocs or in the `doc/` directory.
+Additionally, see the documentation on CLJDocs or in the `docs/reference/` directory.
 
 ## Testing
 

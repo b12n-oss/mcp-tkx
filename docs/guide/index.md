@@ -13,7 +13,7 @@ What's distinctive about this fork:
 - **I/O-agnostic core** — the library does no I/O itself; you wire STDIO, HTTP/SSE, or any other transport by providing a `:send-message` fn and feeding decoded messages into `json-rpc/handle-message`.
 - **REPL-driven development** — `add-tool` / `remove-tool` / `add-resource` / `notify-resource-updated` mutate the running server's session and notify clients live, so you can iterate on tools while Claude Desktop / Claude Code is connected.
 
-This guide focuses on the **reusable building blocks** — the patterns that lift to other MCP servers and to other Clojure projects. For day-to-day API reference, see the `doc/` folder (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`) which is preserved as-is from the upstream Metosin docs. For the canonical migration writeups, see [`doc/MIGRATION-2025-11-25.md`](../../doc/MIGRATION-2025-11-25.md) and [`MIGRATION-2025-06-18.md`](../../MIGRATION-2025-06-18.md).
+This guide focuses on the **reusable building blocks** — the patterns that lift to other MCP servers and to other Clojure projects. For day-to-day API reference, see the `docs/reference/` folder (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`) which is preserved as-is from the upstream Metosin docs. For the canonical migration writeups, see [`docs/reference/MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md) and [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md).
 
 ## How to read this guide
 
@@ -115,7 +115,7 @@ bb tasks                     # list every task with its docstring
 
 - [Project README](../../README.md) — feature matrix, `Implemented features` checklist, dynamic-resource examples, other-MCP-libs comparison.
 - [`CHANGELOG.md`](../../CHANGELOG.md) — version history per release; `v2025-11-25` is the unreleased entry covering the 9 phases of the upstream-spec port (Phase 0 = kebab-case transport, Phase 1 = protocol negotiation, Phase 2 = server description, Phase 3 = icons, Phase 4 = Malli schemas, Phase 5 = sampling with tools, Phase 6 = elicitation, Phase 7 = tasks, Phase 9 = JSON Schema 2020-12 dialect).
-- [`doc/`](../../doc/) — preserved upstream Metosin docs (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, `MIGRATION-2025-11-25.md`).
-- [`MIGRATION-2025-06-18.md`](../../MIGRATION-2025-06-18.md) — the older migration writeup (added by upstream when bumping from 2025-03-26 → 2025-06-18).
+- [`docs/reference/`](../reference/) — preserved upstream Metosin docs (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, `MIGRATION-2025-11-25.md`).
+- [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md) — the older migration writeup (added by upstream when bumping from 2025-03-26 → 2025-06-18).
 - [a-private-project](https://github.com/burinc/a-private-project) — central wiki hub for all b12n projects; `a-downstream-project` is mirrored there as a sibling-project reference.
 - [a-private-project](https://github.com/mauricioszabo/spock) — canonical downstream user of this fork; its MCP server runs over `a-downstream-project` via `:local/root`.

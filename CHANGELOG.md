@@ -49,8 +49,8 @@ Versions prior to v0.1.0 are considered experimental, their API may change.
 - Unused binding warnings throughout codebase
 
 ### Documentation
-- Added comprehensive migration guide (doc/MIGRATION-2025-11-25.md)
-- Added migration checklist (doc/MIGRATION-2025-11-25-CHECKLIST.md)
+- Added comprehensive migration guide (docs/reference/MIGRATION-2025-11-25.md)
+- Added migration checklist (docs/reference/archive/MIGRATION-2025-11-25-CHECKLIST.md)
 - Updated README with 2025-11-25 protocol features
 
 ---

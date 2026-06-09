@@ -199,7 +199,7 @@ Two practical consequences:
 
 - [Architecture](architecture.md) — the initialization handshake that negotiates the version.
 - [2025-11-25 features](2025-11-25-features.md) — every new feature in the latest spec.
-- [`MIGRATION-2025-06-18.md`](../../MIGRATION-2025-06-18.md) — the 2025-03-26 → 2025-06-18 migration writeup.
-- [`doc/MIGRATION-2025-11-25.md`](../../doc/MIGRATION-2025-11-25.md) — the 2025-06-18 → 2025-11-25 migration writeup.
+- [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md) — the 2025-03-26 → 2025-06-18 migration writeup.
+- [`docs/reference/MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md) — the 2025-06-18 → 2025-11-25 migration writeup.
 - [Spec — 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 - [Spec — 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
