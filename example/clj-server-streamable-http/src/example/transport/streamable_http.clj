@@ -226,10 +226,22 @@
         :on-close (fn [_channel _status]
                     (reset! (:session/get-channel session) nil))}))))
 
+;; ── DELETE /mcp teardown ─────────────────────────────────────────────────────
+(defn handle-delete [ctx req]
+  (let [session-id (get-in req [:headers "mcp-session-id"])
+        session    (fetch-session! ctx session-id)]
+    (if (nil? session)
+      (error-response "Session not found" 404)
+      (do (when-let [ch @(:session/get-channel session)] (http-kit/close ch))
+          (dissoc-session! ctx session-id)
+          {:status 204 :headers {} :body nil}))))
+
 ;; ── Lifecycle / routes ──────────────────────────────────────────────────────
 (defn ctx-start [ctx]
   (assoc ctx ::sessions (atom {})))
 
 (defn routes [ctx]
   ["" ["/health" {:get (fn [_req] {:status 200 :headers {"content-type" "text/plain"} :body "ok"})}]
-   ["/mcp"    {:post (fn [req] (handle-post ctx req))}]])
+   ["/mcp" {:post   (fn [req] (handle-post ctx req))
+            :get    (fn [req] (handle-get ctx req))
+            :delete (fn [req] (handle-delete ctx req))}]])

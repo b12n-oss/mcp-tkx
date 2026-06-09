@@ -110,6 +110,16 @@
     (send! sampling-req)  ; a server->client REQUEST (different id, has :method) → flip
     (is (= [[:open-sse] [:frame sampling-req]] @calls))))
 
+;; ── P3.T4: DELETE /mcp teardown ─────────────────────────────────────────────
+
+(deftest delete-removes-session
+  (let [ctx (test-ctx)
+        sid (seed-session! ctx)]
+    (is (= 404 (:status (t/handle-delete ctx {:headers {"mcp-session-id" "ghost"}}))))
+    (let [resp (t/handle-delete ctx {:headers {"mcp-session-id" sid}})]
+      (is (= 204 (:status resp)))
+      (is (nil? (t/fetch-session! ctx sid))))))
+
 ;; ── P3.T3: GET /mcp stream guard ────────────────────────────────────────────
 
 (deftest get-stream-conflicts-when-already-open
