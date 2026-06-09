@@ -74,3 +74,41 @@
     (testing "progress frames precede the final response frame"
       (is (str/includes? body "notifications/progress"))
       (is (str/includes? body "(hi)")))))
+
+(defn- read-sse-get
+  "Open GET /mcp, read whatever arrives within `deadline-ms`, then close. Returns
+   the collected body string. Non-blocking reads via .available."
+  [headers deadline-ms]
+  (let [b (reduce-kv (fn [acc k v] (.header acc k v))
+                     (-> (HttpRequest/newBuilder (URI/create (str *base* "/mcp")))
+                         (.timeout (Duration/ofMillis (+ deadline-ms 2000)))
+                         (.GET))
+                     headers)
+        resp (.send client (.build b) (HttpResponse$BodyHandlers/ofInputStream))
+        in   (.body resp)
+        end  (+ (System/currentTimeMillis) deadline-ms)
+        buf  (byte-array 4096)
+        sb   (StringBuilder.)]
+    (try
+      (while (< (System/currentTimeMillis) end)
+        (if (pos? (.available in))
+          (let [n (.read in buf)] (when (pos? n) (.append sb (String. buf 0 n "UTF-8"))))
+          (Thread/sleep 20)))
+      (finally (.close in)))
+    (str sb)))
+
+(deftest get-replays-events-after-last-event-id
+  (let [sid     (handshake!)
+        session (t/fetch-session! *sys* sid)]
+    ;; simulate three server-initiated events recorded on the session
+    (dotimes [_ 3]
+      (t/record-event! session {:jsonrpc "2.0" :method "notifications/x"}
+                       (System/currentTimeMillis)))
+    (let [body (read-sse-get {"mcp-session-id" sid
+                              "mcp-protocol-version" "2025-11-25"
+                              "last-event-id" "1"}
+                             600)]
+      (testing "frames after id 1 are replayed; id 1 is not"
+        (is (str/includes? body "id: 2"))
+        (is (str/includes? body "id: 3"))
+        (is (not (str/includes? body "id: 1\n")))))))
