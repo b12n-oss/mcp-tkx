@@ -8,10 +8,26 @@
    [org.httpkit.server :as http-kit]
    [taoensso.telemere :as tel]))
 
-;; Convert camelCase ↔ kebab-case at the JSON boundary
+;; Convert camelCase ↔ kebab-case at the JSON boundary.
+;; MCP uses `_meta` (leading underscore) as a protocol-defined metadata key, and
+;; camel-snake-kebab strips leading underscores in both directions
+;; (_meta → :meta on decode; :_meta → "meta" on encode), which silently drops
+;; e.g. the progressToken that drives notify-progress. Preserve any key starting
+;; with "_" verbatim.
+(defn- decode-key [k]
+  (if (str/starts-with? k "_")
+    (keyword k)
+    (csk/->kebab-case-keyword k)))
+
+(defn- encode-key [k]
+  (let [n (name k)]
+    (if (str/starts-with? n "_")
+      n
+      (csk/->camelCaseString k))))
+
 (def object-mapper
-  (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword
-                    :encode-key-fn csk/->camelCaseString}))
+  (j/object-mapper {:decode-key-fn decode-key
+                    :encode-key-fn encode-key}))
 
 (defn parse-message
   [ctx]
@@ -43,7 +59,11 @@
   [pattern value]
   (when (str/ends-with? pattern ":*")
     (let [base (subs pattern 0 (- (count pattern) 2))]
-      (str/starts-with? value (str base ":")))))
+      (when (str/starts-with? value (str base ":"))
+        ;; require a numeric port — reject userinfo injection like
+        ;; "127.0.0.1:80@evil.com" which would otherwise pass the prefix check
+        (let [port-part (subs value (inc (count base)))]
+          (boolean (re-matches #"\d+" port-part)))))))
 
 (defn valid-host?
   ([host allowed-hosts]
