@@ -131,3 +131,24 @@
     (testing "a second open is 405 while a channel is registered"
       (reset! (:session/get-channel session) ::fake-channel)
       (is (= 405 (:status (t/handle-get ctx {:headers {"mcp-session-id" sid}})))))))
+
+;; ── P4.T1: bounded per-session event ring ────────────────────────────────────
+
+(defn- bare-session []
+  {:session/id "s" :session/event-log (atom {:next-id 0 :events []})})
+
+(deftest record-event-allocates-monotonic-ids
+  (let [s (bare-session)
+        a (t/record-event! s {:jsonrpc "2.0" :method "x"} 1000)
+        b (t/record-event! s {:jsonrpc "2.0" :method "y"} 1001)]
+    (is (= 1 (:id a)))
+    (is (= 2 (:id b)))
+    (is (re-find #"^id: 1\nevent: message\ndata: " (:frame a)))
+    (is (= 2 (count (:events @(:session/event-log s)))))))
+
+(deftest record-event-evicts-by-age
+  (let [s (bare-session)]
+    (t/record-event! s {:jsonrpc "2.0" :method "old"} 0)            ; ts 0
+    (t/record-event! s {:jsonrpc "2.0" :method "new"} 400000)       ; 400s later → old pruned
+    (let [ids (mapv :id (:events @(:session/event-log s)))]
+      (is (= [2] ids) "the >5min-old event was pruned"))))

@@ -123,17 +123,38 @@
                   {:status 200 :headers (assoc base-sse-headers "mcp-session-id" session-id)}
                   false))                                   ; false = keep open
 
-(defn- next-event-id! [session]
-  (:next-id (swap! (:session/event-log session) update :next-id inc)))
+;; ── Resumability: per-session bounded event ring ────────────────────────────
+(def ^:private max-events 1000)
+(def ^:private max-age-ms (* 5 60 1000))
+
+(defn- prune-by-age [events now]
+  (filterv (fn [{:keys [ts]}] (<= (- now ts) max-age-ms)) events))
+
+(defn record-event!
+  "Allocate a monotonic per-session id, build the SSE frame, append to the
+   bounded ring (evict oldest by age then count; log on count-eviction).
+   Returns {:id <n> :frame <sse-string>}."
+  [session message now]
+  (let [[old new] (swap-vals!
+                   (:session/event-log session)
+                   (fn [{:keys [next-id events]}]
+                     (let [id    (inc next-id)
+                           frame (str "id: " id "\nevent: message\ndata: " (->json message) "\n\n")
+                           base  (conj (prune-by-age events now) {:id id :ts now :frame frame})
+                           over  (max 0 (- (count base) max-events))]
+                       {:next-id id :events (if (pos? over) (subvec base over) base)})))
+        evicted (max 0 (- (inc (count (:events old))) (count (:events new))))
+        ev      (peek (:events new))]
+    (when (pos? evicted)
+      (tel/log! {:level :warn :id :sht/event-evicted :data {:evicted evicted}}))
+    {:id (:id ev) :frame (:frame ev)}))
 
 (defn- send-frame!
   "Write one server->client message as an SSE frame tagged with a per-session
-   monotonic event id. Phase 4 extends this to also buffer for replay."
+   monotonic event id. Routes through record-event! for buffering."
   [channel session message]
-  (let [eid (next-event-id! session)]
-    (http-kit/send! channel
-                    (str "id: " eid "\nevent: message\ndata: " (->json message) "\n\n")
-                    false)))
+  (let [{:keys [frame]} (record-event! session message (System/currentTimeMillis))]
+    (http-kit/send! channel frame false)))
 
 ;; ── Request POST → as-channel (JSON or SSE) ─────────────────────────────────
 (defn- json-response-map [session-id body]
