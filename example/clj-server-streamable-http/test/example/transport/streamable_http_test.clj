@@ -28,3 +28,17 @@
       (is (string? a))
       (is (not= a b))
       (is (re-matches #"[0-9a-f-]{36}" a)))))
+
+(deftest session-pool-helpers
+  (let [ctx (t/ctx-start {})
+        rec (t/assoc-session! ctx "sid-1" :fake-data)]
+    (testing "assoc-session! stores a namespaced record and returns it"
+      (is (= "sid-1" (:session/id rec)))
+      (is (= :fake-data (:session/data rec)))
+      (is (instance? clojure.lang.Atom (:session/get-channel rec))))
+    (testing "fetch-session! returns it by id, nil for unknown"
+      (is (= rec (t/fetch-session! ctx "sid-1")))
+      (is (nil? (t/fetch-session! ctx "nope"))))
+    (testing "dissoc-session! removes it"
+      (t/dissoc-session! ctx "sid-1")
+      (is (nil? (t/fetch-session! ctx "sid-1"))))))

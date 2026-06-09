@@ -62,6 +62,27 @@
 (defn new-session-id []
   (str (java.util.UUID/randomUUID)))
 
+;; ── Session pool ────────────────────────────────────────────────────────────
+;; A session record (keys namespaced :session/…):
+;;   :session/id           session id (UUID string)
+;;   :session/data         the mcp-toolkit session atom
+;;   :session/get-channel  (atom nil) — the open GET stream channel, or nil
+;;   :session/event-log    (atom {:next-id 0 :events []}) — resumability (Phase 4)
+(defn assoc-session! [ctx session-id session-data]
+  (let [rec {:session/id session-id
+             :session/data session-data
+             :session/get-channel (atom nil)
+             :session/event-log (atom {:next-id 0 :events []})}]
+    (swap! (::sessions ctx) assoc session-id rec)
+    rec))
+
+(defn fetch-session! [ctx session-id]
+  (get @(::sessions ctx) session-id))
+
+(defn dissoc-session! [ctx session-id]
+  (swap! (::sessions ctx) dissoc session-id)
+  nil)
+
 ;; ── Lifecycle / routes ──────────────────────────────────────────────────────
 (defn ctx-start [ctx]
   (assoc ctx ::sessions (atom {})))
