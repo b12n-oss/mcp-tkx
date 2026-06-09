@@ -73,6 +73,14 @@
            (p/shell {:dir "example/clj-server-sse"}
                     "clj" "-M" "-m" "example.my-server"))}
 
+  example:server:streamable-http
+  {:doc "Run example Streamable HTTP MCP server (2025-03-26+)"
+   :task (do
+           (header "🚀 Starting Example Streamable HTTP Server")
+           (info "MCP server with Streamable HTTP transport (single /mcp endpoint)")
+           (p/shell {:dir "example/clj-server-streamable-http"}
+                    "clojure" "-X:mcp-server"))}
+
   example:client:stdio
   {:doc "Run example stdio MCP client (CLJ)"
    :task (do
@@ -554,6 +562,7 @@ echo \"✅ All pre-commit checks passed!\"
            (println "🚀 Example Servers:")
            (println "   bb example:server:stdio  Run stdio server (CLJ)")
            (println "   bb example:server:sse    Run SSE server")
+           (println "   bb example:server:streamable-http  Run Streamable HTTP server")
            (println "   bb example:client:stdio  Run stdio client (CLJ)")
            (println "")
            (println "🧪 Testing:")
@@ -615,7 +624,7 @@ echo \"✅ All pre-commit checks passed!\"
                line    (fn [t]
                          (println (str "  " (color cyan (format "%-26s" (str "bb " t))) (brief t))))
                groups  [["Development"          ["dev" "nrepl" "repl"]]
-                        ["Example servers"      ["example:server:stdio" "example:server:sse" "example:client:stdio"]]
+                        ["Example servers"      ["example:server:stdio" "example:server:sse" "example:server:streamable-http" "example:client:stdio"]]
                         ["Testing"              ["test" "test:watch" "test:focus" "test:cljs"]]
                         ["Code quality"         ["check" "check:full" "ci" "lint" "lint:all"]]
                         ["LSP (clojure-lsp)"    ["lsp:format" "lsp:format-check" "lsp:clean-ns" "lsp:clean-ns-check" "lsp:diagnostics" "lsp:check" "lsp:fix"]]

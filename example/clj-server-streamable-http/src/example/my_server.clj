@@ -67,7 +67,9 @@
 (defn start [opts] (-> default-transport-env sht/ctx-start (start-http opts)))
 (defn stop  []     (-> @system stop-http))
 (defn restart [opts] (stop) (reset! system (start opts)))
-(defn main [opts] (reset! system (start opts)))
+(defn main [opts]
+  (reset! system (start opts))
+  @(promise))   ; park the main thread; the http-kit server runs in background threads
 
 (comment
   (restart {:bind "127.0.0.1" :port 7926})
