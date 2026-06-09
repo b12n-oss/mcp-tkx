@@ -316,11 +316,15 @@
             (http-kit/as-channel
              req
              {:on-open  (fn [channel]
-                          (reset! (:session/get-channel session) channel)
-                          (send-sse-headers! channel session-id)
-                          (when-some [leid (last-event-id req)]
-                            (doseq [frame (events-after session leid)]
-                              (http-kit/send! channel frame false))))
+                          (if (compare-and-set! (:session/get-channel session) nil channel)
+                            (do
+                              (send-sse-headers! channel session-id)
+                              ;; Best-effort replay: under concurrent server-initiated sends a live
+                              ;; frame could interleave with replay; not a concern for the single-client example.
+                              (when-some [leid (last-event-id req)]
+                                (doseq [frame (events-after session leid)]
+                                  (http-kit/send! channel frame false))))
+                            (http-kit/close channel)))   ; lost the registration race → close immediately
               :on-close (fn [_channel _status]
                           (reset! (:session/get-channel session) nil))}))))))
 

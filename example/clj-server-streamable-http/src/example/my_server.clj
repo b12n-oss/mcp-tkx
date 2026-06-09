@@ -30,13 +30,17 @@
    :settings {:allowed-hosts   #{"127.0.0.1:*"}
               :allowed-origins #{"http://localhost:7926" "http://127.0.0.1:7926"}}})
 
-(defn log-request [{:keys [uri request-method] :as req} {:keys [body status] :as resp}]
-  (tel/log! {:level :info :msg (str (str/upper-case (name request-method)) " " uri)
-             :data (merge {:status status}
-                          (when (>= (or status -1) 400)
-                            {:err body
-                             :resp-headers (select-keys resp [:headers])
-                             :req-headers (select-keys req [:headers])}))}))
+(defn log-request [req resp]
+  (let [{:keys [uri request-method]} req
+        map-resp (when (map? resp) resp)            ; as-channel returns a non-map AsyncChannel
+        status   (:status map-resp)]
+    (tel/log! {:level :info
+               :msg (str (str/upper-case (name request-method)) " " uri)
+               :data (merge {:status (or status :streaming)}
+                            (when (and status (>= status 400))
+                              {:err (:body map-resp)
+                               :resp-headers (select-keys map-resp [:headers])
+                               :req-headers (select-keys req [:headers])}))})))
 
 (defn log-request-middleware [handler]
   (fn [req] (let [resp (handler req)] (log-request req resp) resp)))
