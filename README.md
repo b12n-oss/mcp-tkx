@@ -78,7 +78,7 @@ MCP Toolkit supports automatic protocol version negotiation between clients and 
   - [x] [CLJC server using STDIO](example/cljc-server-stdio)
   - [x] [CLJC client using STDIO](example/cljc-client-stdio)
   - [x] [CLJ server using HTTP/SSE](example/clj-server-sse)
-  - [ ] CLJ server using Streamable HTTP (PR welcome)
+  - [x] [CLJ server using Streamable HTTP](example/clj-server-streamable-http)
 
 
 ## Dynamic Resources
