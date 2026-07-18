@@ -698,8 +698,6 @@
             context {:session session}]
         (is (false? (server/client-supports-tasks-cancel? context)))))))
 
-
-
 (deftest unknown-method-notification-silence-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
@@ -763,3 +761,38 @@
                                       :id 7}
                                      response))
                               (is (not (contains? response :result)))))))))
+
+(deftest tool-fn-sync-throw-becomes-error-content-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "a tool-fn that throws synchronously surfaces as isError result content, not a JSON-RPC error escape"
+                        (let [throwing-tool {:name "boom_tool"
+                                             :description "Always throws synchronously"
+                                             :tool-fn (fn [_ _] (throw (ex-info "boom" {})))}
+                              outputs (atom [])
+                              context {:session (atom (server/create-session {:tools [throwing-tool]
+                                                                              :on-initialized nil}))
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "test" :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 7
+                                                              :method "tools/call"
+                                                              :params {:name "boom_tool" :arguments {}}})
+                            (let [response (last @outputs)]
+                              (is (not (contains? response :error))
+                                  "a synchronous tool-fn throw must not escape as a JSON-RPC error envelope")
+                              (is (= {:jsonrpc "2.0"
+                                      :result {:content [{:type "text"
+                                                          :text "boom"}]
+                                               :is-error true}
+                                      :id 7}
+                                     response))))))))

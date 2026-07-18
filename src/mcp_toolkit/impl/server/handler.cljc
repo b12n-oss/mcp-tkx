@@ -130,7 +130,7 @@
   (let [{:keys [name arguments]} (:params message)]
     (if-some [tool (-> @session :tool-by-name (get name))]
       (let [tool-fn (:tool-fn tool)]
-        (-> (tool-fn context arguments)
+        (-> (p/do (tool-fn context arguments))
             (p/then (fn [result]
                       ;; Support both simple and structured responses (2025-06-18 spec)
                       (cond
