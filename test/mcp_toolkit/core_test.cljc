@@ -699,3 +699,67 @@
         (is (false? (server/client-supports-tasks-cancel? context)))))))
 
 
+
+(deftest unknown-method-notification-silence-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "an unknown-method notification gets no reply; an unknown-method call still gets -32601"
+                        (let [outputs (atom [])
+                              context {:session (atom (server/create-session {:on-initialized nil}))
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "test" :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            ;; A REPEAT initialized notification: the post-init method
+                            ;; table no longer routes it, but a notification must not
+                            ;; be answered — not even with -32601.
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            (is (= 1 (count @outputs))
+                                "only the initialize response was sent")
+                            ;; An unknown method CALL (id present) keeps its -32601.
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 1
+                                                              :method "nope/nope"})
+                            (is (= {:jsonrpc "2.0"
+                                    :error {:code -32601
+                                            :message "Method not found"}
+                                    :id 1}
+                                   (last @outputs))))))))
+
+(deftest unknown-tool-error-passthrough-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "tools/call on an unknown tool returns a top-level JSON-RPC error, not an error nested in :result"
+                        (let [outputs (atom [])
+                              context {:session (atom (server/create-session {:tools [test-tool]
+                                                                              :on-initialized nil}))
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "test" :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 7
+                                                              :method "tools/call"
+                                                              :params {:name "nope" :arguments {}}})
+                            (let [response (last @outputs)]
+                              (is (= {:jsonrpc "2.0"
+                                      :error {:code -32602
+                                              :message "Unknown tool: nope"}
+                                      :id 7}
+                                     response))
+                              (is (not (contains? response :result)))))))))

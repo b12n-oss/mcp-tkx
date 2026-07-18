@@ -94,7 +94,7 @@
                                 :message (ex-message exception)}})))
         ;; Static content from :text or :blob
         {:contents [(select-keys resource [:uri :description :mime-type :text :blob])]})
-      ;; FIXME: this is wrong because it will be interpreted as result data
+      ;; Full JSON-RPC response — route-message sends it as-is (no :result wrap)
       (json-rpc/resource-not-found (:id message) uri))))
 
 (defn resource-templates-list-handler
@@ -150,7 +150,7 @@
                        {:content [{:type "text"
                                    :text (ex-message exception)}]
                         :is-error true}))))
-      ;; FIXME: this is wrong because it will be interpreted as result data
+      ;; Full JSON-RPC response — route-message sends it as-is (no :result wrap)
       (json-rpc/invalid-tool-name (:id message) name))))
 
 (defn cancelled-notification-handler

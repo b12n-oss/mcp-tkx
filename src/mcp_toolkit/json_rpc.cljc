@@ -141,7 +141,10 @@
     (let [{:keys [id method]} message
           handler (-> @session :handler-by-method (get method))]
       (if (nil? handler)
-        (method-not-found-response id)
+        ;; JSON-RPC: a notification (no id) never gets a reply, even when
+        ;; the method is unknown; only method calls get the -32601.
+        (when (some? id)
+          (method-not-found-response id))
         (if (nil? id)
           ;; Notification, shall not return a result
           (do
@@ -154,9 +157,17 @@
             (-> (handler context)
                 (p/then (fn [result]
                           (when-not @is-cancelled
-                            {:jsonrpc "2.0"
-                             :result result
-                             :id id})))
+                            (if (and (map? result)
+                                     (contains? result :jsonrpc)
+                                     (or (contains? result :error)
+                                         (contains? result :result)))
+                              ;; The handler returned a full JSON-RPC response
+                              ;; (e.g. invalid-tool-name, resource-not-found) —
+                              ;; send it as-is instead of nesting it in :result.
+                              result
+                              {:jsonrpc "2.0"
+                               :result result
+                               :id id}))))
                 (p/handle (fn [result error]
                             ;; Clean up, side effect
                             (swap! session update :is-cancelled-by-request-id dissoc id)
