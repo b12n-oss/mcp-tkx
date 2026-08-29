@@ -60,11 +60,19 @@ If you build a server-only library and never need to act as a client, the defaul
 | **JSON-RPC batching** | ❌ rejected | ❌ rejected | ❌ removed | ❌ removed |
 | Server description (`:server-info :description`) | — | — | — | ✅ |
 | Icons (`:icon`) | — | — | — | ⚠️ Partial |
-| Sampling with tools (`:tools` + `:tool-choice`) | — | — | — | ✅ |
-| Elicitation — form mode | — | — | — | ✅ |
-| Elicitation — URL mode (OAuth) | — | — | — | ✅ |
-| Tasks (experimental) | — | — | — | ✅ |
+| Sampling with tools (`:tools` + `:tool-choice`) | — | — | — | ⚠️ Partial |
+| Elicitation — form mode | — | — | — | ⚠️ Partial |
+| Elicitation — URL mode (OAuth) | — | — | — | ⚠️ Partial |
+| Tasks (experimental) | — | — | — | ⚠️ Partial |
 | JSON Schema 2020-12 dialect | — | — | — | ✅ |
+
+Rows marked `⚠️ Partial` are implemented far enough to be useful but do
+not fully match the spec. `README.md`'s capability table carries the
+detail for each. In short: sampling carries an unfinished-implementation
+marker in the source; elicitation and tasks work outbound from a server
+but have no inbound handler, so a client built with this library cannot
+answer either; and icons ship as a singular string field rather than the
+spec's array of objects.
 
 ## Breaking change: JSON-RPC batching removed in 2025-06-18
 

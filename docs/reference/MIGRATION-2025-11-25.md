@@ -110,7 +110,7 @@ Request user input via forms or URLs:
   (when (server/client-supports-url-elicitation? context)
     (server/request-elicitation context
       {:url "https://auth.example.com/oauth/authorize?..."
-       :url-message "Please sign in with your account"})))
+       :message "Please sign in with your account"})))
 ```
 
 ### Sampling with Tools
@@ -264,7 +264,7 @@ Check client capabilities before using features:
 | `enumTitles` | `:enum-titles` |
 | `taskId` | `:task-id` |
 | `pollInterval` | `:poll-interval` |
-| `urlMessage` | `:url-message` |
+| `statusMessage` | `:status-message` |
 
 ---
 

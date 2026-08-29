@@ -132,7 +132,7 @@ registration does not appear in listings.
 
 **Elicitation.** This library builds both clients and servers, and the
 server side can request elicitation (`request-elicitation`). But a
-client built with this library has no `elicitation/create` handler —
+client built with this library has no `elicitation/create` handler.
 `impl/client/handler.cljc` registers only `ping`, `roots/list`,
 `sampling/createMessage`, and the notification callbacks. A client
 built with this library answers `-32601 Method not found` to an
