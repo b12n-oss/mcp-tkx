@@ -4,20 +4,39 @@ This page is the namespace map, the message lifecycle, and the session/context s
 
 ## Namespace map
 
+Everything lives under `src/mcp_toolkit/`. Arrows point from a namespace to
+what it requires.
+
+```mermaid
+flowchart TD
+  subgraph pub["Public API, the stable surface you depend on"]
+    server["server.cljc<br/>create-session, add-tool,<br/>request-sampling, notify-progress"]
+    client["client.cljc<br/>create-session, request-prompt,<br/>request-resource-list, request-tool-call"]
+    jsonrpc["json_rpc.cljc<br/>handle-message, route-message,<br/>call-remote-method, error responses"]
+    schema["schema.cljc<br/>Malli schemas for MCP protocol types<br/>+ helper constructors"]
+  end
+
+  subgraph impl["impl/, marked ^:no-doc and evolved with the spec"]
+    shandler["server/handler.cljc<br/>initialize, prompts/list,<br/>resources/read, tools/call"]
+    chandler["client/handler.cljc<br/>client-side per-method handlers"]
+    common["common.cljc<br/>user-callback dispatch helper"]
+    meta["meta_support.cljc<br/>_meta field merging (2025-06-18 spec)"]
+  end
+
+  server --> shandler
+  server --> jsonrpc
+  server --> common
+  client --> chandler
+  client --> jsonrpc
+  client --> common
+  shandler --> jsonrpc
+  shandler --> common
+  chandler --> common
 ```
-src/mcp_toolkit/
-├── server.cljc       — Server-side public API (create-session, add-tool, request-sampling, notify-progress, …)
-├── client.cljc       — Client-side public API (request-prompt, request-resource-list, request-tool-call, …)
-├── json_rpc.cljc     — JSON-RPC plumbing (handle-message, route-message, call-remote-method, error responses)
-├── schema.cljc       — Malli schemas for MCP protocol types + helper constructors
-└── impl/
-    ├── common.cljc            — user-callback dispatch helper (~5 lines)
-    ├── meta_support.cljc      — _meta field merging (2025-06-18 spec)
-    ├── server/
-    │   └── handler.cljc       — Per-method handlers (initialize, prompts/list, resources/read, tools/call, …)
-    └── client/
-        └── handler.cljc       — Client-side per-method handlers
-```
+
+`schema.cljc` and `meta_support.cljc` sit on their own: neither is required by
+another namespace here, so you reach for them directly rather than through the
+message path.
 
 | Namespace | Public? | Lines | Role |
 |---|---|---|---|
@@ -87,42 +106,38 @@ The **session-vs-context** rule: anything that mutates per message goes in the s
 
 Inbound JSON-RPC messages flow through the toolkit like this:
 
-```
-Wire format (JSON, camelCase keys)
-   │
-   │  YOU: read line, decode JSON, convert keys to kebab-case
-   ▼
-Clojure map with kebab-case keys
-   │
-   │  YOU: (json-rpc/handle-message context message)
-   ▼
-json-rpc/route-message
-   │
-   ├─ if vector? → invalid-request-response (batch requests removed in 2025-06-18)
-   │
-   ├─ if has :method → method call or notification
-   │     │
-   │     │  look up :handler-by-method in @session
-   │     │
-   │     ├─ no :id → notification: handler runs, no response
-   │     │
-   │     └─ with :id → method: register :is-cancelled atom, run handler,
-   │                   wrap (p/then) into {:result ...}, clean up atom on settle
-   │
-   └─ if has :id + (:result | :error) → response to OUR earlier outbound call
-         │
-         │  look up :handler-by-called-method-id in @session
-         │  invoke the registered response handler (resolves/rejects the original promise)
-         │  remove the entry
-   │
-   ▼
-Outbound response (Clojure map)
-   │
-   │  TOOLKIT: passes to (:send-message context)
-   │
-   │  YOU (in :send-message): convert keys to camelCase, encode JSON, write to wire
-   ▼
-Wire format
+```mermaid
+flowchart TD
+  wire["Wire format<br/>JSON, camelCase keys"]
+  decode["YOU: read line, decode JSON,<br/>convert keys to kebab-case"]
+  cljmap["Clojure map with kebab-case keys"]
+  hm["YOU: json-rpc/handle-message"]
+  batch{"vector?"}
+  invalid["invalid-request-response<br/>batching removed in 2025-06-18"]
+  route["json-rpc/route-message"]
+  kind{"has :method?"}
+  lookup["look up :handler-by-method<br/>in @session"]
+  found{"handler found?"}
+  nf["method-not-found-response, -32601<br/>sent only when the message has an :id"]
+  hasid{"has :id?"}
+  notif["notification:<br/>handler runs, no response"]
+  method["method call:<br/>register the :is-cancelled atom, run handler,<br/>wrap into {:result ...},<br/>clean up the atom on settle"]
+  resp["response to OUR earlier outbound call:<br/>look up :handler-by-called-method-id,<br/>resolve or reject the original promise,<br/>remove the entry"]
+  out["Outbound response, Clojure map"]
+  send["TOOLKIT: passes to :send-message"]
+  encode["YOU in :send-message: convert keys to camelCase,<br/>encode JSON, write to wire"]
+  wire2["Wire format"]
+
+  wire --> decode --> cljmap --> hm --> batch
+  batch -->|yes| invalid --> send
+  batch -->|no| route --> kind
+  kind -->|yes| lookup --> found
+  found -->|no| nf --> out
+  found -->|yes| hasid
+  hasid -->|no| notif
+  hasid -->|yes| method --> out
+  kind -->|"no, has :id plus :result or :error"| resp
+  out --> send --> encode --> wire2
 ```
 
 The toolkit does not know about transports. STDIO, HTTP/SSE, WebSocket — all the same: you decode bytes → Clojure map, hand to `handle-message`, and your `:send-message` fn writes the response back out. See [Kebab-case key transformation](kebab-case-transformation.md) for the JSON ↔ Clojure boundary.
