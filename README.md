@@ -200,9 +200,12 @@ lifting pieces of this into other projects.
 </details>
 
 Reference material lives in [`docs/reference/`](docs/reference). Most of
-it is preserved from upstream and marked as such. Migration guides:
-[2025-11-25](docs/reference/MIGRATION-2025-11-25.md) and
-[2025-06-18](docs/reference/MIGRATION-2025-06-18.md).
+it is preserved from upstream, but only
+[`MIGRATION-2025-06-18.md`](docs/reference/MIGRATION-2025-06-18.md) carries
+a preserved-from-upstream banner, since it is the only file that still
+shows upstream coordinates. The other migration guide,
+[2025-11-25](docs/reference/MIGRATION-2025-11-25.md), is this fork's own
+work.
 
 ## Build and test
 
