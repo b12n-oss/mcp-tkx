@@ -35,7 +35,7 @@ Versions prior to v0.1.0 are considered experimental, their API may change.
 - **Malli Schema Validation** (`mcp-toolkit.schema` namespace)
   - Comprehensive schemas for all MCP protocol types
   - Helper constructors for common patterns
-  - `valid?`, `validate!`, `explain` functions for validation
+  - `valid?`, `validate`, `explain` functions for validation
 
 ### Changed
 - **Internal naming convention** - All internal keys now use kebab-case

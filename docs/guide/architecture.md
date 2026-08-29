@@ -24,7 +24,7 @@ src/mcp_toolkit/
 | `mcp-toolkit.server` | yes | ~684 | Server-side public API. `create-session` is the entry point; everything else operates on the `context` (which holds the `session`). |
 | `mcp-toolkit.client` | yes | ~347 | Client-side public API. `create-session` (different shape — for clients), then `request-*` / `notify-*` fns to drive the server. |
 | `mcp-toolkit.json-rpc` | yes | ~202 | JSON-RPC plumbing. `handle-message` is the single entry point you call when an inbound JSON-RPC message arrives. `call-remote-method` is the outbound side. |
-| `mcp-toolkit.schema` | yes | ~791 | Malli schemas + `valid?` / `validate!` / `explain` + `!`-suffixed throwing constructors (`enum-schema!`, `url-elicitation!`, `form-elicitation!`, `tool-result-message!`). |
+| `mcp-toolkit.schema` | yes | ~791 | Malli schemas + `valid?` / `validate` / `explain` + `!`-suffixed throwing constructors (`enum-schema!`, `url-elicitation!`, `form-elicitation!`, `tool-result-message!`). |
 | `mcp-toolkit.impl.*` | **no** (`^:no-doc`) | ~280 total | Per-method handlers. You don't call these directly — they're wired into the session at create-time. |
 
 The split is deliberate: any code under `impl/` is meant to be evolved with the spec, while `server.cljc` / `client.cljc` / `json_rpc.cljc` / `schema.cljc` are the stable surface you depend on.

@@ -70,7 +70,7 @@ Full walkthrough: [Getting started](docs/guide/getting-started.md).
 | | What it gives you |
 |---|---|
 | **Kebab-case end to end** | Handlers see `:max-tokens` and `:input-schema`. The camelCase conversion lives in the transport layer, so no handler does field renaming. |
-| **Malli protocol registry** | `mcp-toolkit.schema` types the protocol itself: icons, sampling requests, elicitation, tasks, content blocks. `valid?` / `validate!` / `explain`, plus `!`-suffixed throwing constructors. |
+| **Malli protocol registry** | `mcp-toolkit.schema` types the protocol itself: icons, sampling requests, elicitation, tasks, content blocks. `valid?` / `validate` / `explain`, plus `!`-suffixed throwing constructors. |
 | **Dynamic resources** | A resource can compute its content at `resources/read` time through `:read-fn`, returning `:text`, `:blob`, `:contents` or `:error`, or a Promesa promise of any of them. |
 | **Four-version negotiation** | One build serves `2024-11-05` through `2025-11-25`, chosen at the handshake rather than pinned at compile time. |
 | **Cancellation that reaches your handler** | A per-request `is-cancelled` atom plus a `notifications/cancelled` handler, so long-running work can actually stop. |

@@ -40,7 +40,7 @@ Idiomatic Clojure code uses kebab-case. Mixing camelCase keys for protocol field
 
 ## Recipe 2 — Lift the Malli protocol-schema-registry pattern
 
-**You want:** A namespace of `def`-bound Malli schemas for the types in some external protocol (MCP, LSP, JSON-RPC, REST API), plus `valid?` / `validate!` / `explain` predicates and `!`-suffix throwing constructors that combine "build the value" with "validate the result."
+**You want:** A namespace of `def`-bound Malli schemas for the types in some external protocol (MCP, LSP, JSON-RPC, REST API), plus `valid?` / `validate` / `explain` predicates and `!`-suffix throwing constructors that combine "build the value" with "validate the result."
 
 **Lift from:** `src/mcp_toolkit/schema.cljc` — the structure not the contents.
 

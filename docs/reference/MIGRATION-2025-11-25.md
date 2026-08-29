@@ -197,10 +197,18 @@ New Malli-based schema validation in `mcp-toolkit.schema`:
 (schema/explain schema/Icon "http://bad.com/icon.png")
 ;; => ["Icon must be a data:image/ URI or https:// URL"]
 
-;; Validate and throw on error
-(schema/validate! schema/Icon "https://example.com/icon.png")  ;; => true
-(schema/validate! schema/Icon "bad")  ;; throws ExceptionInfo
+;; Result map — {:valid? true} or {:valid? false :errors [...]}
+(schema/validate schema/Icon "https://example.com/icon.png")
+;; => {:valid? true}
+(schema/validate schema/Icon "bad")
+;; => {:valid? false, :errors ["Icon must be a data:image/ URI or https:// URL"]}
 ```
+
+There is no throwing `validate!` function. If you want validate-then-throw
+behaviour, use one of the `!`-suffixed constructors instead (`enum-schema!`,
+`tool-result-message!`, `url-elicitation!`, `form-elicitation!`), which build
+a value and throw `ExceptionInfo` if it doesn't pass its schema. See
+[Schema validation](../guide/schema-validation.md) for the full picture.
 
 ### Available Schemas
 
