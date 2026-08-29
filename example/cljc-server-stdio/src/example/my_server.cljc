@@ -143,9 +143,9 @@
 
   (server/remove-tool context parentify-tool)
 
-  (server/send-log-data context "info" "mcp-toolkit" {:message "Made in Finland"})
+  (server/notify-log context "info" "mcp-toolkit" {:message "Made in Finland"})
 
-  (server/send-log-data context "emergency" "datacenter" {:error "HCF"})
+  (server/notify-log context "emergency" "datacenter" {:error "HCF"})
 
   (some-> (server/request-sampling context {:messages [{:role "user"
                                                         :content {:type "text"

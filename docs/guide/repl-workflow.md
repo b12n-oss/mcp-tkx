@@ -253,8 +253,8 @@ The example server has a rich-comment block with copy-pasteable REPL forms. Wort
   (server/add-tool context parentify-tool)
   (server/remove-tool context parentify-tool)
 
-  (server/send-log-data context "info" "mcp-toolkit" {:message "Made in Finland"})
-  (server/send-log-data context "emergency" "datacenter" {:error "HCF"})
+  (server/notify-log context "info" "mcp-toolkit" {:message "Made in Finland"})
+  (server/notify-log context "emergency" "datacenter" {:error "HCF"})
 
   (some-> (server/request-sampling
            context
