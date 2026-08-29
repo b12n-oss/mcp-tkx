@@ -227,10 +227,19 @@ work.
 ## Build and test
 
 ```sh
-bb test    # full suite, Clojure and ClojureScript, via kaocha
-bb check   # compile and lint, run this before committing
-bb info    # categorised cheat-sheet of every task
+bb test      # full suite, Clojure and ClojureScript, via kaocha
+bb check     # compile and lint, run this before committing
+bb coverage  # test coverage report, JVM only, see below
+bb info      # categorised cheat-sheet of every task
 ```
+
+`bb coverage` runs [cloverage](https://github.com/cloverage/cloverage)
+and writes an HTML report to `target/coverage/index.html`. It measures
+only the JVM run, because cloverage does not support ClojureScript. That
+covers the whole library anyway: `src/` contains no reader conditionals,
+so every line the ClojureScript build compiles is exercised on the JVM
+too. Nothing fails on a coverage number; it is a report to read, not a
+gate.
 
 ## Acknowledgements
 

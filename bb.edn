@@ -127,6 +127,18 @@
                                          "clj" "-M:test" "--focus" ":kaocha/type :kaocha.type/cljs")]
              (System/exit exit)))}
 
+  coverage
+  {:doc "Test coverage report via cloverage (JVM only; see deps.edn :coverage)"
+   :task (do
+           (header "📊 Measuring Test Coverage")
+           (info "JVM only. src/ has no reader conditionals, so this covers")
+           (info "every line the ClojureScript build compiles too.")
+           (let [{:keys [exit]} (p/shell {:continue true} "clj" "-M:coverage" "--text")]
+             (if (zero? exit)
+               (success "HTML report: target/coverage/index.html")
+               (error-msg "Coverage run failed"))
+             (System/exit exit)))}
+
   ;; =============================================================================
   ;; Linting (clj-kondo)
   ;; =============================================================================
@@ -570,6 +582,7 @@ echo \"✅ All pre-commit checks passed!\"
            (println "   bb test:watch    Watch mode")
            (println "   bb test:focus    Focus on specific test")
            (println "   bb test:cljs     Run ClojureScript tests")
+           (println "   bb coverage      Coverage report (JVM only)")
            (println "")
            (println "🔍 Code Quality:")
            (println "   bb check          ⭐ Fast check (compile + lint)")

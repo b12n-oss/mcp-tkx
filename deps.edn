@@ -16,6 +16,23 @@
              :extra-deps  {lambdaisland/kaocha      {:mvn/version "1.91.1392"}
                            lambdaisland/kaocha-cljs {:mvn/version "1.9.181"}}
              :main-opts   ["-m" "kaocha.runner"]}
+  ;; Coverage, JVM only. Run via `bb coverage`.
+  ;;
+  ;; Cloverage does not support ClojureScript, and normally that would
+  ;; matter for a CLJC library whose suite runs on both. It does not
+  ;; here: src/ contains no reader conditionals, so every line the
+  ;; ClojureScript build compiles is also exercised on the JVM. The
+  ;; number below covers the whole library, not half of it.
+  ;;
+  ;; Deliberately NOT the kaocha-cloverage plugin, which has had no
+  ;; commits since 2023 and pins kaocha 0.0-601 against our 1.91.
+  :coverage {:extra-paths ["test"]
+             :extra-deps  {cloverage/cloverage  {:mvn/version "1.2.4"}
+                           lambdaisland/kaocha  {:mvn/version "1.91.1392"}}
+             :main-opts   ["-m" "cloverage.coverage"
+                           "--src-ns-path" "src"
+                           "--test-ns-path" "test"]}
+
   ;; clojure -M:outdated --upgrade
   :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
              :main-opts  ["-m" "antq.core"]}

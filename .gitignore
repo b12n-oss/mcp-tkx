@@ -11,3 +11,4 @@ out/
 # clojure-mcp
 .clojure-mcp/
 mcp-toolkit.jar
+target/
