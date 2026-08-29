@@ -80,27 +80,56 @@ Full walkthrough: [Getting started](docs/guide/getting-started.md).
 Versions are negotiated automatically at the initial handshake:
 `2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25`.
 
-Note that `2025-06-18` removed JSON-RPC batching, so array requests are
-rejected on that revision and later.
+JSON-RPC batching was removed in `2025-06-18`. Note that this library
+rejects array requests on **every** version, not only that one, so a
+`2024-11-05` or `2025-03-26` client that sends a batch gets
+`-32600 Invalid Request` back. See `json_rpc.cljc`, which does not
+consult the negotiated version before rejecting.
 
 | Capability | Since | Status |
 |---|---|---|
 | Prompts, resources, tools | `2024-11-05` | Full |
 | Cancellation, ping, progress | `2024-11-05` | Full |
-| Roots, sampling | `2024-11-05` | Full |
+| Roots | `2024-11-05` | Full |
+| Sampling | `2024-11-05` | Partial, see below |
 | Completion, logging | `2024-11-05` | Full |
 | Title fields | `2025-06-18` | Full |
-| `_meta` passthrough | `2025-06-18` | Full |
+| `_meta` passthrough | `2025-06-18` | Partial, see below |
 | Output schema on `tools/list` | `2025-06-18` | Advertised, results not validated |
 | Resource links | `2025-06-18` | Not implemented |
 | Elicitation, form and URL | `2025-11-25` | Full |
-| Sampling with tools | `2025-11-25` | Full |
-| Icons | `2025-11-25` | Full |
+| Sampling with tools | `2025-11-25` | Partial, see below |
+| Icons | `2025-11-25` | Partial, see below |
 | Server description | `2025-11-25` | Full |
 | JSON Schema 2020-12 dialect | `2025-11-25` | Full |
 | Tasks | `2025-11-25` | Experimental, as in the spec |
 | Dynamic resources via `:read-fn` | fork | Full |
 | Pagination | any | Not implemented |
+
+<details>
+<summary><b>What the partial rows mean</b></summary>
+
+**Sampling, and sampling with tools.** `request-sampling` carries a
+`FIXME: implementation is not complete` marker in the source, inherited
+from upstream. Capability detection around it is complete, so
+`client-supports-sampling-tools?` and friends work; the request path is
+the part that is not finished.
+
+**Icons.** The spec puts `icons?: Icon[]` on tools, prompts, resources
+and server info, where each `Icon` is an object with `src`, and
+optionally `mimeType`, `sizes` and `theme`. This library ships a
+singular `:icon` holding a bare URI string, and does not attach icons to
+server info at all. A spec-conforming client will therefore not see an
+icon. Treat it as a working convention inside this library rather than
+as spec support.
+
+**`_meta` passthrough.** Inbound `_meta` reaches your handler, and a
+`_meta` you put on a result travels back out. But the `prompts/list`,
+`resources/list` and `tools/list` handlers select a fixed set of keys
+and drop `:_meta` from each entry, so metadata attached to a
+registration does not appear in listings.
+
+</details>
 
 <details>
 <summary><b>Runtimes, content blocks, and what is missing</b></summary>
