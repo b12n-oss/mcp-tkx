@@ -45,8 +45,6 @@ If you are working on this fork itself, or want it on your classpath without pin
         camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}}}
 ```
 
-This is how [a-private-project](https://github.com/mauricioszabo/spock) consumes the fork.
-
 ## Your first MCP server (STDIO)
 
 The toolkit ships a complete worked example at `example/cljc-server-stdio/`. Run it:

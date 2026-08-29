@@ -229,18 +229,17 @@ Returning the swap result (an updated map) leaks internal session state to the R
 
 | Recipe | Used by |
 |---|---|
-| 1 — Kebab-case JSON-RPC transport | a-private-project's MCP STDIO server (via `:local/root` dep on this fork); any future Clojure JSON-RPC server in the umbrella |
+| 1 — Kebab-case JSON-RPC transport | Any Clojure JSON-RPC server that wants kebab-case handlers over a camelCase wire |
 | 2 — Malli protocol-schema registry | a-private-project (different domain — App Store Connect resource types — same pattern) |
-| 3 — Dynamic resources via `:read-fn` | a-private-project's skill-template registry, future REST API mock servers |
+| 3 — Dynamic resources via `:read-fn` | Registry-style APIs whose entries are computed on demand |
 | 4 — Multi-version handshake negotiation | Any future evolving-spec library in the umbrella |
 | 5 — Cancellation via atom | Any long-running tool-fn / prompt-fn in any MCP server built on this fork; lifts to non-MCP async handlers |
-| 6 — REPL-aware notification helpers | a-private-project's MCP server uses this; pattern lifts to any registry-style API where REPL-time inspection is a user feature |
+| 6 — REPL-aware notification helpers | Any registry-style API where REPL-time inspection is a user feature |
 
 ## See also
 
 - [Index](index.md) — the guide overview.
 - [Architecture](architecture.md) — orientation for where each pattern sits in the namespace map.
 - The sibling-project extraction-recipes pages for patterns that compose well with these:
-  - [`a-private-project/extraction-recipes.md`](https://github.com/mauricioszabo/spock/blob/main/docs/guide/extraction-recipes.md) — Z3 subprocess bridge, Mermaid → Prolog, GraalVM-friendly index.edn.
   - [`a-private-project/extraction-recipes.md`](https://github.com/burinc/a-private-project/blob/main/docs/guide/extraction-recipes.md) — read-only guardrail, dry-run via dynamic var, pure-Java ES256 JWT.
   - [`a-private-project/extraction-recipes.md`](https://github.com/burinc/a-private-project/blob/main/docs/guide/extraction-recipes.md) — multi-TTL SQLite cache, JWT-via-shared-secret middleware.
