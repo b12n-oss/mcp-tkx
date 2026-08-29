@@ -1,6 +1,6 @@
 # Extraction recipes
 
-Lift-and-shift recipes for reusable patterns from `a-downstream-project`. Same template as the sibling projects — each recipe answers "what do I copy, what do I skip, how long does it take, what trips you up." See [`a-private-project/extraction-recipes.md`](https://github.com/burinc/a-private-project/blob/main/docs/guide/extraction-recipes.md) for the canonical form.
+Lift-and-shift recipes for reusable patterns from `mcp-tkx`. Same template as the sibling projects — each recipe answers "what do I copy, what do I skip, how long does it take, what trips you up." See [`a-private-project/extraction-recipes.md`](https://github.com/burinc/a-private-project/blob/main/docs/guide/extraction-recipes.md) for the canonical form.
 
 ---
 

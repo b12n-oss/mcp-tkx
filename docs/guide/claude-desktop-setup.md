@@ -1,6 +1,6 @@
 # Claude Desktop / Claude Code setup
 
-This page covers the actual config files for plugging an `a-downstream-project` server into the two main Anthropic clients. Both clients support STDIO; Claude Code also supports SSE (Claude Desktop does not, as of November 2025).
+This page covers the actual config files for plugging an `mcp-tkx` server into the two main Anthropic clients. Both clients support STDIO; Claude Code also supports SSE (Claude Desktop does not, as of November 2025).
 
 ## Claude Desktop (STDIO)
 
@@ -23,7 +23,7 @@ For the example STDIO server in this repo:
       "command": "/bin/sh",
       "args": [
         "-c",
-        "cd /path/to/a-downstream-project/example/cljc-server-stdio && clojure -X:mcp-server"
+        "cd /path/to/mcp-tkx/example/cljc-server-stdio && clojure -X:mcp-server"
       ]
     }
   }
@@ -81,7 +81,7 @@ The repo ships a `docker-compose.yml` and `Dockerfile` for running the example s
       "command": "/bin/sh",
       "args": [
         "-c",
-        "cd /path/to/a-downstream-project && docker-compose run --service-ports --rm mcp-server clojure -X:mcp-server '{:bind \"0.0.0.0\"}'"
+        "cd /path/to/mcp-tkx && docker-compose run --service-ports --rm mcp-server clojure -X:mcp-server '{:bind \"0.0.0.0\"}'"
       ]
     }
   }
@@ -205,7 +205,7 @@ Claude Desktop / Claude Code support multiple servers concurrently. Each entry u
     "toolkit": {
       "command": "clj",
       "args": ["-X:mcp-server"],
-      "cwd": "/path/to/a-downstream-project/example/cljc-server-stdio"
+      "cwd": "/path/to/mcp-tkx/example/cljc-server-stdio"
     },
     "ts-mcp": {
       "command": "node",

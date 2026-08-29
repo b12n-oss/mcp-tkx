@@ -2,7 +2,7 @@
 
 ## What you'll have at the end of this page
 
-- `a-downstream-project` on your classpath via `deps.edn` (or `:local/root`).
+- `mcp-tkx` on your classpath via `deps.edn` (or `:local/root`).
 - A minimal STDIO MCP server in CLJC running locally.
 - A successful smoke test against the [MCP Inspector](https://github.com/modelcontextprotocol/inspector).
 - (Optional) the same server connected to Claude Desktop.
@@ -22,20 +22,24 @@
 ### Via `deps.edn` (Clojars)
 
 ```clojure
-{:deps {fi.metosin/mcp-toolkit {:mvn/version "2025-11-25"}
-        funcool/promesa        {:mvn/version "11.0.678"}
-        metosin/jsonista       {:mvn/version "0.3.13"}
-        camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}}}
+{:deps {io.github.burinc/mcp-tkx
+        {:git/url "git@github.com:burinc/mcp-tkx.git"
+         :git/sha "88313b1760046d757943f37d842eb131d3d8edd1"}}}
 ```
 
-`promesa` is required (the message handlers can return promises). `jsonista` + `camel-snake-kebab` are required on the JVM for the kebab-case ↔ camelCase wire transformation — see [Kebab-case key transformation](kebab-case-transformation.md).
+The SSH URL is deliberate. This repo is private, so the shorter
+`io.github.burinc/mcp-tkx {:git/tag ...}` form would resolve to an
+unauthenticated `https://` URL and fail even for someone who has
+access over SSH.
+
+There is no Clojars release, so there is no `:mvn/version` form.
 
 ### Via `:local/root` (this fork)
 
 If you want the extended fork features (kebab-case transport, Malli schemas, 2025-11-25 protocol) before they are published, clone this repo and depend on it locally:
 
 ```clojure
-{:deps {fi.metosin/mcp-toolkit {:local/root "/path/to/a-downstream-project"}
+{:deps {io.github.burinc/mcp-tkx {:local/root "/path/to/mcp-tkx"}
         funcool/promesa        {:mvn/version "11.0.678"}
         metosin/jsonista       {:mvn/version "0.3.13"}
         camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}}}
@@ -178,7 +182,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
       "command": "/bin/sh",
       "args": [
         "-c",
-        "cd /path/to/a-downstream-project/example/cljc-server-stdio && clojure -X:mcp-server"
+        "cd /path/to/mcp-tkx/example/cljc-server-stdio && clojure -X:mcp-server"
       ]
     }
   }

@@ -1,6 +1,6 @@
-# a-downstream-project — User guide
+# mcp-tkx — User guide
 
-`a-downstream-project` is a Clojure / ClojureScript library for building MCP ([Model Context Protocol](https://modelcontextprotocol.io/)) **clients and servers**. It is a fork of [Metosin's `fi.metosin/mcp-toolkit`](https://github.com/metosin/mcp-toolkit) with extended protocol support and a kebab-case-first developer experience.
+`mcp-tkx` is a Clojure / ClojureScript library for building MCP ([Model Context Protocol](https://modelcontextprotocol.io/)) **clients and servers**. It is a fork of [Metosin's `mcp-toolkit`](https://github.com/metosin/mcp-toolkit) with extended protocol support and a kebab-case-first developer experience.
 
 What's distinctive about this fork:
 
@@ -83,13 +83,13 @@ This guide focuses on the **reusable building blocks** — the patterns that lif
 | Dynamic resources via `:read-fn` returning `{:text}` / `{:blob}` / `{:contents}` / `{:error}` (or a Promesa promise of any) | `src/mcp_toolkit/impl/server/handler.cljc` (`resource-read-handler`) | (none — most MCP SDKs only support static resource content) |
 | Multi-version automatic negotiation against `:server-supported-protocol-versions` (`["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]`) | `src/mcp_toolkit/impl/server/handler.cljc` (`initialize-handler`) | (none — most MCP SDKs hardcode a single version) |
 | MCP cancellation via per-request `is-cancelled` atom + `notifications/cancelled` handler | `src/mcp_toolkit/json_rpc.cljc` (`route-message`) + `src/mcp_toolkit/impl/server/handler.cljc` (`cancelled-notification-handler`) | (none — Promesa promises don't have a built-in cancel signal; this pattern lifts to any long-running async handler) |
-| `a-downstream-project` itself is consumed via `:local/root` by [a-private-project](https://github.com/mauricioszabo/spock) | `a-private-project`'s `:spock-mcp` alias depends on this fork at `:local/root "../a-downstream-project"` | — (downstream user) |
+| `mcp-tkx` itself is consumed via `:local/root` by [a-private-project](https://github.com/mauricioszabo/spock) | `a-private-project`'s `:spock-mcp` alias depends on this fork at `:local/root "../mcp-tkx"` | — (downstream user) |
 
 If you're picking patterns:
 
 - **Building a Clojure MCP server** — start at [Getting started](getting-started.md), then [Architecture](architecture.md). Most server work fits the prompt / resource / tool registration pattern; you don't need to touch `impl/`.
 - **Wiring an MCP server into a different JSON-RPC framework** — the [Extraction recipes](extraction-recipes.md) Recipe 1 lifts the kebab-case transport pattern out of the toolkit. The schema validation in Recipe 2 is independent of MCP.
-- **Adding logic-programming / formal-verification capabilities to an MCP server** — see [a-private-project](https://github.com/mauricioszabo/spock), the canonical downstream user of this fork. Spock exposes 9 tools (Z3 verify, Prolog solve, call-graph analysis, Mermaid → Prolog) over `a-downstream-project`'s STDIO server.
+- **Adding logic-programming / formal-verification capabilities to an MCP server** — see [a-private-project](https://github.com/mauricioszabo/spock), the canonical downstream user of this fork. Spock exposes 9 tools (Z3 verify, Prolog solve, call-graph analysis, Mermaid → Prolog) over `mcp-tkx`'s STDIO server.
 
 ## Build & dev
 
@@ -117,5 +117,5 @@ bb tasks                     # list every task with its docstring
 - [`CHANGELOG.md`](../../CHANGELOG.md) — version history per release; `v2025-11-25` is the unreleased entry covering the 9 phases of the upstream-spec port (Phase 0 = kebab-case transport, Phase 1 = protocol negotiation, Phase 2 = server description, Phase 3 = icons, Phase 4 = Malli schemas, Phase 5 = sampling with tools, Phase 6 = elicitation, Phase 7 = tasks, Phase 9 = JSON Schema 2020-12 dialect).
 - [`docs/reference/`](../reference/) — preserved upstream Metosin docs (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, `MIGRATION-2025-11-25.md`).
 - [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md) — the older migration writeup (added by upstream when bumping from 2025-03-26 → 2025-06-18).
-- [a-private-project](https://github.com/burinc/a-private-project) — central wiki hub for all b12n projects; `a-downstream-project` is mirrored there as a sibling-project reference.
-- [a-private-project](https://github.com/mauricioszabo/spock) — canonical downstream user of this fork; its MCP server runs over `a-downstream-project` via `:local/root`.
+- [a-private-project](https://github.com/burinc/a-private-project) — central wiki hub for all b12n projects; `mcp-tkx` is mirrored there as a sibling-project reference.
+- [a-private-project](https://github.com/mauricioszabo/spock) — canonical downstream user of this fork; its MCP server runs over `mcp-tkx` via `:local/root`.
