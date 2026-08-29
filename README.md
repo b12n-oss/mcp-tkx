@@ -275,12 +275,31 @@ without either side needing to agree.
 
 </details>
 
-## Other MCP libraries for Clojure
+## Other MCP projects in Clojure
 
-- [MCP Clojure SDK](https://github.com/unravel-team/mcp-clojure-sdk)
-- [Clojure MCP](https://github.com/bhauman/clojure-mcp)
-- Calva's [Backseat Driver](https://github.com/BetterThanTomorrow/calva-backseat-driver)
-- [Modex](https://github.com/theronic/modex)
+The ecosystem moved quickly, and there are now several libraries to
+choose between. Approaches differ mainly in whether they implement the
+protocol in Clojure or wrap the official Java SDK, so that is the column
+worth scanning.
+
+| Library | Approach |
+|---|---|
+| [plumcp](https://github.com/plumce/plumcp) | Clojure and ClojureScript, servers and clients. The closest sibling to this one. |
+| [mcp-clj](https://github.com/hugoduncan/mcp-clj) | Pure Clojure, minimal dependencies, self-contained REPL integration |
+| [MCP Clojure SDK](https://github.com/unravel-team/mcp-clojure-sdk) | Servers, with clients planned |
+| [Modex](https://github.com/theronic/modex) | Servers and clients, covering tools, resources and prompts |
+| [mcp-server](https://github.com/RokLenarcic/mcp-server) | Lightweight and dependency-light, self-described as alpha |
+| [Gaiwan mcp-sdk](https://github.com/GaiwanTeam/mcp-sdk) | Pure Clojure, STDIO and HTTP transports |
+| [latacora/mcp-sdk](https://github.com/latacora/mcp-sdk) | A Ring adapter over the official Java SDK |
+| [MCP 2000XL](https://github.com/lukaszkorecki/mcp2000xl) | Wraps the Java SDK, leaves the transport to you |
+
+Servers and tooling, if you want something to run rather than something
+to build on:
+
+- [Clojure MCP](https://github.com/bhauman/clojure-mcp), an MCP server giving assistants a Clojure REPL and editing tools
+- [clojure-mcp-light](https://github.com/bhauman/clojure-mcp-light), the same idea as plain CLI tools, deliberately not an MCP server
+- Calva's [Backseat Driver](https://github.com/BetterThanTomorrow/calva-backseat-driver), a VS Code extension that can also act as an MCP server
+- [repl-mcp](https://github.com/simm-is/repl-mcp), REPL integration plus development tooling over MCP
 
 ## License
 
