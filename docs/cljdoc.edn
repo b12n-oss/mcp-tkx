@@ -1,10 +1,27 @@
+;; INERT while no Clojars release exists: cljdoc only builds docs for
+;; published artifacts. Kept, and kept current, so that a future release
+;; publishes the right tree rather than a stale one. See ROADMAP.md.
 {:cljdoc.doc/tree [["Readme" {:file "README.md"}]
                    ["Changes" {:file "CHANGELOG.md"}]
-                   ["Introduction" {:file "docs/reference/introduction.md"}]
-                   ["API design" {:file "docs/reference/api-design.md"}]
-                   ["Session" {:file "docs/reference/session.md"}]
-                   ["Context" {:file "docs/reference/context.md"}]
-                   ["Using the library" {:file "docs/reference/using-the-library.md"}]
-                   ["REPL story" {:file "docs/reference/repl-story.md"}]
-                   ["Migration Guides" [["2025-11-25 Migration" {:file "docs/reference/MIGRATION-2025-11-25.md"}]
-                                        ["2025-06-18 Migration" {:file "docs/reference/MIGRATION-2025-06-18.md"}]]]]}
+                   ["User guide" {:file "docs/guide/index.md"}
+                    [["Getting started" {:file "docs/guide/getting-started.md"}]
+                     ["Architecture" {:file "docs/guide/architecture.md"}]
+                     ["Kebab-case transformation" {:file "docs/guide/kebab-case-transformation.md"}]
+                     ["Protocol versions" {:file "docs/guide/protocol-versions.md"}]
+                     ["Schema validation" {:file "docs/guide/schema-validation.md"}]
+                     ["Dynamic resources" {:file "docs/guide/dynamic-resources.md"}]
+                     ["2025-11-25 features" {:file "docs/guide/2025-11-25-features.md"}]
+                     ["Claude Desktop setup" {:file "docs/guide/claude-desktop-setup.md"}]
+                     ["Streamable HTTP" {:file "docs/guide/streamable-http.md"}]
+                     ["REPL workflow" {:file "docs/guide/repl-workflow.md"}]
+                     ["Extraction recipes" {:file "docs/guide/extraction-recipes.md"}]]]
+                   ["Reference"
+                    [["Introduction" {:file "docs/reference/introduction.md"}]
+                     ["API design" {:file "docs/reference/api-design.md"}]
+                     ["Session" {:file "docs/reference/session.md"}]
+                     ["Context" {:file "docs/reference/context.md"}]
+                     ["Using the library" {:file "docs/reference/using-the-library.md"}]
+                     ["REPL story" {:file "docs/reference/repl-story.md"}]]]
+                   ["Migration Guides"
+                    [["2025-11-25 Migration" {:file "docs/reference/MIGRATION-2025-11-25.md"}]
+                     ["2025-06-18 Migration" {:file "docs/reference/MIGRATION-2025-06-18.md"}]]]]}

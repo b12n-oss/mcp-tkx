@@ -453,7 +453,7 @@ echo \"✅ All pre-commit checks passed!\"
            (success "JAR built"))}
 
   deploy
-  {:doc "Deploy to Clojars (requires CLOJARS credentials)"
+  {:doc "Deploy to Clojars (UNUSED: no release is planned, see ROADMAP.md)"
    :task (do
            (header "🚀 Deploying to Clojars")
            (if (and (System/getenv "CLOJARS_USERNAME")
@@ -595,7 +595,7 @@ echo \"✅ All pre-commit checks passed!\"
            (println "📦 Build & Deploy:")
            (println "   bb clean         Clean build artifacts")
            (println "   bb jar           Build library JAR")
-           (println "   bb deploy        Deploy to Clojars")
+           (println "   bb deploy        Deploy to Clojars (unused, no release planned)")
            (println "")
            (println "📊 Utilities:")
            (println "   bb loc           Count lines of code")

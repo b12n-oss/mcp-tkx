@@ -19,7 +19,7 @@
 
 ## Install
 
-### Via `deps.edn` (Clojars)
+### Via `deps.edn` (git SHA)
 
 ```clojure
 {:deps {io.github.burinc/mcp-tkx
@@ -36,7 +36,7 @@ There is no Clojars release, so there is no `:mvn/version` form.
 
 ### Via `:local/root` (this fork)
 
-If you want the extended fork features (kebab-case transport, Malli schemas, 2025-11-25 protocol) before they are published, clone this repo and depend on it locally:
+If you are working on this fork itself, or want it on your classpath without pinning a SHA, clone the repo and depend on it locally:
 
 ```clojure
 {:deps {io.github.burinc/mcp-tkx {:local/root "/path/to/mcp-tkx"}
