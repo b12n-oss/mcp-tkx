@@ -93,25 +93,35 @@ Add a description to your server:
 Request user input via forms or URLs:
 
 ```clojure
-(require '[mcp-toolkit.server :as server])
+(require '[mcp-toolkit.server :as server]
+         '[mcp-toolkit.schema :as schema])
 
 ;; Check if client supports elicitation
 (when (server/client-supports-elicitation? context)
-  
-  ;; Form-based elicitation
+
+  ;; Form-based elicitation. :mode defaults to "form".
   (server/request-elicitation context
     {:message "Please provide details"
      :requested-schema {:type "object"
                         :properties {:name {:type "string"}
                                      :email {:type "string"}}
                         :required [:name :email]}})
-  
+
   ;; URL-based elicitation (for OAuth flows)
   (when (server/client-supports-url-elicitation? context)
     (server/request-elicitation context
-      {:url "https://auth.example.com/oauth/authorize?..."
-       :message "Please sign in with your account"})))
+      (schema/url-elicitation
+        {:elicitation-id "550e8400-e29b-41d4-a716-446655440000"
+         :url            "https://auth.example.com/oauth/authorize"
+         :message        "Please sign in with your account"}))))
 ```
+
+URL mode requires `:mode "url"`, `:elicitation-id` and `:url`, and
+`request-elicitation` defaults `:mode` to `"form"` when it is absent. So
+build the request with `schema/url-elicitation`, which fills all three in
+for you, rather than assembling the map by hand and having it silently
+take the form-mode path. Use `schema/url-elicitation!` if you want it to
+throw on an invalid request instead of returning one.
 
 ### Sampling with Tools
 
