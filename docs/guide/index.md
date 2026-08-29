@@ -109,7 +109,7 @@ bb tasks                     # list every task with its docstring
 ## Not covered yet
 
 - **Pagination** — listed as `[ ]` in the README's feature matrix; not yet wired through `prompts/list`, `resources/list`, `tools/list`. Implementations leave a `#_#_:next-cursor "next-page-cursor"` placeholder in the handler.
-- **Babashka support** — the CLJC core is JVM + JS (shadow-cljs); the JVM path uses `jsonista` (a Jackson wrapper) which doesn't run on bb's smaller classpath. Listed as `[ ]` in the upstream feature matrix.
+- **Babashka support** — the CLJC core runs on the JVM and on Node via shadow-cljs. It does not load on Babashka: the failure is inside `promesa`, which `mcp-toolkit.json-rpc` depends on for its promise-based handler contract. Verified with `bb --classpath $(clojure -Spath)`, which fails loading `promesa.util` at `promesa/util.cljc:9:3` (an unresolvable `java.util.concurrent.locks.ReentrantLock` import), reached via `server` to `impl.server.handler` to `json-rpc` to `promesa.core`. Supporting bb means finding a promise layer that bb can load.
 
 ## See also
 
