@@ -187,6 +187,6 @@ Each `:contents` entry is returned verbatim — no merge, no metadata inheritanc
 ## See also
 
 - The handler that drives this: [`src/mcp_toolkit/impl/server/handler.cljc`](../../src/mcp_toolkit/impl/server/handler.cljc) `resource-read-handler`.
-- The README's "Dynamic Resources" section in the project root for the spec-level summary.
+- The README's "What this fork adds" table, "Dynamic resources" row, in the project root for the spec-level summary.
 - [REPL workflow](repl-workflow.md) — for the related pattern of mutating resource registrations from a REPL while the server is live.
 - [Extraction recipes](extraction-recipes.md) Recipe 3 — lifting this dynamic-resource pattern into another resource-based service.

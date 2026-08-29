@@ -6,7 +6,7 @@ What's distinctive about this fork:
 
 - **Four protocol versions in one library** — `2024-11-05`, `2025-03-26`, `2025-06-18`, and `2025-11-25` (latest), automatically negotiated at the initial handshake.
 - **Kebab-case keys end-to-end** — your Clojure code uses `:max-tokens` / `:input-schema` / `:list-changed`; the wire format (`maxTokens` / `inputSchema` / `listChanged`) is produced and consumed at the transport layer via `camel-snake-kebab`. No bespoke per-field renaming inside handlers.
-- **Malli-based schema validation** — `mcp-toolkit.schema` ships ~25+ schemas for protocol types (icons, sampling tools, elicitation requests, tasks, content blocks). `valid?` / `validate` / `explain` for sanity-checking your tool definitions and request shapes before you ship them.
+- **Malli-based schema validation** — `mcp-toolkit.schema` ships 31 schemas for protocol types (icons, sampling tools, elicitation requests, tasks, content blocks). `valid?` / `validate` / `explain` for sanity-checking your tool definitions and request shapes before you ship them.
 - **Dynamic resources via `:read-fn`** — resources can compute `:text` / `:blob` / `:contents` on demand at `resources/read` time, returning a plain map or a Promesa promise.
 - **2025-11-25 spec features wired up** — Elicitation (form + URL mode for OAuth flows), Tasks (long-running operation state machines), Sampling with Tools (LLM tool use during sampling), Icons (data: URIs or https:// URLs), Server Description, JSON Schema 2020-12 dialect.
 - **CLJC** — runs on the JVM via `jsonista` / nREPL or on Node.js via `shadow-cljs` with no transport-specific changes to your handler code.
@@ -111,7 +111,7 @@ bb tasks                     # list every task with its docstring
 
 ## See also
 
-- [Project README](../../README.md) — protocol and feature support table, dynamic-resource examples, other-MCP-libs comparison.
+- [Project README](../../README.md) — protocol and feature support table, the dynamic-resources capability row, other-MCP-libs comparison.
 - [`CHANGELOG.md`](../../CHANGELOG.md) — version history per release; `v2025-11-25` is the unreleased entry covering the 9 phases of the upstream-spec port (Phase 0 = kebab-case transport, Phase 1 = protocol negotiation, Phase 2 = server description, Phase 3 = icons, Phase 4 = Malli schemas, Phase 5 = sampling with tools, Phase 6 = elicitation, Phase 7 = tasks, Phase 9 = JSON Schema 2020-12 dialect).
 - [`docs/reference/`](../reference/) — preserved upstream Metosin docs (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, `MIGRATION-2025-06-18.md`).
 - [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md) — the older migration writeup (added by upstream when bumping from 2025-03-26 → 2025-06-18).

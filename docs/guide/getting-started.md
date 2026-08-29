@@ -167,7 +167,7 @@ Open the printed URL in your browser. You should see:
 - One tool (`parentify`)
 - One resource template (`file:///doc/{path}`)
 
-Click **Connect**, then **Tools → parentify**, type `hello world` into the `text` input, and press **Run Tool**. You should see `(hello world)` come back, with three progress events along the way.
+Click **Connect**, then **Tools → parentify**, type `hello world` into the `text` input, and press **Run Tool**. You should see `(hello world)` come back, with two progress events along the way.
 
 ## Smoke test 2 — Claude Desktop
 

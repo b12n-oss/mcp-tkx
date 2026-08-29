@@ -93,7 +93,7 @@ This is the table of every conversion that fires in the MCP protocol — pulled 
 | `includeContext` | `:include-context` |
 | `requestedSchema` | `:requested-schema` |
 | `elicitationId` | `:elicitation-id` |
-| `urlMessage` | `:url-message` |
+| `statusMessage` | `:status-message` |
 | `enumTitles` | `:enum-titles` |
 | `multiSelect` | `:multi-select` |
 | `taskId` | `:task-id` |

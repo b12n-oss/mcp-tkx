@@ -282,4 +282,4 @@ The library automatically negotiates protocol versions with clients:
 
 - [MCP Specification 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 - [MCP Changelog](https://modelcontextprotocol.io/specification/2025-11-25/changelog)
-- [Implementation Checklist](MIGRATION-2025-11-25-CHECKLIST.md)
+- [Implementation Checklist](archive/MIGRATION-2025-11-25-CHECKLIST.md)

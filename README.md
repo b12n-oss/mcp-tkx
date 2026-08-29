@@ -192,8 +192,8 @@ transports are directly comparable.
 
 ## Documentation
 
-The [user guide](docs/guide/index.md) is the place to start. Twelve
-pages covering the architecture, all four protocol revisions, schema
+The [user guide](docs/guide/index.md) is the place to start. Eleven
+more pages cover the architecture, all four protocol revisions, schema
 validation, both HTTP transports, the REPL workflow, and recipes for
 lifting pieces of this into other projects.
 

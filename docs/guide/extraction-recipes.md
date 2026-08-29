@@ -62,7 +62,7 @@ Idiomatic Clojure code uses kebab-case. Mixing camelCase keys for protocol field
 - `malli.error/humanize` returns a tree of strings that maps back to the input shape — debuggable error output for free.
 - No instrumentation overhead at runtime — schemas are values, you call `validate` / `valid?` on them at boundaries.
 
-**Effort:** ~3 hours for ~20 schemas, depending on how many inline `:fn` validators you need.
+**Effort:** ~3 hours for 31 schemas, depending on how many inline `:fn` validators you need.
 
 **Hidden traps:**
 
