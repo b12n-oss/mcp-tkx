@@ -47,14 +47,15 @@ A server with one tool, over STDIO:
    :input-schema {:type       "object"
                   :properties {"name" {:type "string"}}
                   :required   ["name"]}
-   :tool-fn      (fn [context {:strs [name]}]
+   :tool-fn      (fn [context {:keys [name]}]
                    {:content [{:type "text"
                                :text (str "Hello, " name)}]})})
 
 (def session
-  (server/create-session
-    {:server-info {:name "my-server" :version "0.1.0"}
-     :tools       [greet-tool]}))
+  (atom
+    (server/create-session
+      {:server-info {:name "my-server" :version "0.1.0"}
+       :tools       [greet-tool]})))
 ```
 
 You supply the transport by giving the context a `:send-message` fn and
