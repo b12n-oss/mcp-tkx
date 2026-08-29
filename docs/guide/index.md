@@ -13,7 +13,7 @@ What's distinctive about this fork:
 - **I/O-agnostic core** — the library does no I/O itself; you wire STDIO, HTTP/SSE, or any other transport by providing a `:send-message` fn and feeding decoded messages into `json-rpc/handle-message`.
 - **REPL-driven development** — `add-tool` / `remove-tool` / `add-resource` / `notify-resource-updated` mutate the running server's session and notify clients live, so you can iterate on tools while Claude Desktop / Claude Code is connected.
 
-This guide focuses on the **reusable building blocks** — the patterns that lift to other MCP servers and to other Clojure projects. For day-to-day API reference, see the `docs/reference/` folder (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`) which is preserved as-is from the upstream Metosin docs. For the canonical migration writeups, see [`docs/reference/MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md) and [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md).
+This guide focuses on the **reusable building blocks**, the patterns that lift to other MCP servers and to other Clojure projects. For day-to-day API reference, see the `docs/reference/` folder. Most of it (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, and [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md)) is preserved from the upstream Metosin docs. Two files are this fork's own work: [`introduction.md`](../reference/introduction.md) and [`MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md), both covering the `2025-11-25` protocol revision.
 
 ## How to read this guide
 

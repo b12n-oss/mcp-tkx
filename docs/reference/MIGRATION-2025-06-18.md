@@ -1,3 +1,8 @@
+> **Preserved from upstream.** This document is Metosin's, kept as written. Its
+> install snippets and issue-report links point at `fi.metosin/mcp-toolkit` and
+> the upstream repository on purpose. For this fork's coordinates, see the
+> [README](../../README.md).
+
 # MCP Toolkit 2025-06-18 Migration Guide
 
 This guide helps you upgrade your MCP servers and clients from protocol versions 2025-03-26 (or earlier) to 2025-06-18.
