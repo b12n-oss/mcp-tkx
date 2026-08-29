@@ -66,6 +66,7 @@ jobs:
           test -f "$out/index.html"       || { echo "no homepage generated"; exit 1; }
           test -f "$out/guide/index.html" || { echo "no guide page generated"; exit 1; }
           test -f "$out/css/screen.css"   || { echo "static assets missing"; exit 1; }
+          test -f "$out/404.html"         || { echo "no 404 page generated"; exit 1; }
 
           ! grep -rq '{{site-base}}' "$out"/index.html "$out"/guide/*.html \
             || { echo "unrendered template variable"; exit 1; }

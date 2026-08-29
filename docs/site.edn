@@ -3,7 +3,8 @@
 ;;
 ;; Build it locally with `bb site:serve`. CI builds it on every pull
 ;; request from .github/workflows/site.yml, and will publish from main
-;; once GitHub Pages is enabled, which it deliberately is not yet.
+;; once both the PUBLISH_SITE repository variable is set to "true" and
+;; GitHub Pages is enabled, neither of which is done yet.
 {;; :base-path is what makes this a project site rather than an org one.
  ;; The site is served at https://b12n-oss.github.io/mcp-tkx/, so every
  ;; URL the engine emits needs that prefix. Leave it out and the pages
