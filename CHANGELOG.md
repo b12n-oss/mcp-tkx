@@ -8,7 +8,7 @@ Versions prior to v0.1.0 are considered experimental, their API may change.
 ## [v2025-11-25] - Unreleased
 
 ### Added
-- **MCP Protocol 2025-11-25 Support** - Full implementation of the latest specification
+- **MCP Protocol 2025-11-25 Support** - Implementation of the latest specification, not all of it Full; see the README's capability table for what is Full vs. Partial
   - **Elicitation** - Request additional information from users
     - Form mode with JSON Schema-based forms
     - URL mode for OAuth flows and external authentication

@@ -4,7 +4,7 @@ MCP-toolkit is a library for interfacing Clojure code with the MCP protocol.
 
 ### Supported Protocol Versions
 
-- **2025-11-25** (latest) - Full support with all new features
+- **2025-11-25** (latest) - Supported, but not every new capability is Full; see the [README's capability table](../../README.md#protocol-and-feature-support) for which ones are Partial
 - **2025-06-18** - Full support
 - **2025-03-26** - Full backward compatibility
 - **2024-11-05** - Legacy support

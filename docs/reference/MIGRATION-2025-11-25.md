@@ -6,7 +6,7 @@
 
 ## Overview
 
-MCP Toolkit v2025-11-25 adds full support for the MCP 2025-11-25 specification while maintaining backward compatibility with older protocol versions.
+MCP Toolkit v2025-11-25 adds support for the MCP 2025-11-25 specification while maintaining backward compatibility with older protocol versions. Not every new capability is Full; see the [README's capability table](../../README.md#protocol-and-feature-support) for exactly which ones are Partial.
 
 ### Key Features
 
