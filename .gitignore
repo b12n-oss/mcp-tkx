@@ -12,3 +12,4 @@ out/
 .clojure-mcp/
 mcp-toolkit.jar
 target/
+_site/

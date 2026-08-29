@@ -23,7 +23,44 @@
     (defn header [text]
       (println)
       (println (color bold text))
-      (println (apply str (repeat (count text) "=")))))
+      (println (apply str (repeat (count text) "="))))
+
+    ;; --- documentation site -------------------------------------------------
+    ;; The generator lives in b12n-oss/docs-engine, not here. The site is
+    ;; built in CI (.github/workflows/site.yml, which pins an engine tag), so
+    ;; these tasks exist only for local preview and are the one place that
+    ;; needs a checkout of the engine on disk.
+    (def repo-root (str (fs/parent (fs/absolutize "bb.edn"))))
+
+    (def docs-engine-repo "https://github.com/b12n-oss/docs-engine")
+
+    (defn docs-engine-dir
+      "Where the engine is checked out: $DOCS_ENGINE, else a sibling
+       directory, else the usual spot. nil when none of them exist."
+      []
+      (let [home (System/getProperty "user.home")]
+        (->> [(System/getenv "DOCS_ENGINE")
+              "../docs-engine"
+              (str home "/dev/b12n-oss--docs-engine")]
+             (remove nil?)
+             (filter (fn [d] (fs/exists? (fs/file d "bb.edn"))))
+             first)))
+
+    (defn site-task
+      "Runs one of the engine's tasks against this project."
+      [task & args]
+      (if-let [engine (docs-engine-dir)]
+        (let [argv (into ["bb" task repo-root] (remove nil? args))
+              res  (apply p/shell {:dir (str engine) :continue true} argv)]
+          (when-not (zero? (:exit res)) (System/exit (:exit res))))
+        (do
+          (println "The docs engine is not checked out anywhere I looked:")
+          (println "  $DOCS_ENGINE, ../docs-engine, ~/dev/b12n-oss--docs-engine")
+          (println)
+          (println "  git clone" docs-engine-repo "../docs-engine")
+          (println)
+          (println "CI does not need this. It checks the engine out itself.")
+          (System/exit 1)))))
 
   ;; =============================================================================
   ;; Development Tasks
@@ -138,6 +175,26 @@
                (success "HTML report: target/coverage/index.html")
                (error-msg "Coverage run failed"))
              (System/exit exit)))}
+
+  ;; =============================================================================
+  ;; Documentation site (b12n-oss/docs-engine)
+  ;; =============================================================================
+
+  site:build
+  {:doc "Build the documentation site into _site/ (needs a docs-engine checkout)"
+   :task (do
+           (header "📄 Building Documentation Site")
+           (site-task "build"))}
+
+  site:serve
+  {:doc "Build the docs site and serve it locally (bb site:serve [port], default 3000)"
+   :task (do
+           (header "📄 Serving Documentation Site")
+           (site-task "serve" (first *command-line-args*)))}
+
+  site:clean
+  {:doc "Delete the _site/ build output"
+   :task (site-task "clean")}
 
   ;; =============================================================================
   ;; Linting (clj-kondo)
