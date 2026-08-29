@@ -44,7 +44,7 @@ If you build a server-only library and never need to act as a client, the defaul
 | Ping | ✅ | ✅ | ✅ | ✅ |
 | Progress notifications | ✅ | ✅ | ✅ | ✅ |
 | Roots | ✅ | ✅ | ✅ | ✅ |
-| Sampling | ✅ | ✅ | ✅ | ✅ |
+| Sampling | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial |
 | Prompts | ✅ | ✅ | ✅ | ✅ |
 | Resources (static `:text` / `:blob`) | ✅ | ✅ | ✅ | ✅ |
 | Resources (dynamic `:read-fn`) | ✅ | ✅ | ✅ | ✅ |
@@ -54,12 +54,12 @@ If you build a server-only library and never need to act as a client, the defaul
 | HTTP/SSE transport (the older one) | ✅ | ✅ | ✅ | ✅ |
 | Title fields (prompts / resources / tools) | — | — | ✅ | ✅ |
 | Structured tool output (`:output-schema`) | — | — | ✅ | ✅ |
-| Resource links in tool results | — | — | ✅ | ✅ |
+| Resource links in tool results | — | — | ❌ Not implemented | ❌ Not implemented |
 | Completion context (`:completion-context`) | — | — | ✅ | ✅ |
-| `_meta` field support | — | — | ✅ | ✅ |
-| **JSON-RPC batching** | ✅ | ✅ | ❌ removed | ❌ removed |
+| `_meta` field support | — | — | ⚠️ Partial | ⚠️ Partial |
+| **JSON-RPC batching** | ❌ rejected | ❌ rejected | ❌ removed | ❌ removed |
 | Server description (`:server-info :description`) | — | — | — | ✅ |
-| Icons (`:icon`) | — | — | — | ✅ |
+| Icons (`:icon`) | — | — | — | ⚠️ Partial |
 | Sampling with tools (`:tools` + `:tool-choice`) | — | — | — | ✅ |
 | Elicitation — form mode | — | — | — | ✅ |
 | Elicitation — URL mode (OAuth) | — | — | — | ✅ |
@@ -132,7 +132,14 @@ Clients that support `:output-schema` can validate `:structured-content` and pre
 
 ### Resource links in tool results
 
-Tools can return resources alongside content:
+Not implemented. The spec's `resource_link` and embedded-resource
+content-block types don't exist in `schema.cljc` — a tool can return
+`text`, `image`, `audio`, `tool_use` and `tool_result` content, but it
+has no spec-conforming way to hand back a resource reference alongside
+it.
+
+`tool-call-handler` will pass a `:resources` key through unmodified if
+your tool result map happens to include one:
 
 ```clojure
 :tool-fn (fn [_context {:keys [path]}]
@@ -142,7 +149,11 @@ Tools can return resources alongside content:
                          :text (slurp path)}]})
 ```
 
-The resources show up in the tool result and the client can navigate to them. The toolkit forwards `:resources` through `tool-call-handler` without modification.
+but this library gives `:resources` no wire meaning. It isn't a
+recognized content-block type, so a spec-conforming client won't
+render it or let a user navigate to it. Treat the passthrough as a
+place to carry your own data alongside a result, not as resource-link
+support.
 
 ### Completion context
 
@@ -169,7 +180,16 @@ The wiring is in `completion-complete-handler` — it conditionally adds `:compl
 
 ### `_meta` field support
 
-Various message types can carry an optional `:_meta` field for client / server-specific metadata. The toolkit's `impl/meta_support.cljc` handles merging. Most user code doesn't need to touch this.
+Partial. Various message types can carry an optional `:_meta` field for
+client / server-specific metadata, and inbound `:_meta` does reach your
+handler, with any `:_meta` you attach to a result travelling back out.
+But `prompt-list-handler`, `resource-list-handler` and `tool-list-handler`
+each `select-keys` their entries down to a fixed set of fields, and
+`:_meta` isn't one of them — so metadata you attach to a registration
+never appears in a `prompts/list` / `resources/list` / `tools/list`
+response. `impl/meta_support.cljc` exists but is required by no
+namespace under `src/`, only by a test; it does not handle merging for
+you.
 
 ## What 2025-11-25 added
 
