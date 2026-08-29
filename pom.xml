@@ -2,8 +2,8 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>jar</packaging>
-  <groupId>fi.metosin</groupId>
-  <artifactId>mcp-toolkit</artifactId>
+  <groupId>io.github.burinc</groupId>
+  <artifactId>mcp-tkx</artifactId>
   <version>2025-11-25</version>
   <name>MCP Toolkit</name>
   <description>a lib to build MCP clients and MCP servers in Clojure(script)</description>
@@ -15,9 +15,9 @@
     </license>
   </licenses>
   <scm>
-    <url>https://github.com/metosin/mcp-toolkit</url>
-    <connection>scm:git:git://github.com/metosin/mcp-toolkit.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/metosin/mcp-toolkit.git</developerConnection>
+    <url>https://github.com/burinc/mcp-tkx</url>
+    <connection>scm:git:git://github.com/burinc/mcp-tkx.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/burinc/mcp-tkx.git</developerConnection>
     <tag>v2025-11-25</tag>
   </scm>
   <dependencies>

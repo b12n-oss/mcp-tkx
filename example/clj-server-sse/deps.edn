@@ -7,7 +7,7 @@
          metosin/reitit-ring        {:mvn/version "0.10.0"}
          metosin/reitit-core        {:mvn/version "0.10.0"}
          medley/medley              {:mvn/version "1.4.0"}
-         fi.metosin/mcp-toolkit     {:local/root "../.."}
+         io.github.burinc/mcp-tkx     {:local/root "../.."}
          example/common-mcp-content {:local/root "../common-mcp-content"}}
  :aliases {:dev        {:extra-deps  {}
                         :extra-paths ["dev"]

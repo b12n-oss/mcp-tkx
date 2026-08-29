@@ -3,7 +3,7 @@
         org.clojure/clojurescript      {:mvn/version "1.12.134"}
         thheller/shadow-cljs           {:mvn/version "3.3.4"}
         metosin/jsonista               {:mvn/version "0.3.13"}
-        fi.metosin/mcp-toolkit         {:local/root "../.."}
+        io.github.burinc/mcp-tkx         {:local/root "../.."}
         example/common-mcp-content     {:local/root "../common-mcp-content"}}
  :aliases {;; clojure -M:mcp-client
            :mcp-client {:exec-fn example.my-client/main

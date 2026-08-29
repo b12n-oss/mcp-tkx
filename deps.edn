@@ -38,17 +38,21 @@
    ;; NOTE: keep this different so we can start each NREPL and connect to it
    :main-opts   ["-m" "nrepl.cmdline" "--port" "7777"]}
 
+  ;; NOTE: no Clojars release is planned. These aliases exist so the
+  ;; coordinate is correct if one is ever cut, and so nothing can
+  ;; accidentally deploy to fi.metosin, a coordinate this fork does
+  ;; not own. Consume this library via :git/sha instead; see README.
   :jar
   {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
    :exec-fn      hf.depstar/jar
    :exec-args    {:sync-pom    true
-                  :group-id    "fi.metosin"
-                  :artifact-id "mcp-toolkit"
+                  :group-id    "io.github.burinc"
+                  :artifact-id "mcp-tkx"
                   :version     "2025-11-25"
-                  :jar         "mcp-toolkit.jar"}}
+                  :jar         "mcp-tkx.jar"}}
 
   :deploy
   {:extra-deps {slipset/deps-deploy {:mvn/version "0.2.5"}}
    :exec-fn    deps-deploy.deps-deploy/deploy
    :exec-args  {:installer :remote
-                :artifact  "mcp-toolkit-2025-11-25.jar"}}}}
+                :artifact  "mcp-tkx.jar"}}}}
