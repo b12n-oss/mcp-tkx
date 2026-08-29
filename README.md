@@ -1,18 +1,201 @@
 # mcp-tkx
 
-A Clojure and ClojureScript library for building MCP ([Model Context
-Protocol](https://modelcontextprotocol.io/)) clients and servers.
-
-Status: **alpha quality**. Tested against Claude Desktop and Claude Code,
-with no problems found for the features implemented.
-
-## About this fork
+Build [Model Context Protocol](https://modelcontextprotocol.io/) clients
+and servers in Clojure and ClojureScript.
 
 `mcp-tkx` is an independently maintained fork of
-[metosin/mcp-toolkit](https://github.com/metosin/mcp-toolkit), which
-remains the upstream project.
+[metosin/mcp-toolkit](https://github.com/metosin/mcp-toolkit). It speaks
+all four MCP protocol revisions, negotiates the version at the
+handshake, and keeps your handler code in kebab-case while the wire
+stays camelCase. It does no I/O of its own, so you can put it behind
+STDIO, HTTP+SSE, Streamable HTTP, or anything else that can move JSON.
 
-### Why a fork rather than pull requests
+We have used this internally for a good while now, across a number of
+our own projects, and exercised it against Claude Desktop and Claude
+Code. 98 tests run across Clojure and ClojureScript. The API has held
+stable in practice, though it carries no formal compatibility guarantee
+yet.
+
+## Install
+
+There is no Clojars release. Depend on it by git SHA:
+
+```clojure
+{:deps {io.github.burinc/mcp-tkx
+        {:git/url "git@github.com:burinc/mcp-tkx.git"
+         :git/sha "88313b1760046d757943f37d842eb131d3d8edd1"}}}
+```
+
+The SSH URL is deliberate. This repo is private, so the shorter
+`io.github.burinc/mcp-tkx` shorthand resolves to an unauthenticated
+`https://` URL and fails even for someone who has access over SSH.
+
+Examples inside this repo use `:local/root "../.."` instead.
+
+## Quickstart
+
+A server with one tool, over STDIO:
+
+```clojure
+(require '[mcp-toolkit.server :as server]
+         '[mcp-toolkit.json-rpc :as json-rpc])
+
+(def greet-tool
+  {:name         "greet"
+   :title        "Greet someone"
+   :description  "Returns a greeting."
+   :input-schema {:type       "object"
+                  :properties {"name" {:type "string"}}
+                  :required   ["name"]}
+   :tool-fn      (fn [context {:strs [name]}]
+                   {:content [{:type "text"
+                               :text (str "Hello, " name)}]})})
+
+(def session
+  (server/create-session
+    {:server-info {:name "my-server" :version "0.1.0"}
+     :tools       [greet-tool]}))
+```
+
+You supply the transport by giving the context a `:send-message` fn and
+feeding decoded messages into `json-rpc/handle-message`. The four
+projects under [`example/`](example) show that wiring for STDIO,
+HTTP+SSE and Streamable HTTP.
+
+Full walkthrough: [Getting started](docs/guide/getting-started.md).
+
+## What this fork adds
+
+| | What it gives you |
+|---|---|
+| **Kebab-case end to end** | Handlers see `:max-tokens` and `:input-schema`. The camelCase conversion lives in the transport layer, so no handler does field renaming. |
+| **Malli protocol registry** | `mcp-toolkit.schema` types the protocol itself: icons, sampling requests, elicitation, tasks, content blocks. `valid?` / `validate!` / `explain`, plus `!`-suffixed throwing constructors. |
+| **Dynamic resources** | A resource can compute its content at `resources/read` time through `:read-fn`, returning `:text`, `:blob`, `:contents` or `:error`, or a Promesa promise of any of them. |
+| **Four-version negotiation** | One build serves `2024-11-05` through `2025-11-25`, chosen at the handshake rather than pinned at compile time. |
+| **Cancellation that reaches your handler** | A per-request `is-cancelled` atom plus a `notifications/cancelled` handler, so long-running work can actually stop. |
+| **Streamable HTTP reference server** | A complete implementation with sessions, the JSON-or-SSE response flip, `Last-Event-Id` resumability and Host/Origin validation. |
+
+## Protocol and feature support
+
+Versions are negotiated automatically at the initial handshake:
+`2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25`.
+
+Note that `2025-06-18` removed JSON-RPC batching, so array requests are
+rejected on that revision and later.
+
+| Capability | Since | Status |
+|---|---|---|
+| Prompts, resources, tools | `2024-11-05` | Full |
+| Cancellation, ping, progress | `2024-11-05` | Full |
+| Roots, sampling | `2024-11-05` | Full |
+| Completion, logging | `2024-11-05` | Full |
+| Title fields | `2025-06-18` | Full |
+| `_meta` passthrough | `2025-06-18` | Full |
+| Output schema on `tools/list` | `2025-06-18` | Advertised, results not validated |
+| Resource links | `2025-06-18` | Not implemented |
+| Elicitation, form and URL | `2025-11-25` | Full |
+| Sampling with tools | `2025-11-25` | Full |
+| Icons | `2025-11-25` | Full |
+| Server description | `2025-11-25` | Full |
+| JSON Schema 2020-12 dialect | `2025-11-25` | Full |
+| Tasks | `2025-11-25` | Experimental, as in the spec |
+| Dynamic resources via `:read-fn` | fork | Full |
+| Pagination | any | Not implemented |
+
+<details>
+<summary><b>Runtimes, content blocks, and what is missing</b></summary>
+
+### Runtimes
+
+| Runtime | Status |
+|---|---|
+| Clojure (JVM) | Supported |
+| ClojureScript (Node, shadow-cljs) | Supported |
+| Babashka | Not supported. The load fails inside `promesa`, which `json-rpc` depends on. |
+
+### Content block types
+
+Supported: `text`, `image`, `audio`, `tool_use`, `tool_result`.
+
+Not implemented: `resource_link` and embedded resource blocks. A tool
+returns content, so it cannot yet hand back a resource reference
+alongside it.
+
+### Pagination
+
+`prompts/list`, `resources/list` and `tools/list` return a single full
+page. The cursor field is stubbed out in the handlers rather than
+implemented, so a client expecting to page through results gets
+everything at once instead.
+
+</details>
+
+## Examples
+
+All four live under [`example/`](example) and share their MCP content
+through [`common-mcp-content`](example/common-mcp-content), so the
+transports are directly comparable.
+
+| Example | Transport | Run it |
+|---|---|---|
+| [`cljc-server-stdio`](example/cljc-server-stdio) | STDIO server | `bb example:server:stdio` |
+| [`cljc-client-stdio`](example/cljc-client-stdio) | STDIO client | `bb example:client:stdio` |
+| [`clj-server-sse`](example/clj-server-sse) | HTTP+SSE, `2024-11-05`, deprecated | `bb example:server:sse` |
+| [`clj-server-streamable-http`](example/clj-server-streamable-http) | Streamable HTTP, `2025-03-26`+ | `bb example:server:streamable-http` |
+
+## Documentation
+
+The [user guide](docs/guide/index.md) is the place to start. Twelve
+pages covering the architecture, all four protocol revisions, schema
+validation, both HTTP transports, the REPL workflow, and recipes for
+lifting pieces of this into other projects.
+
+<details>
+<summary><b>Guide contents</b></summary>
+
+| Page | What it covers |
+|---|---|
+| [Getting started](docs/guide/getting-started.md) | Install, first STDIO server, smoke test against MCP Inspector |
+| [Architecture](docs/guide/architecture.md) | Session atom, context hashmap, message lifecycle, namespace map |
+| [Kebab-case transformation](docs/guide/kebab-case-transformation.md) | Where the casing boundary sits, and how to wire it per transport |
+| [Protocol versions](docs/guide/protocol-versions.md) | The negotiation algorithm and what each revision adds |
+| [Schema validation](docs/guide/schema-validation.md) | The Malli registry and the throwing constructors |
+| [Dynamic resources](docs/guide/dynamic-resources.md) | `:read-fn`, its return contract, and when to prefer static content |
+| [2025-11-25 features](docs/guide/2025-11-25-features.md) | Elicitation, tasks, sampling with tools, icons |
+| [Claude Desktop setup](docs/guide/claude-desktop-setup.md) | `claude_desktop_config.json` and `claude mcp add` |
+| [Streamable HTTP](docs/guide/streamable-http.md) | The current remote transport, end to end |
+| [REPL workflow](docs/guide/repl-workflow.md) | Editing tools while a client stays connected |
+| [Extraction recipes](docs/guide/extraction-recipes.md) | Lifting the transport or the schema registry elsewhere |
+
+</details>
+
+Reference material lives in [`docs/reference/`](docs/reference). Most of
+it is preserved from upstream and marked as such. Migration guides:
+[2025-11-25](docs/reference/MIGRATION-2025-11-25.md) and
+[2025-06-18](docs/reference/MIGRATION-2025-06-18.md).
+
+## Build and test
+
+```sh
+bb test    # full suite, Clojure and ClojureScript, via kaocha
+bb check   # compile and lint, run this before committing
+bb info    # categorised cheat-sheet of every task
+```
+
+## Acknowledgements
+
+This library began as [Metosin](https://metosin.fi)'s
+[mcp-toolkit](https://github.com/metosin/mcp-toolkit), and the
+architecture that makes it pleasant to work with is theirs: the session
+atom, the I/O-agnostic core, the Promesa-based handler contract. That
+design carried every feature added here without needing to be
+rethought, which is the best thing you can say about a foundation.
+
+Source namespaces are still `mcp-toolkit.*`, so this remains a drop-in
+replacement. Only the project name and the build coordinates differ.
+
+<details>
+<summary><b>Why this is a fork rather than pull requests</b></summary>
 
 Upstream states its
 [contributing policy](https://github.com/metosin/mcp-toolkit#contributing)
@@ -26,144 +209,27 @@ The work in this fork is LLM-assisted, so it falls outside that policy.
 Opening pull requests that upstream has already said it cannot accept
 would only cost a maintainer their time, so the changes are maintained
 here instead. Setting that bar is upstream's call and a reasonable one
-to make. EPL-2.0 exists so that an independent continuation like this
-one can happen without either side needing to agree.
+to make.
 
-Source namespaces are still `mcp-toolkit.*`, so this stays a drop-in
-replacement for the upstream library. Only the project name and the
-build coordinates differ.
+There is a practical driver as well. Some of our internal libraries and
+tools are built on this one, and we plan to open source a few of them.
+Anything we publish needs its dependencies to exist as real projects
+that other people can resolve, and the changes those tools rely on are
+exactly the ones upstream cannot take. Holding those changes as a
+private patch set would leave everything built on top of them
+unpublishable too. Giving the fork its own name, coordinate and history
+is what makes opening up that work possible at all.
 
-What this fork adds on top of upstream:
+EPL-2.0 exists so an independent continuation like this one can happen
+without either side needing to agree.
 
-- Protocol `2025-11-25` support, covering elicitation, tasks, sampling
-  with tools, icons, server description, and the JSON Schema 2020-12
-  dialect.
-- A Malli schema registry for MCP protocol types in
-  `mcp-toolkit.schema`, with `!`-suffixed throwing constructors.
-- Kebab-case keys end to end, with the camelCase conversion pushed out
-  to the transport layer.
-- Dynamic resources via `:read-fn`, so resource content can be computed
-  at `resources/read` time.
-- A complete Streamable HTTP reference implementation under
-  `example/clj-server-streamable-http/`.
+</details>
 
-Copyright (c) [Metosin](https://metosin.fi) and contributors.
-Distributed under the [Eclipse Public License v2.0](LICENSE.txt).
-
-## Install
-
-There is no Clojars release. Consume the library by git SHA:
-
-```clojure
-{:deps {io.github.burinc/mcp-tkx
-        {:git/url "git@github.com:burinc/mcp-tkx.git"
-         :git/sha "88313b1760046d757943f37d842eb131d3d8edd1"}}}
-```
-
-The SSH URL is deliberate. This repo is private, so the shorter
-`io.github.burinc/mcp-tkx` shorthand would resolve to an
-unauthenticated `https://` URL and fail even for someone who has
-access over SSH.
-
-The example projects in this repo use `:local/root "../.."` instead,
-since they already sit inside the tree.
-
-## Documentation
-
-The [user guide](docs/guide/index.md) is the place to start. It covers
-getting started, the architecture, all four protocol versions, schema
-validation, both HTTP transports, and the REPL workflow.
-
-For the fastest path to a running server, read
-[Getting started](docs/guide/getting-started.md), then
-[Architecture](docs/guide/architecture.md).
-
-Migration guides:
-
-- [2025-11-25](docs/reference/MIGRATION-2025-11-25.md), for upgrading to
-  the latest protocol version.
-- [2025-06-18](docs/reference/MIGRATION-2025-06-18.md), preserved from
-  upstream, for upgrading from older versions.
-
-## Protocol version support
-
-Versions are negotiated automatically at the initial handshake.
-
-| Version | Support |
-|---|---|
-| `2025-11-25` | full, including all features new in that revision |
-| `2025-06-18` | full |
-| `2025-03-26` | full, backward compatible |
-| `2024-11-05` | legacy |
-
-`2025-06-18` removed JSON-RPC batching, so array requests are no longer
-accepted on that version or later.
-
-## Implemented features
-
-- [x] API for both clients and servers
-- [x] CLJC
-  - [x] Clojure
-  - [x] ClojureScript
-  - [ ] Babashka
-- I/O agnostic library
-- Uses Promesa to support async tasks in prompts, resources and tools
-- MCP features
-  - [x] Cancellation
-  - [x] Ping
-  - [x] Progress
-  - [x] Roots
-  - [x] Sampling
-  - [x] Sampling with tools (`2025-11-25`)
-  - [x] Prompts
-  - [x] Resources, static and dynamic
-  - [x] Tools
-  - [x] Completion
-  - [x] Logging
-  - [x] Elicitation (`2025-11-25`)
-  - [x] Tasks, experimental (`2025-11-25`)
-  - [x] Icons (`2025-11-25`)
-  - [ ] Pagination
-
-## Example projects
-
-All four live under [`example/`](example) and share their MCP content
-via [`common-mcp-content`](example/common-mcp-content).
-
-| Example | Transport |
-|---|---|
-| [`cljc-server-stdio`](example/cljc-server-stdio) | STDIO server |
-| [`cljc-client-stdio`](example/cljc-client-stdio) | STDIO client |
-| [`clj-server-sse`](example/clj-server-sse) | HTTP+SSE server (`2024-11-05`, deprecated) |
-| [`clj-server-streamable-http`](example/clj-server-streamable-http) | Streamable HTTP server (`2025-03-26`+, current) |
-
-Resources can serve static `:text` / `:blob` content or compute it on
-demand through a `:read-fn`. See
-[Dynamic resources](docs/guide/dynamic-resources.md) for the return-shape
-contract and the async story.
-
-## Build and test
-
-```sh
-bb test    # full suite via kaocha, Clojure and ClojureScript
-bb check   # compile and lint, run this before committing
-bb info    # categorised cheat-sheet of every task
-bb tasks   # flat list with docstrings
-```
-
-## Its place in the AI ecosystem
-
-This library aims to be more convenient for the Clojure community than
-the official MCP SDKs for Java or TypeScript. It gives you the tools to
-build an MCP server in Clojure or ClojureScript, but ships no prompts,
-resources or tools of its own for working on a Clojure codebase. It is
-for building general purpose MCP servers.
-
-## Other MCP libraries
+## Other MCP libraries for Clojure
 
 - [MCP Clojure SDK](https://github.com/unravel-team/mcp-clojure-sdk)
-- Calva's [Backseat Driver](https://github.com/BetterThanTomorrow/calva-backseat-driver)
 - [Clojure MCP](https://github.com/bhauman/clojure-mcp)
+- Calva's [Backseat Driver](https://github.com/BetterThanTomorrow/calva-backseat-driver)
 - [Modex](https://github.com/theronic/modex)
 
 ## License
