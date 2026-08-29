@@ -44,7 +44,7 @@ If you build a server-only library and never need to act as a client, the defaul
 | Ping | ✅ | ✅ | ✅ | ✅ |
 | Progress notifications | ✅ | ✅ | ✅ | ✅ |
 | Roots | ✅ | ✅ | ✅ | ✅ |
-| Sampling | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial |
+| Sampling | ✅ | ✅ | ✅ | ✅ |
 | Prompts | ✅ | ✅ | ✅ | ✅ |
 | Resources (static `:text` / `:blob`) | ✅ | ✅ | ✅ | ✅ |
 | Resources (dynamic `:read-fn`) | ✅ | ✅ | ✅ | ✅ |
@@ -60,7 +60,7 @@ If you build a server-only library and never need to act as a client, the defaul
 | **JSON-RPC batching** | ❌ rejected | ❌ rejected | ❌ removed | ❌ removed |
 | Server description (`:server-info :description`) | — | — | — | ✅ |
 | Icons (`:icon`) | — | — | — | ⚠️ Partial |
-| Sampling with tools (`:tools` + `:tool-choice`) | — | — | — | ⚠️ Partial |
+| Sampling with tools (`:tools` + `:tool-choice`) | — | — | — | ✅ |
 | Elicitation — form mode | — | — | — | ⚠️ Partial |
 | Elicitation — URL mode (OAuth) | — | — | — | ⚠️ Partial |
 | Tasks (experimental) | — | — | — | ⚠️ Partial |

@@ -12,7 +12,7 @@ STDIO, HTTP+SSE, Streamable HTTP, or anything else that can move JSON.
 
 We have used this internally for a good while now, across a number of
 our own projects, and exercised it against Claude Desktop and Claude
-Code. 98 tests run across Clojure and ClojureScript. The API has held
+Code. 102 tests run across Clojure and ClojureScript. The API has held
 stable in practice, though it carries no formal compatibility guarantee
 yet.
 
@@ -92,14 +92,14 @@ consult the negotiated version before rejecting.
 | Prompts, resources, tools | `2024-11-05` | Full |
 | Cancellation, ping, progress | `2024-11-05` | Full |
 | Roots | `2024-11-05` | Full |
-| Sampling | `2024-11-05` | Partial, see below |
+| Sampling | `2024-11-05` | Full |
 | Completion, logging | `2024-11-05` | Full |
 | Title fields | `2025-06-18` | Full |
 | `_meta` passthrough | `2025-06-18` | Partial, see below |
 | Output schema on `tools/list` | `2025-06-18` | Advertised, results not validated |
 | Resource links | `2025-06-18` | Not implemented |
 | Elicitation, form and URL | `2025-11-25` | Partial, see below |
-| Sampling with tools | `2025-11-25` | Partial, see below |
+| Sampling with tools | `2025-11-25` | Full |
 | Icons | `2025-11-25` | Partial, see below |
 | Server description | `2025-11-25` | Full |
 | JSON Schema 2020-12 dialect | `2025-11-25` | Full |
@@ -109,12 +109,6 @@ consult the negotiated version before rejecting.
 
 <details>
 <summary><b>What the partial rows mean</b></summary>
-
-**Sampling, and sampling with tools.** `request-sampling` carries a
-`FIXME: implementation is not complete` marker in the source, inherited
-from upstream. Capability detection around it is complete, so
-`client-supports-sampling-tools?` and friends work; the request path is
-the part that is not finished.
 
 **Icons.** The spec puts `icons?: Icon[]` on tools, prompts, resources
 and server info, where each `Icon` is an object with `src`, and

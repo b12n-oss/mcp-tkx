@@ -562,6 +562,66 @@
             context {:session session}]
         (is (false? (server/client-supports-sampling-tools? context)))))))
 
+(deftest sampling-tools-requires-declared-capability-test
+  (is true "yes")
+
+  ;; The 2025-11-25 schema says of both `tools` and `toolChoice`:
+  ;; "The client MUST return an error if this field is provided but
+  ;;  ClientCapabilities.sampling.tools is not declared."
+  ;; So sending them unguarded produces a request the client is obliged
+  ;; to reject. Guard at the call site instead.
+  (letfn [(probe [caps]
+            (let [sent    (atom [])
+                  session (atom {:client-capabilities caps
+                                 :last-called-method-id 0})
+                  context {:session session
+                           :send-message (fn [m] (swap! sent conj m))}
+                  result  (server/request-sampling
+                           context
+                           {:messages [{:role "user"
+                                        :content {:type "text" :text "hi"}}]
+                            :tools [{:name "get_weather"
+                                     :description "Get weather"
+                                     :input-schema {:type "object"}}]
+                            :tool-choice {:mode "auto"}})]
+              {:sent @sent :result result}))]
+
+    (testing "a client that declared sampling.tools receives the request"
+      (let [{:keys [sent]} (probe {:sampling {:tools {}}})]
+        (is (= 1 (count sent)))
+        (is (some? (get-in (first sent) [:params :tools])))))
+
+    (testing "a client without sampling.tools is not sent a tools request"
+      (let [{:keys [sent]} (probe {:sampling {}})]
+        (is (empty? sent)
+            "tools must not go to a client that did not declare the capability")))
+
+    (testing "and the caller gets a promise back, not a silent nil"
+      (let [{:keys [result]} (probe {:sampling {}})]
+        (is (some? result) "should return a rejected promise, not nil")))
+
+    (testing "a client with no sampling capability at all still gets nothing"
+      (let [{:keys [sent]} (probe {})]
+        (is (empty? sent))))))
+
+(deftest sampling-tools-rejection-carries-the-reason-test
+  (is true "yes")
+  ;; Own deftest because promesa-async-test uses cljs.test's `async`,
+  ;; which must be the last form in a ClojureScript deftest.
+  (let [session (atom {:client-capabilities {:sampling {}}
+                       :last-called-method-id 0})
+        context {:session session :send-message (fn [_])}]
+    (promesa-async-test 1000
+      (-> (server/request-sampling
+           context
+           {:messages [{:role "user" :content {:type "text" :text "hi"}}]
+            :tools [{:name "t" :description "d" :input-schema {:type "object"}}]})
+          (p/then (fn [_] (is false "should have rejected")))
+          (p/catch (fn [e]
+                     (let [data (ex-data e)]
+                       (is (= :missing-client-capability (:type data)))
+                       (is (= [:sampling :tools] (:capability data))))))))))
+
 ;; =============================================================================
 ;; Elicitation Capability Tests (2025-11-25)
 ;; =============================================================================

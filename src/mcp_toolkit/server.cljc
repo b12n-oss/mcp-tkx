@@ -80,7 +80,6 @@
                     ((user-callback :on-client-root-list-updated) context)
                     nil))))))
 
-;; FIXME: implementation is not complete
 (defn request-sampling
   "Requests message sampling from the MCP client.
    Returns a promise, either resolved with the result or rejected with the error.
@@ -89,11 +88,14 @@
    Args:
      context - The server session context
      params  - Sampling parameters map:
-               :messages         - Vector of message maps with :role and :content (required)
-               :system-prompt    - System prompt string (optional)
-               :max-tokens       - Maximum tokens to generate (optional)
+               :messages          - Vector of message maps with :role and :content (required)
+               :max-tokens        - Maximum tokens to generate (required by the spec)
+               :system-prompt     - System prompt string (optional)
                :model-preferences - Model selection hints (optional)
-               :include-context  - Deprecated: use explicit context instead (optional)
+               :temperature       - Sampling temperature (optional)
+               :stop-sequences    - Vector of strings that stop generation (optional)
+               :metadata          - Provider-specific metadata passed through (optional)
+               :include-context   - Deprecated: use explicit context instead (optional)
 
                Tool use (2025-11-25, requires client sampling.tools capability):
                :tools       - Vector of tool definitions (see mcp-toolkit.schema/sampling-tool)
@@ -137,14 +139,33 @@
 
    Notes:
      - Requires client to declare :sampling capability
-     - Tool use requires client to declare :sampling {:tools {}} capability
-     - Returns nil if client doesn't support sampling"
+     - Returns nil if client doesn't support sampling
+     - Tool use requires the client to declare :sampling {:tools {}}.
+       Passing :tools or :tool-choice without it returns a REJECTED
+       promise carrying {:type :missing-client-capability}, because the
+       spec obliges the client to error on such a request anyway.
+     - params are passed through as given, so any field the spec accepts
+       works even if it is not listed above"
   [context params]
   (let [{:keys [session]} context
-        {:keys [client-capabilities]} @session]
+        {:keys [client-capabilities]} @session
+        wants-tools? (or (contains? params :tools)
+                         (contains? params :tool-choice))]
     (when (contains? client-capabilities :sampling)
-      (json-rpc/call-remote-method context {:method "sampling/createMessage"
-                                            :params params}))))
+      ;; The 2025-11-25 schema says of both `tools` and `toolChoice`:
+      ;; "The client MUST return an error if this field is provided but
+      ;;  ClientCapabilities.sampling.tools is not declared."
+      ;; Sending them anyway produces a request the client is obliged to
+      ;; reject, so fail at the call site where the caller can see it.
+      (if (and wants-tools?
+               (not (get-in client-capabilities [:sampling :tools])))
+        (p/rejected
+         (ex-info "Client did not declare the sampling.tools capability"
+                  {:type                :missing-client-capability
+                   :capability          [:sampling :tools]
+                   :client-capabilities client-capabilities}))
+        (json-rpc/call-remote-method context {:method "sampling/createMessage"
+                                              :params params})))))
 
 (defn client-supports-sampling-tools?
   "Returns true if the client supports tool use in sampling requests.
