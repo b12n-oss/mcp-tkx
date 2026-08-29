@@ -98,12 +98,12 @@ consult the negotiated version before rejecting.
 | `_meta` passthrough | `2025-06-18` | Partial, see below |
 | Output schema on `tools/list` | `2025-06-18` | Advertised, results not validated |
 | Resource links | `2025-06-18` | Not implemented |
-| Elicitation, form and URL | `2025-11-25` | Full |
+| Elicitation, form and URL | `2025-11-25` | Partial, see below |
 | Sampling with tools | `2025-11-25` | Partial, see below |
 | Icons | `2025-11-25` | Partial, see below |
 | Server description | `2025-11-25` | Full |
 | JSON Schema 2020-12 dialect | `2025-11-25` | Full |
-| Tasks | `2025-11-25` | Experimental, as in the spec |
+| Tasks | `2025-11-25` | Experimental, as in the spec; also Partial, see below |
 | Dynamic resources via `:read-fn` | fork | Full |
 | Pagination | any | Not implemented |
 
@@ -129,6 +129,23 @@ as spec support.
 `resources/list` and `tools/list` handlers select a fixed set of keys
 and drop `:_meta` from each entry, so metadata attached to a
 registration does not appear in listings.
+
+**Elicitation.** This library builds both clients and servers, and the
+server side can request elicitation (`request-elicitation`). But a
+client built with this library has no `elicitation/create` handler —
+`impl/client/handler.cljc` registers only `ping`, `roots/list`,
+`sampling/createMessage`, and the notification callbacks. A client
+built with this library answers `-32601 Method not found` to an
+elicitation request, so elicitation only works when your server talks
+to a third-party client that implements it.
+
+**Tasks.** Same gap as elicitation, on both sides. The server side can
+send `tasks/get` / `tasks/result` / `tasks/cancel` / `tasks/list` to
+the client (`request-task-get` and friends), but there is no inbound
+handler for any `tasks/*` method on either `impl/server/handler.cljc`
+or `impl/client/handler.cljc`. Tasks only work end to end against a
+third-party implementation that has its own `tasks/*` handler, which
+lines up with the spec's own experimental status for this capability.
 
 </details>
 
