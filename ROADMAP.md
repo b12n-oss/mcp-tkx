@@ -21,8 +21,15 @@ finding a promise layer that bb can load.
 
 These are known and chosen, not oversights.
 
-**No CI.** `.github/workflows/` is empty. `bb ci` runs the full pipeline
-locally and that is currently the gate.
+**CI builds the docs, and nothing else.** `.github/workflows/site.yml`
+builds the documentation site on pull requests. The library's own gates
+still run locally through `bb ci`; there is no workflow for compile,
+lint or test yet.
+
+**The docs site is built but not published.** The deploy job is gated on
+a `PUBLISH_SITE` repository variable that is not set, and GitHub Pages
+is not enabled. Both are waiting on the decision to open source this
+repo.
 
 **No `upstream` remote.** Stale `refs/remotes/upstream/*` tracking refs
 exist from an earlier clone, but no remote is configured. As a result no

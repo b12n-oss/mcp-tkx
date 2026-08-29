@@ -224,6 +224,7 @@ work.
 bb test      # full suite, Clojure and ClojureScript, via kaocha
 bb check     # compile and lint, run this before committing
 bb coverage  # test coverage report, JVM only, see below
+bb site:serve  # build and preview the documentation site locally
 bb info      # categorised cheat-sheet of every task
 ```
 
