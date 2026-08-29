@@ -1,163 +1,173 @@
-# MCP Toolkit
+# mcp-tkx
 
-[![Clojars Project](https://img.shields.io/clojars/v/fi.metosin/mcp-toolkit.svg)](https://clojars.org/fi.metosin/mcp-toolkit)
-[![Slack](https://img.shields.io/badge/slack-mcp--toolkit-orange.svg?logo=slack)](https://clojurians.slack.com/app_redirect?channel=mcp-toolkit)
-[![cljdoc badge](https://cljdoc.org/badge/fi.metosin/mcp-toolkit)](https://cljdoc.org/d/fi.metosin/mcp-toolkit)
+A Clojure and ClojureScript library for building MCP ([Model Context
+Protocol](https://modelcontextprotocol.io/)) clients and servers.
 
-This library is a very unofficial MCP SDK in Clojure.
+Status: **alpha quality**. Tested against Claude Desktop and Claude Code,
+with no problems found for the features implemented.
 
-It handles the communication between MCP clients and MCP servers, and attempts to provide
-a Clojure-ish experience to developers working on expending the MCP ecosystem.
+## About this fork
 
-Status: **alpha quality**
+`mcp-tkx` is an independently maintained fork of
+[metosin/mcp-toolkit](https://github.com/metosin/mcp-toolkit), which
+remains the upstream project.
 
-Tested on Claude Desktop and Claude Code, no problems found for the features implemented.
+### Why a fork rather than pull requests
 
-## Protocol Version Support
+Upstream states its
+[contributing policy](https://github.com/metosin/mcp-toolkit#contributing)
+plainly:
 
-MCP Toolkit supports automatic protocol version negotiation between clients and servers:
+> Only code **typed and reviewed by a human** will be accepted for
+> review, discussion, and maybe merged. We have a policy of keeping the
+> source code clean, organized, and easy to read for a human.
 
-- **2025-11-25** (latest) - Full support with all new features
-- **2025-06-18** - Full support
-- **2025-03-26** - Full backward compatibility
-- **2024-11-05** - Legacy support
+The work in this fork is LLM-assisted, so it falls outside that policy.
+Opening pull requests that upstream has already said it cannot accept
+would only cost a maintainer their time, so the changes are maintained
+here instead. Setting that bar is upstream's call and a reasonable one
+to make. EPL-2.0 exists so that an independent continuation like this
+one can happen without either side needing to agree.
 
-### New in 2025-11-25
+Source namespaces are still `mcp-toolkit.*`, so this stays a drop-in
+replacement for the upstream library. Only the project name and the
+build coordinates differ.
 
-- **Elicitation** - Request additional information from users via forms or URLs
-- **Tasks (Experimental)** - Durable state machines for long-running operations
-- **Sampling with tools** - LLMs can use tools during sampling requests
-- **Icons** - Visual icons for prompts, resources, tools, and templates
-- **Server description** - Human-readable server descriptions in initialization
-- **JSON Schema 2020-12** - Standard dialect for tool input/output schemas
+What this fork adds on top of upstream:
 
-### New in 2025-06-18
+- Protocol `2025-11-25` support, covering elicitation, tasks, sampling
+  with tools, icons, server description, and the JSON Schema 2020-12
+  dialect.
+- A Malli schema registry for MCP protocol types in
+  `mcp-toolkit.schema`, with `!`-suffixed throwing constructors.
+- Kebab-case keys end to end, with the camelCase conversion pushed out
+  to the transport layer.
+- Dynamic resources via `:read-fn`, so resource content can be computed
+  at `resources/read` time.
+- A complete Streamable HTTP reference implementation under
+  `example/clj-server-streamable-http/`.
 
-- **Title fields** - Human-readable display names for better UI
-- **Structured tool output** - Define output schemas for type-safe responses
-- **Resource links** - Tools can return resources alongside content
-- **Completion context** - Pass previous values to completion handlers
-- **_meta field support** - Optional metadata for various message types
-- **Breaking change:** JSON-RPC batching removed (array requests no longer supported)
+Copyright (c) [Metosin](https://metosin.fi) and contributors.
+Distributed under the [Eclipse Public License v2.0](LICENSE.txt).
 
-📚 **[See the 2025-11-25 Migration Guide](docs/reference/MIGRATION-2025-11-25.md)** for upgrading to the latest protocol version.
+## Install
 
-📚 **[See the 2025-06-18 Migration Guide](MIGRATION-2025-06-18.md)** for upgrading from older versions.
+There is no Clojars release. Consume the library by git SHA:
+
+```clojure
+{:deps {io.github.burinc/mcp-tkx
+        {:git/url "git@github.com:burinc/mcp-tkx.git"
+         :git/sha "88313b1760046d757943f37d842eb131d3d8edd1"}}}
+```
+
+The SSH URL is deliberate. This repo is private, so the shorter
+`io.github.burinc/mcp-tkx` shorthand would resolve to an
+unauthenticated `https://` URL and fail even for someone who has
+access over SSH.
+
+The example projects in this repo use `:local/root "../.."` instead,
+since they already sit inside the tree.
+
+## Documentation
+
+The [user guide](docs/guide/index.md) is the place to start. It covers
+getting started, the architecture, all four protocol versions, schema
+validation, both HTTP transports, and the REPL workflow.
+
+For the fastest path to a running server, read
+[Getting started](docs/guide/getting-started.md), then
+[Architecture](docs/guide/architecture.md).
+
+Migration guides:
+
+- [2025-11-25](docs/reference/MIGRATION-2025-11-25.md), for upgrading to
+  the latest protocol version.
+- [2025-06-18](docs/reference/MIGRATION-2025-06-18.md), preserved from
+  upstream, for upgrading from older versions.
+
+## Protocol version support
+
+Versions are negotiated automatically at the initial handshake.
+
+| Version | Support |
+|---|---|
+| `2025-11-25` | full, including all features new in that revision |
+| `2025-06-18` | full |
+| `2025-03-26` | full, backward compatible |
+| `2024-11-05` | legacy |
+
+`2025-06-18` removed JSON-RPC batching, so array requests are no longer
+accepted on that version or later.
 
 ## Implemented features
 
-- [x] API for both clients & servers
+- [x] API for both clients and servers
 - [x] CLJC
   - [x] Clojure
-  - [x] Clojurescript
+  - [x] ClojureScript
   - [ ] Babashka
 - I/O agnostic library
 - Uses Promesa to support async tasks in prompts, resources and tools
-- Compatible with protocol versions
-  - [x] `2024-11-05`
-  - [x] `2025-03-26`
-  - [x] `2025-06-18`
-  - [x] `2025-11-25`
-- MCP features implemented
+- MCP features
   - [x] Cancellation
   - [x] Ping
   - [x] Progress
   - [x] Roots
   - [x] Sampling
-  - [x] Sampling with tools (2025-11-25)
+  - [x] Sampling with tools (`2025-11-25`)
   - [x] Prompts
-  - [x] Resources
+  - [x] Resources, static and dynamic
   - [x] Tools
   - [x] Completion
   - [x] Logging
-  - [x] Elicitation (2025-11-25)
-  - [x] Tasks - Experimental (2025-11-25)
-  - [x] Icons (2025-11-25)
+  - [x] Elicitation (`2025-11-25`)
+  - [x] Tasks, experimental (`2025-11-25`)
+  - [x] Icons (`2025-11-25`)
   - [ ] Pagination
-- [Example projects](example)
-  - [x] [CLJC server using STDIO](example/cljc-server-stdio)
-  - [x] [CLJC client using STDIO](example/cljc-client-stdio)
-  - [x] [CLJ server using HTTP/SSE](example/clj-server-sse)
-  - [x] [CLJ server using Streamable HTTP](example/clj-server-streamable-http)
 
+## Example projects
 
-## Dynamic Resources
+All four live under [`example/`](example) and share their MCP content
+via [`common-mcp-content`](example/common-mcp-content).
 
-Resources can provide content in two ways:
+| Example | Transport |
+|---|---|
+| [`cljc-server-stdio`](example/cljc-server-stdio) | STDIO server |
+| [`cljc-client-stdio`](example/cljc-client-stdio) | STDIO client |
+| [`clj-server-sse`](example/clj-server-sse) | HTTP+SSE server (`2024-11-05`, deprecated) |
+| [`clj-server-streamable-http`](example/clj-server-streamable-http) | Streamable HTTP server (`2025-03-26`+, current) |
 
-### 1. Static Content
+Resources can serve static `:text` / `:blob` content or compute it on
+demand through a `:read-fn`. See
+[Dynamic resources](docs/guide/dynamic-resources.md) for the return-shape
+contract and the async story.
 
-Resources with static content include `:text` or `:blob` directly in their definition:
+## Build and test
 
-```clojure
-{:uri "config://settings"
- :name "Settings"
- :description "Application settings"
- :mime-type "application/json"
- :text "{\"theme\": \"dark\"}"}
-```
-
-### 2. Dynamic Content (NEW)
-
-Resources can use a `:read-fn` to generate content on-demand when `resources/read` is called:
-
-```clojure
-{:uri "config://status"
- :name "Server Status"
- :description "Current server status (dynamic)"
- :mime-type "application/json"
- :read-fn (fn [context uri]
-            ;; Return a map with :text or :blob, or full :contents
-            {:text (json/write-str {:status "running"
-                                    :uptime (get-uptime)})})}
-```
-
-The `:read-fn` receives:
-- `context` - Full handler context including `:session` and `:message`
-- `uri` - The URI being read
-
-It should return one of:
-- `{:text "..."}` - Text content (will be merged with resource metadata)
-- `{:blob "..."}` - Binary content as base64
-- `{:contents [...]}` - Full MCP contents array
-- `{:error {:code "..." :message "..."}}` - Error response
-
-The function can be async (return a Promise).
-
-## Usage
-
-See the `README.md` in the `example/cljc-server-stdio/` project to learn:
-- how to use this library to make your own MCP server in Clojure, and
-- how to develop its components (prompts, resources and tools) via the REPL
-while the server is running.
-
-Additionally, see the documentation on CLJDocs or in the `docs/reference/` directory.
-
-## Testing
-
-```shell
-npm install
-./bin/kaocha --watch
+```sh
+bb test    # full suite via kaocha, Clojure and ClojureScript
+bb check   # compile and lint, run this before committing
+bb info    # categorised cheat-sheet of every task
+bb tasks   # flat list with docstrings
 ```
 
 ## Its place in the AI ecosystem
 
-MCP toolkit aims to be more convenient for the Clojure community than
-the official MCP SDKs for Java or Typescript.
+This library aims to be more convenient for the Clojure community than
+the official MCP SDKs for Java or TypeScript. It gives you the tools to
+build an MCP server in Clojure or ClojureScript, but ships no prompts,
+resources or tools of its own for working on a Clojure codebase. It is
+for building general purpose MCP servers.
 
-It provides utilities to build an MCP server in Clojure(script), but
-doesn't provide any prompts, resources or tools to help working on a Clojure codebase.
-It is typically used for building general purpose MCP stuffs.
+## Other MCP libraries
 
-## Other MCP libs
-
-- [MCP Clojure SDK](https://github.com/unravel-team/mcp-clojure-sdk): similar library, discovered after being mostly done implementing this one 😅
+- [MCP Clojure SDK](https://github.com/unravel-team/mcp-clojure-sdk)
 - Calva's [Backseat Driver](https://github.com/BetterThanTomorrow/calva-backseat-driver)
 - [Clojure MCP](https://github.com/bhauman/clojure-mcp)
 - [Modex](https://github.com/theronic/modex)
 
 ## License
 
-This project is distributed under the [Eclipse Public License v2.0](LICENSE.txt).
+Distributed under the [Eclipse Public License v2.0](LICENSE.txt).
 
 Copyright (c) [Metosin](https://metosin.fi) and contributors.
