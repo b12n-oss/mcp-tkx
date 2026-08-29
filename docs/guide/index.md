@@ -78,8 +78,8 @@ This guide focuses on the **reusable building blocks**, the patterns that lift t
 
 | Pattern | Where it lives | Closest sibling |
 |---|---|---|
-| Kebab-case keys internally + camelCase on the wire (transport-layer conversion) | `example/cljc-server-stdio/src/example/my_server.cljc` (the canonical wiring); `csk/->camelCaseString` + `csk/->kebab-case-keyword` via `jsonista` | (none in the umbrella as a library — `a-private-project` does similar `kebab->camel` JSON envelope conversion at its REST layer; Metosin upstream uses raw camelCase) |
-| Malli registry of MCP protocol schemas with `!`-suffix throwing constructors | `src/mcp_toolkit/schema.cljc` | `a-private-project`'s Malli resource registry (different domain, same single-source-of-truth shape) |
+| Kebab-case keys internally + camelCase on the wire (transport-layer conversion) | `example/cljc-server-stdio/src/example/my_server.cljc` (the canonical wiring); `csk/->camelCaseString` + `csk/->kebab-case-keyword` via `jsonista` | (none as a standalone library; Metosin upstream uses raw camelCase) |
+| Malli registry of MCP protocol schemas with `!`-suffix throwing constructors | `src/mcp_toolkit/schema.cljc` | (none — most MCP SDKs validate ad hoc rather than through a shared schema registry) |
 | Dynamic resources via `:read-fn` returning `{:text}` / `{:blob}` / `{:contents}` / `{:error}` (or a Promesa promise of any) | `src/mcp_toolkit/impl/server/handler.cljc` (`resource-read-handler`) | (none — most MCP SDKs only support static resource content) |
 | Multi-version automatic negotiation against `:server-supported-protocol-versions` (`["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]`) | `src/mcp_toolkit/impl/server/handler.cljc` (`initialize-handler`) | (none — most MCP SDKs hardcode a single version) |
 | MCP cancellation via per-request `is-cancelled` atom + `notifications/cancelled` handler | `src/mcp_toolkit/json_rpc.cljc` (`route-message`) + `src/mcp_toolkit/impl/server/handler.cljc` (`cancelled-notification-handler`) | (none — Promesa promises don't have a built-in cancel signal; this pattern lifts to any long-running async handler) |
@@ -115,4 +115,3 @@ bb tasks                     # list every task with its docstring
 - [`CHANGELOG.md`](../../CHANGELOG.md) — version history per release; `v2025-11-25` is the unreleased entry covering the 9 phases of the upstream-spec port (Phase 0 = kebab-case transport, Phase 1 = protocol negotiation, Phase 2 = server description, Phase 3 = icons, Phase 4 = Malli schemas, Phase 5 = sampling with tools, Phase 6 = elicitation, Phase 7 = tasks, Phase 9 = JSON Schema 2020-12 dialect).
 - [`docs/reference/`](../reference/) — preserved upstream Metosin docs (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, `MIGRATION-2025-11-25.md`).
 - [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md) — the older migration writeup (added by upstream when bumping from 2025-03-26 → 2025-06-18).
-- [a-private-project](https://github.com/burinc/a-private-project) — central wiki hub for all b12n projects; `mcp-tkx` is mirrored there as a sibling-project reference.

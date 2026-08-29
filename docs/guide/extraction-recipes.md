@@ -1,6 +1,6 @@
 # Extraction recipes
 
-Lift-and-shift recipes for reusable patterns from `mcp-tkx`. Same template as the sibling projects — each recipe answers "what do I copy, what do I skip, how long does it take, what trips you up." See [`a-private-project/extraction-recipes.md`](https://github.com/burinc/a-private-project/blob/main/docs/guide/extraction-recipes.md) for the canonical form.
+Lift-and-shift recipes for reusable patterns from `mcp-tkx`. Each recipe answers "what do I copy, what do I skip, how long does it take, what trips you up."
 
 ---
 
@@ -70,7 +70,7 @@ Idiomatic Clojure code uses kebab-case. Mixing camelCase keys for protocol field
 - **`:enum` is by-value, not by-keyword-or-string.** `[:enum "form" "url"]` accepts only strings; `[:enum :form :url]` accepts only keywords. Pick one and stick to it across your schema namespace.
 - **`{:optional true}` only works inside `[:map [...]]` entries.** It's not a global modifier — `[:optional :string]` is a syntax error.
 
-**See:** [Schema validation](schema-validation.md), `a-private-project`'s [`malli-resource-registry.md`](https://github.com/burinc/a-private-project/blob/main/docs/guide/malli-resource-registry.md) for a different-domain take on the same pattern.
+**See:** [Schema validation](schema-validation.md) for the full API this recipe lifts from.
 
 ---
 
@@ -230,9 +230,9 @@ Returning the swap result (an updated map) leaks internal session state to the R
 | Recipe | Used by |
 |---|---|
 | 1 — Kebab-case JSON-RPC transport | Any Clojure JSON-RPC server that wants kebab-case handlers over a camelCase wire |
-| 2 — Malli protocol-schema registry | a-private-project (different domain — App Store Connect resource types — same pattern) |
+| 2 — Malli protocol-schema registry | Any resource-type registry that wants a single Malli source of truth for validation and construction |
 | 3 — Dynamic resources via `:read-fn` | Registry-style APIs whose entries are computed on demand |
-| 4 — Multi-version handshake negotiation | Any future evolving-spec library in the umbrella |
+| 4 — Multi-version handshake negotiation | Any evolving-spec library that needs to support several protocol versions at once |
 | 5 — Cancellation via atom | Any long-running tool-fn / prompt-fn in any MCP server built on this fork; lifts to non-MCP async handlers |
 | 6 — REPL-aware notification helpers | Any registry-style API where REPL-time inspection is a user feature |
 
@@ -240,6 +240,3 @@ Returning the swap result (an updated map) leaks internal session state to the R
 
 - [Index](index.md) — the guide overview.
 - [Architecture](architecture.md) — orientation for where each pattern sits in the namespace map.
-- The sibling-project extraction-recipes pages for patterns that compose well with these:
-  - [`a-private-project/extraction-recipes.md`](https://github.com/burinc/a-private-project/blob/main/docs/guide/extraction-recipes.md) — read-only guardrail, dry-run via dynamic var, pure-Java ES256 JWT.
-  - [`a-private-project/extraction-recipes.md`](https://github.com/burinc/a-private-project/blob/main/docs/guide/extraction-recipes.md) — multi-TTL SQLite cache, JWT-via-shared-secret middleware.
