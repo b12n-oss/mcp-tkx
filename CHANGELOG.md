@@ -77,6 +77,9 @@ Versions prior to v0.1.0 are considered experimental, their API may change.
   - Helper constructors for common patterns
   - `valid?`, `validate`, `explain` functions for validation
 
+- **Coverage reporting** - `bb coverage` runs cloverage via a `:coverage` alias, writing `target/coverage/index.html`. Deliberately not wired into `bb ci`, and deliberately not kaocha-cloverage, which has had no commits since 2023 and pins an incompatible kaocha. JVM only, which is not the gap it sounds like: `src/` has no reader conditionals, so every line the ClojureScript build compiles also runs on the JVM
+- **Documentation site** - Built from `docs/` through `b12n-oss/docs-engine`, configured by `docs/site.edn`, with `bb site:serve`, `bb site:build` and `bb site:clean`. CI builds it on pull requests; publishing is gated off behind a repository variable that is not set
+
 ### Changed
 - **Internal naming convention** - All internal keys now use kebab-case
   - Wire format (camelCase) automatically converted at transport layer
@@ -87,6 +90,13 @@ Versions prior to v0.1.0 are considered experimental, their API may change.
 - Variable shadowing bug in `completion-complete-handler`
 - Missing else branches in `json_rpc.cljc`
 - Unused binding warnings throughout codebase
+- **`request-sampling` sent tool fields to clients that never declared support for them.** It checked for `:sampling` and then forwarded whatever it was given, `:tools` and `:tool-choice` included, where its sibling `request-elicitation` checks two levels. The check it needed already existed as `client-supports-sampling-tools?`, was unit tested, and was called by nothing. This also resolves the `FIXME: implementation is not complete` marker inherited from upstream
+- The URL-elicitation sample in `docs/reference/` built a raw map missing `:mode` and `:elicitation-id`, so it would have taken the form-mode branch and failed there for want of `:requested-schema`. Now built with `schema/url-elicitation`
+
+### Documentation (corrections)
+- The README capability table claimed Full support for **Elicitation** and **Tasks**. Neither is: `impl/client/handler.cljc` registers no `elicitation/create` handler and no `tasks/*` handler on either side, so a client built with this library answers `-32601` to both. Both are now Partial, with the gap described
+- The two ASCII diagrams in the guide are now mermaid
+- Assorted accuracy fixes across the guide and reference, including an `index.md` self-contradiction about which reference pages are this fork's own work and which are preserved from upstream, and install snippets that pointed at the wrong repository URL
 
 ### Documentation
 - Added comprehensive migration guide (docs/reference/MIGRATION-2025-11-25.md)
