@@ -245,15 +245,41 @@ The toolkit detects what the client supports via the `:client-capabilities` map 
 > one would let them race.
 >
 > So on a stateless session every one of these returns `false`, including for a
-> client that did declare the capability. Guard a stateless code path with
-> `request-client-capabilities`, which reads the context first and falls back to
-> the session:
+> client that did declare the capability. The same session-only read sits inside
+> `request-elicitation`, `request-sampling` and `request-root-list` themselves,
+> not just the boolean helpers. On a stateless session all three silently return
+> `nil` and send nothing, even when the request's own `_meta` declared the
+> capability. `request-client-capabilities` tells you what the request declared,
+> but reading it does not make these three functions do anything, because
+> 2026-07-28 removed server-initiated requests altogether. There is no in-flight
+> request left for the server to attach a mid-call ask to.
+>
+> On a **handshake** session, the helpers and `request-elicitation` /
+> `request-sampling` / `request-root-list` all do what they say, since
+> `:client-capabilities` lives in the session from `initialize` onward. On a
+> **stateless** session, use the multi round-trip path instead. A handler that
+> needs something from the client returns `server/input-required` carrying one
+> or more of `server/sampling-request`, `server/roots-request`,
+> `server/elicit-form-request` or `server/elicit-url-request`, then reads the
+> answer back on the retry with `server/input-response`:
 >
 > ```clojure
-> ;; Works on both eras.
-> (when (contains? (server/request-client-capabilities context) :elicitation)
->   (server/request-elicitation context {...}))
+> (defn greet [context _arguments]
+>   (if-some [answer (server/input-response context :who)]
+>     {:content [{:type "text" :text (str "hello " (-> answer :content :name))}]}
+>     (server/input-required
+>      {:input-requests {:who (server/elicit-form-request
+>                              {:message "Who are you?"
+>                               :requested-schema {:type "object"
+>                                                  :properties {:name {:type "string"}}
+>                                                  :required ["name"]}})}
+>       :request-state "asked-for-name"})))
 > ```
+>
+> `server/missing-client-capability-error` returns the 2026-07-28 error for a
+> handler that cannot proceed because the client never declared the needed
+> capability, which is clearer than an `input-required` the client can only
+> fail on.
 
 The convention: **always** check the capability before calling a feature that requires it. The `request-*` fns in `mcp-toolkit.server` themselves check capabilities and return `nil` (don't send anything) when the client doesn't declare support. See [2025-11-25 features](2025-11-25-features.md) for the full feature-by-feature breakdown.
 
