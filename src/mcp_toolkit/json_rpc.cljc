@@ -79,6 +79,19 @@
    (-> (notification topic)
        (assoc :params params))))
 
+(def hold-open
+  "Returned by a handler that takes ownership of its request instead of
+   answering it.
+
+   Nearly every request gets exactly one response. `subscriptions/listen` does
+   not: the pending request IS the notification stream, and its response
+   arrives only when the subscription closes gracefully, or never at all if the
+   transport drops. A handler returning this sends nothing now.
+
+   Returning nil would not work, since nil is a perfectly good result and gets
+   wrapped as one."
+  ::hold-open)
+
 (defn call-remote-method
   "Calls a remote method via JSON-RPC.
    Returns a promise which either resolves with the message's result or
@@ -157,14 +170,22 @@
             (-> (handler context)
                 (p/then (fn [result]
                           (when-not @is-cancelled
-                            (if (and (map? result)
-                                     (contains? result :jsonrpc)
-                                     (or (contains? result :error)
-                                         (contains? result :result)))
+                            (cond
+                              ;; The handler is keeping this request open and
+                              ;; will answer later, or not at all.
+                              (= hold-open result)
+                              nil
+
                               ;; The handler returned a full JSON-RPC response
                               ;; (e.g. invalid-tool-name, resource-not-found) —
                               ;; send it as-is instead of nesting it in :result.
+                              (and (map? result)
+                                   (contains? result :jsonrpc)
+                                   (or (contains? result :error)
+                                       (contains? result :result)))
                               result
+
+                              :else
                               {:jsonrpc "2.0"
                                :result result
                                :id id}))))

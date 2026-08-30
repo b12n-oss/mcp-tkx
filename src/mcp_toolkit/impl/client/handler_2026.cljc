@@ -20,7 +20,8 @@
    No ping, since it went away with the session. No roots/list and no
    sampling/createMessage, since the server cannot initiate a request any
    more."
-  {"notifications/progress" (user-callback :on-server-progress)
+  {"notifications/subscriptions/acknowledged" (user-callback :on-subscription-acknowledged)
+   "notifications/progress" (user-callback :on-server-progress)
    "notifications/message" (user-callback :on-server-log)
    "notifications/prompts/list_changed" (user-callback :on-server-prompt-list-changed)
    "notifications/resources/updated" (user-callback :on-server-resource-changed)

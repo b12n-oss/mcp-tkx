@@ -5,6 +5,7 @@
    [mcp-toolkit.impl.mrtr :as mrtr]
    [mcp-toolkit.impl.server.handler :as server.handler]
    [mcp-toolkit.impl.server.handler-2026 :as server.handler-2026]
+   [mcp-toolkit.impl.subscriptions :as subscriptions]
    [mcp-toolkit.json-rpc :as json-rpc]
    [mcp-toolkit.protocol :as protocol]
    [promesa.core :as p]))
@@ -456,6 +457,84 @@
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
 ;;
 
+;; ---------------------------------------------------------------------------
+;; Server notifications
+;;
+;; The handshake revisions have an ambient connection, so a notification just
+;; goes down it. 2026-07-28 has no such thing. A notification only exists on a
+;; subscriptions/listen stream, so it fans out to the subscriptions that asked
+;; for it, and each copy is tagged with the stream it belongs to.
+;;
+;; Progress and log notifications are NOT routed this way. They are
+;; request-scoped and ride the response stream of the request they belong to,
+;; which is why they still work with no subscription open.
+;; ---------------------------------------------------------------------------
+
+(defn- notification-message
+  [topic params]
+  (if (some? params)
+    (json-rpc/notification topic params)
+    (json-rpc/notification topic)))
+
+(defn- send-notification
+  ([context topic]
+   (send-notification context topic nil nil))
+  ([context topic params]
+   (send-notification context topic params nil))
+  ([context topic params uri]
+   (let [{:keys [session]} context]
+     (if (protocol/stateless? (:protocol-version @session))
+       (doseq [subscription-id (subscriptions/subscriber-ids @session topic uri)]
+         (json-rpc/send-message context
+                                (subscriptions/tag (notification-message topic params)
+                                                   subscription-id)))
+       (json-rpc/send-message context (notification-message topic params))))
+   nil))
+
+(defn close-subscription!
+  "Ends one subscription stream on the server's own initiative.
+
+   Answers the still-open subscriptions/listen request, which tells the client
+   the stream closed on purpose. A stream that simply stops looks like a
+   dropped transport, and a client may reconnect on that basis.
+
+   Args:
+     context         - The server session context
+     subscription-id - The id of the subscriptions/listen request
+
+   Returns:
+     nil"
+  [context subscription-id]
+  (let [{:keys [session]} context]
+    (when (contains? (:subscription-by-id @session) subscription-id)
+      (swap! session update :subscription-by-id dissoc subscription-id)
+      (json-rpc/send-message context (subscriptions/close-response subscription-id))))
+  nil)
+
+(defn close-all-subscriptions!
+  "Ends every open subscription, as a server would on shutdown.
+
+   Args:
+     context - The server session context
+
+   Returns:
+     nil"
+  [context]
+  (doseq [subscription-id (sort (keys (:subscription-by-id @(:session context))))]
+    (close-subscription! context subscription-id))
+  nil)
+
+(defn active-subscriptions
+  "Returns the honoured filter of every open subscription, keyed by id.
+
+   Args:
+     context - The server session context
+
+   Returns:
+     A map of subscription id to filter."
+  [context]
+  (:subscription-by-id @(:session context)))
+
 (defn notify-prompt-list-changed
   "Notifies the client that the server's prompt list has changed.
    (see https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#list-changed-notification)
@@ -466,7 +545,7 @@
    Returns:
      nil"
   [context]
-  (json-rpc/send-message context (json-rpc/notification "prompt/list_changed"))
+  (send-notification context "prompts/list_changed")
   nil)
 
 (defn add-prompt
@@ -514,9 +593,13 @@
   (let [{:keys [session]} context
         {:keys [client-subscribed-resource-uris]} @session
         {:keys [uri]} resource]
-    (when (contains? client-subscribed-resource-uris uri)
-      (json-rpc/send-message context (json-rpc/notification "resources/updated"
-                                                            {:uri uri}))))
+    (if (protocol/stateless? (:protocol-version @session))
+      ;; 2026-07-28 tracks interest per subscription, and a subscription to a
+      ;; URI ending in a slash also covers everything beneath it.
+      (send-notification context "resources/updated" {:uri uri} uri)
+      (when (contains? client-subscribed-resource-uris uri)
+        (json-rpc/send-message context (json-rpc/notification "resources/updated"
+                                                              {:uri uri})))))
   nil)
 
 (defn notify-resource-list-changed
@@ -529,7 +612,7 @@
    Returns:
      nil"
   [context]
-  (json-rpc/send-message context (json-rpc/notification "resources/list_changed"))
+  (send-notification context "resources/list_changed")
   nil)
 
 (defn add-resource
@@ -572,7 +655,7 @@
    Returns:
      nil"
   [context]
-  (json-rpc/send-message context (json-rpc/notification "tools/list_changed"))
+  (send-notification context "tools/list_changed")
   nil)
 
 (defn add-tool
@@ -878,6 +961,9 @@
      :resource-templates resource-templates
      :resource-uri-complete-fn resource-uri-complete-fn
      :is-cancelled-by-request-id {} ;; "is-cancelled" atoms indexed by request-id
+   ;; 2026-07-28 subscriptions/listen streams, keyed by the id of the request
+   ;; that opened each one. Empty on the handshake revisions.
+     :subscription-by-id {}
      :logging-level logging-level
      :on-initialized on-initialized
      :on-client-root-list-changed on-client-root-list-changed

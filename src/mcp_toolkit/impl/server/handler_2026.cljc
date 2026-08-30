@@ -13,6 +13,8 @@
   (:require
    [mcp-toolkit.impl.mrtr :as mrtr]
    [mcp-toolkit.impl.server.handler :as handler]
+   [mcp-toolkit.impl.subscriptions :as subscriptions]
+   [mcp-toolkit.json-rpc :as json-rpc]
    [mcp-toolkit.protocol :as protocol]
    [promesa.core :as p]))
 
@@ -176,6 +178,41 @@
              :capabilities (server-capabilities session)}
       (some? server-instructions) (assoc :instructions server-instructions))))
 
+(defn subscriptions-listen-handler
+  "Opens a notification stream.
+
+   The request is not answered here. It stays open and becomes the stream, so
+   the handler returns `json-rpc/hold-open` and the response is sent later, by
+   `close-subscription!`, if the server ends the stream deliberately.
+
+   The acknowledgement goes out first, before this returns, because the spec
+   requires it to precede every notification on the subscription. It reports
+   the subset of the requested filter the server can actually deliver."
+  [{:keys [session message]
+    :as context}]
+  (let [subscription-id (:id message)
+        requested (-> message :params :notifications)
+        honoured (subscriptions/honoured-filter (server-capabilities session) requested)]
+    (swap! session assoc-in [:subscription-by-id subscription-id] honoured)
+    (json-rpc/send-message
+     context
+     (subscriptions/tag {:jsonrpc "2.0"
+                         :method "notifications/subscriptions/acknowledged"
+                         :params {:notifications honoured}}
+                        subscription-id))
+    json-rpc/hold-open))
+
+(defn cancelled-notification-handler
+  "Cancels a request, and ends a subscription when the id names one.
+
+   On stdio a client cancels a subscription by sending notifications/cancelled
+   against the id of the subscriptions/listen request that opened it, so this
+   has to serve both purposes."
+  [{:keys [session message]
+    :as context}]
+  (swap! session update :subscription-by-id dissoc (-> message :params :request-id))
+  (handler/cancelled-notification-handler context))
+
 (defn wrap-handler
   "Wraps one handler for 2026-07-28.
 
@@ -213,7 +250,12 @@
                      (assoc acc method (wrap-handler method underlying))))
                  {}
                  handler/handler-by-method-post-initialization)
-      (assoc "server/discover" (wrap-handler "server/discover" discover-handler))))
+      (assoc "server/discover" (wrap-handler "server/discover" discover-handler)
+             "subscriptions/listen" (wrap-handler "subscriptions/listen"
+                                                  subscriptions-listen-handler)
+             ;; Overrides the shared handler, which knows nothing of streams.
+             "notifications/cancelled" (wrap-handler "notifications/cancelled"
+                                                     cancelled-notification-handler))))
 
 (defn log-enabled?
   "Returns true when the current request opted in to log notifications.

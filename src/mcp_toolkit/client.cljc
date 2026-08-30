@@ -378,6 +378,69 @@
     (notify-root-list-changed context))
   nil)
 
+(defn request-subscribe
+  "Opens a notification stream on a 2026-07-28 server.
+
+   This request deliberately does not resolve when the server starts sending.
+   It IS the stream: it stays open for the subscription's life, and its
+   response arrives only if the server closes the subscription gracefully. So
+   the promise returned here resolves at the END of the subscription, not the
+   beginning. Do not await it before carrying on.
+
+   The server answers first with notifications/subscriptions/acknowledged,
+   reporting the subset of the filter it will actually honour, which reaches
+   :on-subscription-acknowledged. Check it: a type the server does not support
+   is omitted rather than refused, so a silent stream and a stream you were
+   never going to get anything on look identical otherwise.
+
+   Every notification on the stream carries the subscription id in _meta under
+   io.modelcontextprotocol/subscriptionId. On stdio all streams share one
+   channel, so that field is the only way to demultiplex them.
+
+   Args:
+     context       - The client session context
+     notifications - The filter, any of:
+                     :tools-list-changed     - boolean
+                     :prompts-list-changed   - boolean
+                     :resources-list-changed - boolean
+                     :resource-subscriptions - vector of resource URIs. A URI
+                                               ending in a slash also covers
+                                               everything beneath it.
+
+   Returns:
+     A promise that resolves when the subscription ends gracefully."
+  [context notifications]
+  (call-method context {:method "subscriptions/listen"
+                        :params {:notifications notifications}}))
+
+(defn notify-unsubscribe
+  "Ends a subscription this client opened.
+
+   On stdio a client cancels a stream by referencing the id of the
+   subscriptions/listen request that opened it, which is what this sends.
+
+   Args:
+     context         - The client session context
+     subscription-id - The id of the subscriptions/listen request
+
+   Returns:
+     nil"
+  [context subscription-id]
+  (json-rpc/send-message context (json-rpc/notification "cancelled"
+                                                        {:request-id subscription-id})))
+
+(defn subscription-id
+  "Returns the subscription a notification arrived on.
+
+   Args:
+     context - The client session context, inside a notification handler
+
+   Returns:
+     The subscription id, or nil for a notification that did not arrive on a
+     subscription stream, such as progress on an in-flight request."
+  [context]
+  (-> context :message :params :_meta (get protocol/meta-subscription-id)))
+
 (defn request-discover
   "Asks a 2026-07-28 server what it supports.
 
@@ -483,6 +546,11 @@
                             back asking for input before the client gives up.
                             Defaults to 8.
 
+     :on-subscription-acknowledged - 2026-07-28. Called when a server accepts a
+                                     subscription, with the filter it agreed to
+                                     honour. Worth checking, since a type the
+                                     server cannot support is omitted rather
+                                     than refused.
      :on-elicitation-requested - 2026-07-28. Called as (f context params) when a
                                  server asks the user for input. Returns the
                                  answer, or a promise of it.
@@ -500,6 +568,7 @@
            log-level
            max-round-trips
            on-initialized
+           on-subscription-acknowledged
            on-elicitation-requested
            on-sampling-requested
            on-server-progress
@@ -532,6 +601,7 @@
                           client.handler/handler-by-method-pre-initialization)
      :log-level log-level
      :max-round-trips max-round-trips
+     :on-subscription-acknowledged on-subscription-acknowledged
      :on-elicitation-requested on-elicitation-requested
      :root-by-uri (mc/index-by :uri roots)
      :server-prompt-by-name {}
