@@ -5,7 +5,7 @@ and servers in Clojure and ClojureScript.
 
 `mcp-tkx` is an independently maintained fork of
 [metosin/mcp-toolkit](https://github.com/metosin/mcp-toolkit). It speaks
-all four MCP protocol revisions, negotiates the version at the
+all five MCP protocol revisions, negotiates the version at the
 handshake, and keeps your handler code in kebab-case while the wire
 stays camelCase. It does no I/O of its own, so you can put it behind
 STDIO, HTTP+SSE, Streamable HTTP, or anything else that can move JSON.
@@ -78,8 +78,11 @@ Full walkthrough: [Getting started](docs/guide/getting-started.md).
 
 ## Protocol and feature support
 
-Versions are negotiated automatically at the initial handshake:
-`2024-11-05`, `2025-03-26`, `2025-06-18`, `2025-11-25` and `2026-07-28`.
+`2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25` negotiate
+automatically at the initial handshake. `2026-07-28` removed the
+handshake, so a session opts into it explicitly, with one exception for
+a session serving both eras at once: see the dual-era negotiation notes
+in [Protocol versions](docs/guide/protocol-versions.md#version-negotiation).
 
 JSON-RPC batching was removed in `2025-06-18`. Note that this library
 rejects array requests on **every** version, not only that one, so a
@@ -194,11 +197,12 @@ transports are directly comparable.
 | [`cljc-client-stdio`](example/cljc-client-stdio) | STDIO client | `bb example:client:stdio` |
 | [`clj-server-sse`](example/clj-server-sse) | HTTP+SSE, `2024-11-05`, deprecated | `bb example:server:sse` |
 | [`clj-server-streamable-http`](example/clj-server-streamable-http) | Streamable HTTP, `2025-03-26`+ | `bb example:server:streamable-http` |
+| [`clj-server-streamable-http`](example/clj-server-streamable-http) | Streamable HTTP, `2026-07-28`, stateless | `bb example:server:streamable-http:2026` |
 
 ## Documentation
 
-The [user guide](docs/guide/index.md) is the place to start. Eleven
-more pages cover the architecture, all four protocol revisions, schema
+The [user guide](docs/guide/index.md) is the place to start. Twelve
+more pages cover the architecture, all five protocol revisions, schema
 validation, both HTTP transports, the REPL workflow, and recipes for
 lifting pieces of this into other projects.
 
@@ -211,6 +215,7 @@ lifting pieces of this into other projects.
 | [Architecture](docs/guide/architecture.md) | Session atom, context hashmap, message lifecycle, namespace map |
 | [Kebab-case transformation](docs/guide/kebab-case-transformation.md) | Where the casing boundary sits, and how to wire it per transport |
 | [Protocol versions](docs/guide/protocol-versions.md) | The negotiation algorithm and what each revision adds |
+| [2026-07-28: the stateless revision](docs/guide/2026-07-28-stateless.md) | The redesign that removed the handshake, and what replaced it |
 | [Schema validation](docs/guide/schema-validation.md) | The Malli registry and the throwing constructors |
 | [Dynamic resources](docs/guide/dynamic-resources.md) | `:read-fn`, its return contract, and when to prefer static content |
 | [2025-11-25 features](docs/guide/2025-11-25-features.md) | Elicitation, tasks, sampling with tools, icons |

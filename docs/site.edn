@@ -13,4 +13,4 @@
  :base-path   "/mcp-tkx"
 
  :title       "mcp-tkx"
- :description "A Clojure and ClojureScript library for building Model Context Protocol clients and servers. Four protocol revisions, negotiated at the handshake, with kebab-case handlers over a camelCase wire."}
+ :description "A Clojure and ClojureScript library for building Model Context Protocol clients and servers. Five protocol revisions from 2024-11-05 to 2026-07-28, with kebab-case handlers over a camelCase wire."}

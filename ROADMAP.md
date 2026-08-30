@@ -45,7 +45,7 @@ Metosin's coordinate by accident, but neither alias is used today.
 
 Protocol support for four handshake revisions (`2024-11-05`, `2025-03-26`,
 `2025-06-18`, `2025-11-25`) with automatic negotiation, plus the stateless
-`2026-07-28` revision on the server side. Elicitation and
+`2026-07-28` revision on both sides. Elicitation and
 server description from the `2025-11-25` revision, plus tasks, which the
 spec itself marks experimental. A Malli schema registry for protocol
 types.

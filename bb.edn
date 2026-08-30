@@ -723,7 +723,7 @@ echo \"✅ All pre-commit checks passed!\"
                line    (fn [t]
                          (println (str "  " (color cyan (format "%-26s" (str "bb " t))) (brief t))))
                groups  [["Development"          ["dev" "nrepl" "repl"]]
-                        ["Example servers"      ["example:server:stdio" "example:server:sse" "example:server:streamable-http" "example:client:stdio"]]
+                        ["Example servers"      ["example:server:stdio" "example:server:sse" "example:server:streamable-http" "example:server:streamable-http:2026" "example:client:stdio"]]
                         ["Testing"              ["test" "test:watch" "test:focus" "test:cljs"]]
                         ["Code quality"         ["check" "check:full" "ci" "lint" "lint:all"]]
                         ["LSP (clojure-lsp)"    ["lsp:format" "lsp:format-check" "lsp:clean-ns" "lsp:clean-ns-check" "lsp:diagnostics" "lsp:check" "lsp:fix"]]
