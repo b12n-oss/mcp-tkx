@@ -479,6 +479,50 @@
                      (is (= "complete" (:result-type result)))
                      (is (= "private" (:cache-scope result))))))))))
 
+(deftest deterministic-list-order-test
+  (let [tools (mapv (fn [i] {:name (str "tool_" i)
+                             :description "d"
+                             :input-schema {}})
+                    (range 12))
+        expected (mapv :name (sort-by :name tools))
+        list-tools (fn [declared]
+                     (-> (drive (session-2026 {:tools declared})
+                                [{:jsonrpc "2.0"
+                                  :id 1
+                                  :method "tools/list"
+                                  :params {:_meta request-meta}}])
+                         (p/then (fn [sent] (mapv :name (-> sent first :result :tools))))))]
+
+    (testing "tools are listed in a stable order regardless of declaration order"
+      ;; The revision asks for a deterministic order so clients can cache list
+      ;; results. Twelve tools matter here: below nine the underlying map is an
+      ;; array map and keeps insertion order by accident.
+      (async-test
+       3000
+       (p/let [as-declared (list-tools tools)
+               reversed (list-tools (reverse tools))
+               shuffled (list-tools (shuffle tools))]
+         (is (= expected as-declared))
+         (is (= expected reversed))
+         (is (= expected shuffled)))))
+
+    (testing "resources are ordered by uri"
+      (async-test
+       3000
+       (-> (drive (session-2026 {:resources [{:uri "ipfs:///c"
+                                              :name "c"}
+                                             {:uri "ipfs:///a"
+                                              :name "a"}
+                                             {:uri "ipfs:///b"
+                                              :name "b"}]})
+                  [{:jsonrpc "2.0"
+                    :id 1
+                    :method "resources/list"
+                    :params {:_meta request-meta}}])
+           (p/then (fn [sent]
+                     (is (= ["ipfs:///a" "ipfs:///b" "ipfs:///c"]
+                            (mapv :uri (-> sent first :result :resources)))))))))))
+
 ;; ---------------------------------------------------------------------------
 ;; Multi round-trip requests, end to end
 ;; ---------------------------------------------------------------------------

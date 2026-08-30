@@ -92,6 +92,31 @@
         (assoc :_meta (merge {protocol/meta-server-info (:server-info @session)}
                              (:_meta result))))))
 
+(def ^:private list-result-ordering
+  "The collection each list result returns, and the field that gives it a
+   stable order.
+
+   This revision asks servers to return list results in a deterministic order,
+   so clients can cache them and so repeated LLM prompts hit their own caches.
+   The underlying handlers read from hash maps, whose iteration order is a
+   function of the keys rather than of declaration order. That is already
+   deterministic for a fixed set of names, but it is not stable across a
+   ClojureScript build, nor across an add-tool that reshapes the map. Sorting
+   on a field the protocol already requires to be unique costs little and
+   removes the question."
+  {"tools/list"               [:tools :name]
+   "prompts/list"             [:prompts :name]
+   "resources/list"           [:resources :uri]
+   "resources/templates/list" [:resource-templates :uri-template]})
+
+(defn- order-list-result
+  [method result]
+  (if-some [[collection-key sort-key] (get list-result-ordering method)]
+    (cond-> result
+      (contains? result collection-key)
+      (update collection-key (fn [items] (vec (sort-by sort-key items)))))
+    result))
+
 (defn- unsupported-protocol-version-response
   [id requested]
   {:jsonrpc "2.0"
@@ -172,7 +197,8 @@
         (unsupported-protocol-version-response id requested)
         (-> (p/do (handler (with-request-context context message)))
             (p/then (fn [result]
-                      (->> (decorate-result session method result)
+                      (->> (order-list-result method result)
+                           (decorate-result session method)
                            (remap-error-code)))))))))
 
 (def handler-by-method
