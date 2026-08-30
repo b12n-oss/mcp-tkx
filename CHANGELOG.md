@@ -5,6 +5,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 Versions prior to v0.1.0 are considered experimental, their API may change.
 
+## [v2026-07-28] - Unreleased
+
+### Added
+- **MCP Protocol 2026-07-28 Support** - The stateless revision, alongside the four handshake ones. A session speaks one era, chosen when it is created, and each reports only what it can actually serve. See `docs/guide/2026-07-28-stateless.md`.
+  - **Stateless core** - No initialize handshake and no protocol-level session. Every request carries its own protocol version, capabilities and client identity in `_meta`
+    - `:protocol-version "2026-07-28"` on `create-session`, server and client
+    - `server/discover` replacing the handshake, with capabilities derived from what the session actually holds
+    - `resultType` on every result, and `ttlMs` / `cacheScope` on the six cacheable ones, overridable per session with `:cache-policy`
+    - Deterministic ordering of list results, by name for tools and prompts and by URI for resources and templates
+  - **Multi Round-Trip Requests** - Replacing server-initiated sampling, roots and elicitation
+    - `input-required`, `input-response`, `input-responses`, `request-state`, `retry?`
+    - Request builders: `sampling-request`, `roots-request`, `elicit-form-request`, `elicit-url-request`
+    - The client fulfils and retries automatically, so calling code is unchanged between revisions, with `:max-round-trips` as a guard
+  - **subscriptions/listen** - The only way a stateless server tells a client anything unprompted
+    - `request-subscribe`, `notify-unsubscribe`, `subscription-id`, `:on-subscription-acknowledged`
+    - `close-subscription!`, `close-all-subscriptions!`, `active-subscriptions`
+    - Filter honouring, per-subscription tagging, and URI subtree matching
+  - **Dual-era serving** - `:dual-era? true` answers a handshake client and a stateless one on the same session, choosing per request
+  - **Renumbered error codes** - `-32020` header mismatch, `-32021` missing client capability, `-32022` unsupported protocol version, and `-32602` for a missing resource
+  - `mcp-toolkit.protocol` - version constants, the `_meta` vocabulary, and the JSON key rules every transport needs
+
+- **A 2026-07-28 Streamable HTTP transport** (`example/clj-server-streamable-http`), beside the handshake one rather than replacing it. POST only, no session id, no GET endpoint, and one held-open SSE response per subscription. Run it with `bb example:server:streamable-http:2026`
+
+### Changed
+- `json-rpc/hold-open` lets a handler take ownership of its request instead of answering it, which `subscriptions/listen` needs since the pending request is the stream
+- `tool-call-handler` passes through multi round-trip results and full JSON-RPC responses instead of printing them into a text block
+- A stateless session reports only the revision it implements, rather than every revision the library implements
+
+### Fixed
+- **`_meta` was corrupted by every transport.** camel-snake-kebab drops the namespace when re-encoding, so `io.modelcontextprotocol/protocolVersion` went out as `protocolVersion`. The two stdio examples also lost `_meta` entirely, so `progressToken` never reached `notify-progress` there. The rules now live in the library as `protocol/decode-key` and `protocol/encode-key`
+- **`request-tool-list` guarded on the `:prompts` capability rather than `:tools`**, so a client talking to a tools-only server never listed its tools. Hidden for as long as `initialize` advertised a fixed map that always included prompts
+- **`notify-prompt-list-changed` sent `notifications/prompt/list_changed`**, singular, which neither the specification nor this library's own client tables listen for. Inherited from upstream
+- A handshake client reaching a stateless server now gets an error naming the versions it could use, rather than a bare Method not found
+
+### Documentation
+- Added `docs/guide/2026-07-28-stateless.md`, covering the redesign, multi round-trip handlers, subscriptions, dual-era serving, and the two wire-key rules a transport must get right
+- ROADMAP records what is left: the tasks extension, the Streamable HTTP header requirements, and dual-era support in the example HTTP transport
+
+---
+
 ## [v2025-11-25] - Unreleased
 
 ### Added
