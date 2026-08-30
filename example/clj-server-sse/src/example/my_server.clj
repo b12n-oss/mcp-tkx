@@ -42,9 +42,12 @@
    :settings {:allowed-hosts ["127.0.0.1:*"]}})
 
 (defn log-request
-  [{:keys [uri request-method] :as req}
-   {:keys [body status] :as resp}]
-  (tel/log! {:level :info :msg (str (str/upper-case (name request-method)) " " uri)
+  [{:keys [uri request-method]
+    :as req}
+   {:keys [body status]
+    :as resp}]
+  (tel/log! {:level :info
+             :msg (str (str/upper-case (name request-method)) " " uri)
              :data (merge {:status status}
                           (when (>= (or status -1) 400)
                             {:err body
@@ -115,9 +118,11 @@
 
 (comment
   ;; From a repl you can run the system  with
-  (start {:host "127.0.0.1" :port 3000})
+  (start {:host "127.0.0.1"
+          :port 3000})
   ;; and stop it with
   (stop)
   ;; or do both at once
-  (restart {:host "127.0.0.1" :port 3000})
+  (restart {:host "127.0.0.1"
+            :port 3000})
   *e)

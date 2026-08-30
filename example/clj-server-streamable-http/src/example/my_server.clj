@@ -57,7 +57,9 @@
   (println (str "Starting Streamable HTTP server on " bind ":" port))
   (assoc ctx ::server
          (http-kit/run-server (handler ctx)
-                              {:legacy-return-value? false :port port :ip bind})))
+                              {:legacy-return-value? false
+                               :port port
+                               :ip bind})))
 
 (defn stop-http [{::keys [server]}]
   (when server
@@ -76,5 +78,6 @@
   @(promise))   ; park the main thread; the http-kit server runs in background threads
 
 (comment
-  (restart {:bind "127.0.0.1" :port 7926})
+  (restart {:bind "127.0.0.1"
+            :port 7926})
   (stop))

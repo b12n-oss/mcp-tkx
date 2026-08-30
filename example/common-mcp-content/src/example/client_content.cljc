@@ -10,7 +10,8 @@
     :name "My project root"}])
 
 (defn sampling-handler
-  [{:keys [session message] :as context}]
+  [{:keys [session message]
+    :as context}]
   {:role "assistant"
    :content {:type "text"
              :text "You are absolutely right, and the answer is 42."}

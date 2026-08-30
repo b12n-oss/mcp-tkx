@@ -12,7 +12,8 @@
 
 (deftest server-boots-and-serves-health
   ;; meta :local-port is absent on this http-kit version; use .getPort instead.
-  (let [sys  (srv/start {:bind "127.0.0.1" :port 0})
+  (let [sys  (srv/start {:bind "127.0.0.1"
+                         :port 0})
         port (.getPort (::srv/server sys))]
     (try
       (let [resp (GET (str "http://127.0.0.1:" port) "/health")]

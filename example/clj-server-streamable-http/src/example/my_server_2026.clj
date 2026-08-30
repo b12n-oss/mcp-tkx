@@ -22,7 +22,8 @@
   (atom
    (server/create-session
     {:protocol-version "2026-07-28"
-     :server-info {:name "mcp-tkx-example" :version "1.0.0"}
+     :server-info {:name "mcp-tkx-example"
+                   :version "1.0.0"}
      :server-instructions "An example 2026-07-28 server."
      :prompts [content/talk-like-pirate-prompt]
      :resources [content/hello-doc-resource
@@ -40,7 +41,8 @@
   (reitit/ring-handler (reitit/router ["" (sht/routes ctx)])))
 
 (defn start-http [ctx {:keys [bind port]}]
-  (assoc ctx ::server (http-kit/run-server (handler ctx) {:ip bind :port port})))
+  (assoc ctx ::server (http-kit/run-server (handler ctx) {:ip bind
+                                                          :port port})))
 
 (defn touch-tool
   "A tool that changes something, so a subscriber has something to receive.
@@ -53,11 +55,13 @@
   [notify-context]
   {:name "touch"
    :description "Marks the hello doc as updated, notifying any subscriber"
-   :input-schema {:type "object" :properties {}}
+   :input-schema {:type "object"
+                  :properties {}}
    :tool-fn (fn [_context _arguments]
               (server/notify-resource-updated notify-context
                                               {:uri "file:///doc/hello.md"})
-              {:content [{:type "text" :text "touched file:///doc/hello.md"}]})})
+              {:content [{:type "text"
+                          :text "touched file:///doc/hello.md"}]})})
 
 (defn start [opts]
   (let [ctx (sht/ctx-start (default-env))
@@ -72,6 +76,7 @@
 (defonce system (atom nil))
 
 (defn -main [& _args]
-  (reset! system (start {:bind "127.0.0.1" :port 7927}))
+  (reset! system (start {:bind "127.0.0.1"
+                         :port 7927}))
   (println "2026-07-28 MCP server on http://127.0.0.1:7927/mcp")
   @(promise))

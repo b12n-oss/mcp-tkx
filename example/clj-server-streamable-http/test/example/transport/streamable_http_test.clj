@@ -51,7 +51,8 @@
                                :allowed-origins #{"http://localhost:7926"}}})
       (assoc :create-session-fn
              (fn [_ctx _sid]
-               (atom (server/create-session {:server-info {:name "test-srv" :version "9.9"}}))))))
+               (atom (server/create-session {:server-info {:name "test-srv"
+                                                           :version "9.9"}}))))))
 
 (defn- json-req* [message headers]
   {:request-method :post
@@ -60,7 +61,8 @@
 
 (defn- json-req [method-map & {:keys [session-id]}]
   {:request-method :post
-   :headers (cond-> {"content-type" "application/json" "host" "127.0.0.1:7926"}
+   :headers (cond-> {"content-type" "application/json"
+                     "host" "127.0.0.1:7926"}
               session-id (assoc "mcp-session-id" session-id))
    :body (t/->json method-map)})
 
@@ -77,13 +79,16 @@
 
 (deftest post-unknown-session-404
   (let [ctx (test-ctx)
-        resp (t/handle-post ctx (json-req {:jsonrpc "2.0" :id 1 :method "tools/list"} :session-id "ghost"))]
+        resp (t/handle-post ctx (json-req {:jsonrpc "2.0"
+                                           :id 1
+                                           :method "tools/list"} :session-id "ghost"))]
     (is (= 404 (:status resp)))))
 
 (deftest post-notification-returns-202
   (let [ctx (test-ctx)
         sid (seed-session! ctx)
-        resp (t/handle-post ctx (json-req {:jsonrpc "2.0" :method "notifications/cancelled"
+        resp (t/handle-post ctx (json-req {:jsonrpc "2.0"
+                                           :method "notifications/cancelled"
                                            :params {:request-id 999}} :session-id sid))]
     (is (= 202 (:status resp)))
     (is (= "Accepted" (:body resp)))))
@@ -99,16 +104,24 @@
 (deftest flip-pure-json-when-only-response
   (let [{:keys [calls sink]} (recording-sink)
         [send! state] (t/make-request-send-message 7 sink)]
-    (send! {:jsonrpc "2.0" :id 7 :result {:ok true}})
+    (send! {:jsonrpc "2.0"
+            :id 7
+            :result {:ok true}})
     (is (= [] @calls) "no streaming for a lone response")
     (is (false? (:sse? @state)))
-    (is (= {:jsonrpc "2.0" :id 7 :result {:ok true}} (:buffered @state)))))
+    (is (= {:jsonrpc "2.0"
+            :id 7
+            :result {:ok true}} (:buffered @state)))))
 
 (deftest flip-to-sse-on-progress-then-response
   (let [{:keys [calls sink]} (recording-sink)
         [send! state] (t/make-request-send-message 7 sink)
-        progress {:jsonrpc "2.0" :method "notifications/progress" :params {:progress 1}}
-        response {:jsonrpc "2.0" :id 7 :result {:ok true}}]
+        progress {:jsonrpc "2.0"
+                  :method "notifications/progress"
+                  :params {:progress 1}}
+        response {:jsonrpc "2.0"
+                  :id 7
+                  :result {:ok true}}]
     (send! progress)   ; first non-response → flip
     (send! response)   ; now in SSE mode → framed, not buffered
     (is (= [[:open-sse] [:frame progress] [:frame response]] @calls))
@@ -118,7 +131,10 @@
 (deftest flip-server-request-during-handling-streams
   (let [{:keys [calls sink]} (recording-sink)
         [send! _state] (t/make-request-send-message 7 sink)
-        sampling-req {:jsonrpc "2.0" :id 0 :method "sampling/createMessage" :params {}}]
+        sampling-req {:jsonrpc "2.0"
+                      :id 0
+                      :method "sampling/createMessage"
+                      :params {}}]
     (send! sampling-req)  ; a server->client REQUEST (different id, has :method) → flip
     (is (= [[:open-sse] [:frame sampling-req]] @calls))))
 
@@ -127,8 +143,10 @@
 (deftest delete-removes-session
   (let [ctx (test-ctx)
         sid (seed-session! ctx)]
-    (is (= 404 (:status (t/handle-delete ctx {:headers {"host" "127.0.0.1:7926" "mcp-session-id" "ghost"}}))))
-    (let [resp (t/handle-delete ctx {:headers {"host" "127.0.0.1:7926" "mcp-session-id" sid}})]
+    (is (= 404 (:status (t/handle-delete ctx {:headers {"host" "127.0.0.1:7926"
+                                                        "mcp-session-id" "ghost"}}))))
+    (let [resp (t/handle-delete ctx {:headers {"host" "127.0.0.1:7926"
+                                               "mcp-session-id" sid}})]
       (is (= 204 (:status resp)))
       (is (nil? (t/fetch-session! ctx sid))))))
 
@@ -139,20 +157,26 @@
         sid (seed-session! ctx)
         session (t/fetch-session! ctx sid)]
     (testing "unknown session → 404"
-      (is (= 404 (:status (t/handle-get ctx {:headers {"host" "127.0.0.1:7926" "mcp-session-id" "ghost"}})))))
+      (is (= 404 (:status (t/handle-get ctx {:headers {"host" "127.0.0.1:7926"
+                                                       "mcp-session-id" "ghost"}})))))
     (testing "a second open is 405 while a channel is registered"
       (reset! (:session/get-channel session) ::fake-channel)
-      (is (= 405 (:status (t/handle-get ctx {:headers {"host" "127.0.0.1:7926" "mcp-session-id" sid}})))))))
+      (is (= 405 (:status (t/handle-get ctx {:headers {"host" "127.0.0.1:7926"
+                                                       "mcp-session-id" sid}})))))))
 
 ;; ── P4.T1: bounded per-session event ring ────────────────────────────────────
 
 (defn- bare-session []
-  {:session/id "s" :session/event-log (atom {:next-id 0 :events []})})
+  {:session/id "s"
+   :session/event-log (atom {:next-id 0
+                             :events []})})
 
 (deftest record-event-allocates-monotonic-ids
   (let [s (bare-session)
-        a (t/record-event! s {:jsonrpc "2.0" :method "x"} 1000)
-        b (t/record-event! s {:jsonrpc "2.0" :method "y"} 1001)]
+        a (t/record-event! s {:jsonrpc "2.0"
+                              :method "x"} 1000)
+        b (t/record-event! s {:jsonrpc "2.0"
+                              :method "y"} 1001)]
     (is (= 1 (:id a)))
     (is (= 2 (:id b)))
     (is (re-find #"^id: 1\nevent: message\ndata: " (:frame a)))
@@ -160,8 +184,10 @@
 
 (deftest record-event-evicts-by-age
   (let [s (bare-session)]
-    (t/record-event! s {:jsonrpc "2.0" :method "old"} 0)            ; ts 0
-    (t/record-event! s {:jsonrpc "2.0" :method "new"} 400000)       ; 400s later → old pruned
+    (t/record-event! s {:jsonrpc "2.0"
+                        :method "old"} 0)            ; ts 0
+    (t/record-event! s {:jsonrpc "2.0"
+                        :method "new"} 400000)       ; 400s later → old pruned
     (let [ids (mapv :id (:events @(:session/event-log s)))]
       (is (= [2] ids) "the >5min-old event was pruned"))))
 
@@ -169,9 +195,12 @@
 
 (deftest events-after-slices-by-id
   (let [s (bare-session)]
-    (t/record-event! s {:jsonrpc "2.0" :method "a"} 1)
-    (t/record-event! s {:jsonrpc "2.0" :method "b"} 2)
-    (t/record-event! s {:jsonrpc "2.0" :method "c"} 3)
+    (t/record-event! s {:jsonrpc "2.0"
+                        :method "a"} 1)
+    (t/record-event! s {:jsonrpc "2.0"
+                        :method "b"} 2)
+    (t/record-event! s {:jsonrpc "2.0"
+                        :method "c"} 3)
     (is (= 2 (count (t/events-after s 1))) "frames with id > 1")
     (is (re-find #"^id: 2\n" (first (t/events-after s 1))))
     (is (= 0 (count (t/events-after s 99))))))
@@ -186,7 +215,8 @@
 (deftest record-event-evicts-by-count
   (let [s (bare-session)]
     ;; 1003 events, all within the age window (ts span ~1s) → only count-eviction applies
-    (dotimes [n 1003] (t/record-event! s {:jsonrpc "2.0" :method "x"} (+ 1000 n)))
+    (dotimes [n 1003] (t/record-event! s {:jsonrpc "2.0"
+                                          :method "x"} (+ 1000 n)))
     (let [ids (mapv :id (:events @(:session/event-log s)))]
       (is (= 1000 (count ids)) "ring capped at max-events (1000)")
       (is (= 4 (first ids)) "oldest 3 (ids 1-3) evicted")
@@ -195,8 +225,13 @@
 ;; ── P5.T1: Host / Origin validation on all verbs ────────────────────────────
 
 (def ^:private init-msg
-  {:jsonrpc "2.0" :id 1 :method "initialize"
-   :params {:protocol-version "2025-11-25" :capabilities {} :client-info {:name "test" :version "0"}}})
+  {:jsonrpc "2.0"
+   :id 1
+   :method "initialize"
+   :params {:protocol-version "2025-11-25"
+            :capabilities {}
+            :client-info {:name "test"
+                          :version "0"}}})
 
 (deftest rejects-bad-host-and-origin
   (let [ctx (test-ctx)]
@@ -209,12 +244,14 @@
       (is (= 421 (:status (t/handle-get ctx {:headers {"host" "evil.com"
                                                        "mcp-session-id" "x"}})))))
     (testing "DELETE with bad Host → 421"
-      (is (= 421 (:status (t/handle-delete ctx {:headers {"host" "evil.com" "mcp-session-id" "x"}})))))))
+      (is (= 421 (:status (t/handle-delete ctx {:headers {"host" "evil.com"
+                                                          "mcp-session-id" "x"}})))))))
 
 ;; ── P5.T2: MCP-Protocol-Version header gate ─────────────────────────────────
 
 (defn- session-with-version [v]
-  {:session/id "s" :session/data (atom {:protocol-version v})})
+  {:session/id "s"
+   :session/data (atom {:protocol-version v})})
 
 (deftest protocol-version-header-gate
   (testing "≥2025-06-18 session requires a valid header"

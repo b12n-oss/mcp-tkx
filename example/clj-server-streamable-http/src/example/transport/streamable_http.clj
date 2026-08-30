@@ -78,7 +78,8 @@
   (let [rec {:session/id session-id
              :session/data session-data
              :session/get-channel (atom nil)
-             :session/event-log (atom {:next-id 0 :events []})}]
+             :session/event-log (atom {:next-id 0
+                                       :events []})}]
     (swap! (::sessions ctx) assoc session-id rec)
     rec))
 
@@ -104,7 +105,8 @@
    response is buffered as the JSON body. After handling, inspect @state:
    {:sse? bool :buffered <response-or-nil>}."
   [request-id {:keys [open-sse! frame!]}]
-  (let [state (atom {:sse? false :buffered nil})]
+  (let [state (atom {:sse? false
+                     :buffered nil})]
     [(fn [message]
        (cond
          (:sse? @state)                       (frame! message)
@@ -116,7 +118,9 @@
 
 ;; ── Phase-2 accepted-response (reused in Phase 3) ──────────────────────────
 (def ^:private accepted-response
-  {:status 202 :headers {"content-type" "text/plain"} :body "Accepted"})
+  {:status 202
+   :headers {"content-type" "text/plain"}
+   :body "Accepted"})
 
 ;; ── SSE framing ─────────────────────────────────────────────────────────────
 (def ^:private base-sse-headers
@@ -125,7 +129,8 @@
 
 (defn- send-sse-headers! [channel session-id]
   (http-kit/send! channel
-                  {:status 200 :headers (assoc base-sse-headers "mcp-session-id" session-id)}
+                  {:status 200
+                   :headers (assoc base-sse-headers "mcp-session-id" session-id)}
                   false))                                   ; false = keep open
 
 ;; ── Resumability: per-session bounded event ring ────────────────────────────
@@ -148,15 +153,20 @@
                    (fn [{:keys [next-id events]}]
                      (let [id    (inc next-id)
                            frame (str "id: " id "\nevent: message\ndata: " (->json message) "\n\n")
-                           base  (conj (prune-by-age events now) {:id id :ts now :frame frame})
+                           base  (conj (prune-by-age events now) {:id id
+                                                                  :ts now
+                                                                  :frame frame})
                            over  (max 0 (- (count base) max-events))]
                        {:next-id id
                         :events  (if (pos? over) (subvec base over) base)
                         :evicted over})))
         ev  (peek (:events new))]
     (when (pos? (:evicted new))
-      (tel/log! {:level :warn :id :sht/event-evicted :data {:evicted (:evicted new)}}))
-    {:id (:id ev) :frame (:frame ev)}))
+      (tel/log! {:level :warn
+                 :id :sht/event-evicted
+                 :data {:evicted (:evicted new)}}))
+    {:id (:id ev)
+     :frame (:frame ev)}))
 
 (defn- send-frame! [channel session message]
   (let [{:keys [frame]} (record-event! session message (System/currentTimeMillis))]
@@ -182,7 +192,8 @@
 ;; ── Request POST → as-channel (JSON or SSE) ─────────────────────────────────
 (defn- json-response-map [session-id body]
   {:status 200
-   :headers {"content-type" "application/json" "mcp-session-id" session-id}
+   :headers {"content-type" "application/json"
+             "mcp-session-id" session-id}
    :body (->json body)})
 
 ;; NOTE: `accepted-response` is reused from Phase 2 (P2.T2) — do NOT redeclare it.
@@ -212,7 +223,8 @@
                                      true)))))
               (p/catch
                (fn [err]
-                 (tel/log! {:level :error :id :sht/request-error
+                 (tel/log! {:level :error
+                            :id :sht/request-error
                             :data {:err (ex-message err)}})
                  (http-kit/close channel))))))})))  ; true = close after
 
@@ -221,7 +233,9 @@
     (if-let [ch @(:session/get-channel session)]
       (send-frame! ch session message)
       (do (record-event! session message (System/currentTimeMillis))
-          (tel/log! {:level :debug :id :sht/buffered-no-stream :data {:method (:method message)}})))))
+          (tel/log! {:level :debug
+                     :id :sht/buffered-no-stream
+                     :data {:method (:method message)}})))))
 
 (defn- run-notification! [session message]
   (let [mcp-ctx {:session (:session/data session)
@@ -325,14 +339,18 @@
             (error-response "Session not found" 404)
             (do (when-let [ch @(:session/get-channel session)] (http-kit/close ch))
                 (dissoc-session! ctx session-id)
-                {:status 204 :headers {} :body nil}))))))
+                {:status 204
+                 :headers {}
+                 :body nil}))))))
 
 ;; ── Lifecycle / routes ──────────────────────────────────────────────────────
 (defn ctx-start [ctx]
   (assoc ctx ::sessions (atom {})))
 
 (defn routes [ctx]
-  ["" ["/health" {:get (fn [_req] {:status 200 :headers {"content-type" "text/plain"} :body "ok"})}]
+  ["" ["/health" {:get (fn [_req] {:status 200
+                                   :headers {"content-type" "text/plain"}
+                                   :body "ok"})}]
    ["/mcp" {:post   (fn [req] (handle-post ctx req))
             :get    (fn [req] (handle-get ctx req))
             :delete (fn [req] (handle-delete ctx req))}]])

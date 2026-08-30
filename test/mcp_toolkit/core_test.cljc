@@ -579,12 +579,14 @@
                   result  (server/request-sampling
                            context
                            {:messages [{:role "user"
-                                        :content {:type "text" :text "hi"}}]
+                                        :content {:type "text"
+                                                  :text "hi"}}]
                             :tools [{:name "get_weather"
                                      :description "Get weather"
                                      :input-schema {:type "object"}}]
                             :tool-choice {:mode "auto"}})]
-              {:sent @sent :result result}))]
+              {:sent @sent
+               :result result}))]
 
     (testing "a client that declared sampling.tools receives the request"
       (let [{:keys [sent]} (probe {:sampling {:tools {}}})]
@@ -610,17 +612,22 @@
   ;; which must be the last form in a ClojureScript deftest.
   (let [session (atom {:client-capabilities {:sampling {}}
                        :last-called-method-id 0})
-        context {:session session :send-message (fn [_])}]
+        context {:session session
+                 :send-message (fn [_])}]
     (promesa-async-test 1000
-      (-> (server/request-sampling
-           context
-           {:messages [{:role "user" :content {:type "text" :text "hi"}}]
-            :tools [{:name "t" :description "d" :input-schema {:type "object"}}]})
-          (p/then (fn [_] (is false "should have rejected")))
-          (p/catch (fn [e]
-                     (let [data (ex-data e)]
-                       (is (= :missing-client-capability (:type data)))
-                       (is (= [:sampling :tools] (:capability data))))))))))
+                        (-> (server/request-sampling
+                             context
+                             {:messages [{:role "user"
+                                          :content {:type "text"
+                                                    :text "hi"}}]
+                              :tools [{:name "t"
+                                       :description "d"
+                                       :input-schema {:type "object"}}]})
+                            (p/then (fn [_] (is false "should have rejected")))
+                            (p/catch (fn [e]
+                                       (let [data (ex-data e)]
+                                         (is (= :missing-client-capability (:type data)))
+                                         (is (= [:sampling :tools] (:capability data))))))))))
 
 ;; =============================================================================
 ;; Elicitation Capability Tests (2025-11-25)
@@ -772,7 +779,8 @@
                                                               :method "initialize"
                                                               :params {:protocol-version "2025-06-18"
                                                                        :capabilities {}
-                                                                       :client-info {:name "test" :version "0"}}})
+                                                                       :client-info {:name "test"
+                                                                                     :version "0"}}})
                             (json-rpc/handle-message context {:jsonrpc "2.0"
                                                               :method "notifications/initialized"})
                             ;; A REPEAT initialized notification: the post-init method
@@ -807,13 +815,15 @@
                                                               :method "initialize"
                                                               :params {:protocol-version "2025-06-18"
                                                                        :capabilities {}
-                                                                       :client-info {:name "test" :version "0"}}})
+                                                                       :client-info {:name "test"
+                                                                                     :version "0"}}})
                             (json-rpc/handle-message context {:jsonrpc "2.0"
                                                               :method "notifications/initialized"})
                             (json-rpc/handle-message context {:jsonrpc "2.0"
                                                               :id 7
                                                               :method "tools/call"
-                                                              :params {:name "nope" :arguments {}}})
+                                                              :params {:name "nope"
+                                                                       :arguments {}}})
                             (let [response (last @outputs)]
                               (is (= {:jsonrpc "2.0"
                                       :error {:code -32602
@@ -840,13 +850,15 @@
                                                               :method "initialize"
                                                               :params {:protocol-version "2025-06-18"
                                                                        :capabilities {}
-                                                                       :client-info {:name "test" :version "0"}}})
+                                                                       :client-info {:name "test"
+                                                                                     :version "0"}}})
                             (json-rpc/handle-message context {:jsonrpc "2.0"
                                                               :method "notifications/initialized"})
                             (json-rpc/handle-message context {:jsonrpc "2.0"
                                                               :id 7
                                                               :method "tools/call"
-                                                              :params {:name "boom_tool" :arguments {}}})
+                                                              :params {:name "boom_tool"
+                                                                       :arguments {}}})
                             (let [response (last @outputs)]
                               (is (not (contains? response :error))
                                   "a synchronous tool-fn throw must not escape as a JSON-RPC error envelope")

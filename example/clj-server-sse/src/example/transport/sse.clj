@@ -76,7 +76,8 @@
      (valid-origin? origin allowed-origins))))
 
 (defn validate-request
-  [{:keys [req] :as ctx}]
+  [{:keys [req]
+    :as ctx}]
   (let [post? (= :post (:request-method req))]
     (cond
       (and post? (not (valid-content-type? ctx))) (error-response "Invalid Content-Type header" 400)
@@ -116,8 +117,11 @@
 (defn send-base-sse-response!
   "Send the response headers, this should be done as soon as the conneciton is
   open."
-  [req channel {:keys [status] :as opts}]
-  (tel/log! {:level :debug :id :sse/send-headers :data {:status status}})
+  [req channel {:keys [status]
+                :as opts}]
+  (tel/log! {:level :debug
+             :id :sse/send-headers
+             :data {:status status}})
   (http-kit/send! channel
                   {:status (or status 200)
                    :headers (sse-headers req opts)}
@@ -156,9 +160,12 @@
   (get-in @(::connections ctx) [session-id]))
 
 (defn make-send-message
-  [{:session/keys [send!] :as _session}]
+  [{:session/keys [send!]
+    :as _session}]
   (fn [message]
-    (tel/log! {:level :debug :id :sse/outgoing-message :data {:message message}})
+    (tel/log! {:level :debug
+               :id :sse/outgoing-message
+               :data {:message message}})
     (send! "message" (->json message))))
 
 (defn handle-message-response
@@ -166,7 +173,9 @@
   (let [mcp-context {:send-message (make-send-message session)
                      :session (:session/data session)}]
 
-    (tel/log! {:level :debug :id :sse/accepted-message :data {:message message}})
+    (tel/log! {:level :debug
+               :id :sse/accepted-message
+               :data {:message message}})
     (json-rpc/handle-message mcp-context message))
   {:status 202
    :headers {"content-type" "text/plain"}
@@ -181,13 +190,17 @@
         (http-kit/as-channel req
                              {:on-open
                               (fn [channel]
-                                (tel/log! {:level :debug :id :sse/open})
-                                (let [{:session/keys [send!] :as _session} (assoc-session! ctx session-id channel)]
+                                (tel/log! {:level :debug
+                                           :id :sse/open})
+                                (let [{:session/keys [send!]
+                                       :as _session} (assoc-session! ctx session-id channel)]
                                   (send-base-sse-response! req channel {:status 200})
                                   (send! "endpoint" (str "/messages/" session-id))))
                               :on-close
                               (fn [_channel status]
-                                (tel/log! {:level :debug :id :sse/close :data {:status status}})
+                                (tel/log! {:level :debug
+                                           :id :sse/close
+                                           :data {:status status}})
                                 (dissoc-session! ctx session-id))})))))
 
 (defn handle-messages

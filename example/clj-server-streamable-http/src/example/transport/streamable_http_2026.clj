@@ -34,7 +34,9 @@
   {"content-type" "application/json"})
 
 (def ^:private accepted-response
-  {:status 202 :headers {"content-type" "text/plain"} :body "Accepted"})
+  {:status 202
+   :headers {"content-type" "text/plain"}
+   :body "Accepted"})
 
 (defn- send-frame!
   [channel message]
@@ -93,7 +95,8 @@
      req
      {:on-open
       (fn [channel]
-        (http-kit/send! channel {:status 200 :headers sse-headers} false)
+        (http-kit/send! channel {:status 200
+                                 :headers sse-headers} false)
         (register-channel! ctx subscription-id channel)
         (let [mcp-context
               {:session (:session ctx)
@@ -108,7 +111,8 @@
                :close-connection (fn [] (http-kit/close channel))}]
           (-> (json-rpc/handle-message mcp-context message)
               (p/catch (fn [error]
-                         (tel/log! {:level :error :id :sht26/subscription-error
+                         (tel/log! {:level :error
+                                    :id :sht26/subscription-error
                                     :data {:err (ex-message error)}})
                          (http-kit/close channel))))))
       :on-close
@@ -150,7 +154,8 @@
                                         accepted-response)
                                       true)))
             (p/catch (fn [error]
-                       (tel/log! {:level :error :id :sht26/request-error
+                       (tel/log! {:level :error
+                                  :id :sht26/request-error
                                   :data {:err (ex-message error)}})
                        (http-kit/close channel))))))}))
 

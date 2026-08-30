@@ -16,7 +16,8 @@
 
 (use-fixtures :each
   (fn [run]
-    (let [sys  (srv/start {:bind "127.0.0.1" :port 0})
+    (let [sys  (srv/start {:bind "127.0.0.1"
+                           :port 0})
           port (.getPort (::srv/server sys))]   ; http-kit 2.9.0-beta3: meta has no :local-port; use .getPort
       (binding [*sys* sys *base* (str "http://127.0.0.1:" port)]
         (try (run) (finally (srv/stop-http sys)))))))
@@ -32,19 +33,29 @@
 (defn- decode [resp] (t/parse-message {:req {:body (.body resp)}}))
 
 (defn- handshake! []
-  (let [resp (post {:jsonrpc "2.0" :id 0 :method "initialize"
+  (let [resp (post {:jsonrpc "2.0"
+                    :id 0
+                    :method "initialize"
                     :params {:protocol-version "2025-11-25"
-                             :client-info {:name "it" :version "1"} :capabilities {}}}
+                             :client-info {:name "it"
+                                           :version "1"}
+                             :capabilities {}}}
                    {})
         sid (header-val resp "mcp-session-id")]
-    (post {:jsonrpc "2.0" :method "notifications/initialized"}
-          {"mcp-session-id" sid "mcp-protocol-version" "2025-11-25"})
+    (post {:jsonrpc "2.0"
+           :method "notifications/initialized"}
+          {"mcp-session-id" sid
+           "mcp-protocol-version" "2025-11-25"})
     sid))
 
 (deftest initialize-assigns-session-and-result
-  (let [resp (post {:jsonrpc "2.0" :id 0 :method "initialize"
+  (let [resp (post {:jsonrpc "2.0"
+                    :id 0
+                    :method "initialize"
                     :params {:protocol-version "2025-11-25"
-                             :client-info {:name "it" :version "1"} :capabilities {}}}
+                             :client-info {:name "it"
+                                           :version "1"}
+                             :capabilities {}}}
                    {})]
     (is (= 200 (.statusCode resp)))
     (is (string? (header-val resp "mcp-session-id")))
@@ -52,8 +63,11 @@
 
 (deftest tools-list-json
   (let [sid  (handshake!)
-        resp (post {:jsonrpc "2.0" :id 1 :method "tools/list"}
-                   {"mcp-session-id" sid "mcp-protocol-version" "2025-11-25"})]
+        resp (post {:jsonrpc "2.0"
+                    :id 1
+                    :method "tools/list"}
+                   {"mcp-session-id" sid
+                    "mcp-protocol-version" "2025-11-25"})]
     (is (= 200 (.statusCode resp)))
     (is (str/includes? (str (header-val resp "content-type")) "application/json"))
     (is (some #(= "parentify" (:name %)) (get-in (decode resp) [:result :tools])))))
@@ -64,10 +78,14 @@
         ;; omitting it means no progress notifications are sent and the response
         ;; is plain JSON (not SSE). The MCP spec requires the client to opt-in to
         ;; progress by supplying a progressToken.
-        resp (post {:jsonrpc "2.0" :id 2 :method "tools/call"
-                    :params {:name "parentify" :arguments {:text "hi"}
+        resp (post {:jsonrpc "2.0"
+                    :id 2
+                    :method "tools/call"
+                    :params {:name "parentify"
+                             :arguments {:text "hi"}
                              :_meta {:progress-token "integration-tok"}}}
-                   {"mcp-session-id" sid "mcp-protocol-version" "2025-11-25"})
+                   {"mcp-session-id" sid
+                    "mcp-protocol-version" "2025-11-25"})
         body (.body resp)]
     (is (= 200 (.statusCode resp)))
     (is (str/includes? (str (header-val resp "content-type")) "text/event-stream"))
@@ -102,7 +120,8 @@
         session (t/fetch-session! *sys* sid)]
     ;; simulate three server-initiated events recorded on the session
     (dotimes [_ 3]
-      (t/record-event! session {:jsonrpc "2.0" :method "notifications/x"}
+      (t/record-event! session {:jsonrpc "2.0"
+                                :method "notifications/x"}
                        (System/currentTimeMillis)))
     (let [body (read-sse-get {"mcp-session-id" sid
                               "mcp-protocol-version" "2025-11-25"
