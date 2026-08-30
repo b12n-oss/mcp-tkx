@@ -2,8 +2,12 @@
   (:require
    [mate.core :as mc]
    [mcp-toolkit.impl.common :refer [user-callback]]
+   [mcp-toolkit.impl.mrtr :as mrtr]
    [mcp-toolkit.impl.server.handler :as server.handler]
+   [mcp-toolkit.impl.server.handler-2026 :as server.handler-2026]
+   [mcp-toolkit.impl.subscriptions :as subscriptions]
    [mcp-toolkit.json-rpc :as json-rpc]
+   [mcp-toolkit.protocol :as protocol]
    [promesa.core :as p]))
 
 ;; Functions typically called from a prompt-fn or a tool-fn
@@ -453,6 +457,84 @@
 ;; Functions typically called by hand from a REPL session while working on MCP tooling
 ;;
 
+;; ---------------------------------------------------------------------------
+;; Server notifications
+;;
+;; The handshake revisions have an ambient connection, so a notification just
+;; goes down it. 2026-07-28 has no such thing. A notification only exists on a
+;; subscriptions/listen stream, so it fans out to the subscriptions that asked
+;; for it, and each copy is tagged with the stream it belongs to.
+;;
+;; Progress and log notifications are NOT routed this way. They are
+;; request-scoped and ride the response stream of the request they belong to,
+;; which is why they still work with no subscription open.
+;; ---------------------------------------------------------------------------
+
+(defn- notification-message
+  [topic params]
+  (if (some? params)
+    (json-rpc/notification topic params)
+    (json-rpc/notification topic)))
+
+(defn- send-notification
+  ([context topic]
+   (send-notification context topic nil nil))
+  ([context topic params]
+   (send-notification context topic params nil))
+  ([context topic params uri]
+   (let [{:keys [session]} context]
+     (if (protocol/stateless? (:protocol-version @session))
+       (doseq [subscription-id (subscriptions/subscriber-ids @session topic uri)]
+         (json-rpc/send-message context
+                                (subscriptions/tag (notification-message topic params)
+                                                   subscription-id)))
+       (json-rpc/send-message context (notification-message topic params))))
+   nil))
+
+(defn close-subscription!
+  "Ends one subscription stream on the server's own initiative.
+
+   Answers the still-open subscriptions/listen request, which tells the client
+   the stream closed on purpose. A stream that simply stops looks like a
+   dropped transport, and a client may reconnect on that basis.
+
+   Args:
+     context         - The server session context
+     subscription-id - The id of the subscriptions/listen request
+
+   Returns:
+     nil"
+  [context subscription-id]
+  (let [{:keys [session]} context]
+    (when (contains? (:subscription-by-id @session) subscription-id)
+      (swap! session update :subscription-by-id dissoc subscription-id)
+      (json-rpc/send-message context (subscriptions/close-response subscription-id))))
+  nil)
+
+(defn close-all-subscriptions!
+  "Ends every open subscription, as a server would on shutdown.
+
+   Args:
+     context - The server session context
+
+   Returns:
+     nil"
+  [context]
+  (doseq [subscription-id (sort (keys (:subscription-by-id @(:session context))))]
+    (close-subscription! context subscription-id))
+  nil)
+
+(defn active-subscriptions
+  "Returns the honoured filter of every open subscription, keyed by id.
+
+   Args:
+     context - The server session context
+
+   Returns:
+     A map of subscription id to filter."
+  [context]
+  (:subscription-by-id @(:session context)))
+
 (defn notify-prompt-list-changed
   "Notifies the client that the server's prompt list has changed.
    (see https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#list-changed-notification)
@@ -463,7 +545,7 @@
    Returns:
      nil"
   [context]
-  (json-rpc/send-message context (json-rpc/notification "prompt/list_changed"))
+  (send-notification context "prompts/list_changed")
   nil)
 
 (defn add-prompt
@@ -511,9 +593,13 @@
   (let [{:keys [session]} context
         {:keys [client-subscribed-resource-uris]} @session
         {:keys [uri]} resource]
-    (when (contains? client-subscribed-resource-uris uri)
-      (json-rpc/send-message context (json-rpc/notification "resources/updated"
-                                                            {:uri uri}))))
+    (if (protocol/stateless? (:protocol-version @session))
+      ;; 2026-07-28 tracks interest per subscription, and a subscription to a
+      ;; URI ending in a slash also covers everything beneath it.
+      (send-notification context "resources/updated" {:uri uri} uri)
+      (when (contains? client-subscribed-resource-uris uri)
+        (json-rpc/send-message context (json-rpc/notification "resources/updated"
+                                                              {:uri uri})))))
   nil)
 
 (defn notify-resource-list-changed
@@ -526,7 +612,7 @@
    Returns:
      nil"
   [context]
-  (json-rpc/send-message context (json-rpc/notification "resources/list_changed"))
+  (send-notification context "resources/list_changed")
   nil)
 
 (defn add-resource
@@ -569,7 +655,7 @@
    Returns:
      nil"
   [context]
-  (json-rpc/send-message context (json-rpc/notification "tools/list_changed"))
+  (send-notification context "tools/list_changed")
   nil)
 
 (defn add-tool
@@ -630,6 +716,190 @@
     (swap! session assoc :resource-uri-complete-fn resource-uri-complete-fn))
   nil)
 
+;; ---------------------------------------------------------------------------
+;; Multi Round-Trip Requests (2026-07-28)
+;;
+;; Earlier revisions let a tool-fn await `request-sampling` or
+;; `request-elicitation` mid-call. 2026-07-28 removed server-initiated
+;; requests, so a handler that needs something from the client returns
+;; `input-required` and stops. The client answers, then re-issues the SAME
+;; request with those answers attached, and the handler runs again.
+;;
+;; The retry may reach a different process, so whatever the handler needs in
+;; order to resume has to travel in :request-state. It is a string the client
+;; treats as opaque and hands back untouched.
+;;
+;;   (defn greet [context _arguments]
+;;     (if-some [answer (server/input-response context :who)]
+;;       {:content [{:type "text" :text (str "hello " (-> answer :content :name))}]}
+;;       (server/input-required
+;;        {:input-requests {:who (server/elicit-form-request
+;;                                {:message "Who are you?"
+;;                                 :requested-schema {:type "object"
+;;                                                    :properties {:name {:type "string"}}
+;;                                                    :required ["name"]}})}
+;;         :request-state "asked-for-name"})))
+;; ---------------------------------------------------------------------------
+
+(defn input-required
+  "Returns an interim result asking the client to answer one or more requests
+   before this call can finish.
+
+   Args:
+     opts - Map of:
+            :input-requests - Map of your own key to a request, built with
+                              `sampling-request`, `roots-request`,
+                              `elicit-form-request` or `elicit-url-request`
+            :request-state  - Optional string handed back on the retry. It must
+                              be self-contained, since the retry may reach a
+                              different process.
+
+   Returns:
+     A result map carrying :result-type \"input_required\"."
+  [opts]
+  (mrtr/input-required opts))
+
+(defn input-response
+  "Returns the client's answer to one request from a previous turn.
+
+   Args:
+     context - The handler context
+     k       - The key used in the matching `input-required` call
+
+   Returns:
+     The answer, or nil when this is a first attempt."
+  [context k]
+  (mrtr/input-response context k))
+
+(defn input-responses
+  "Returns every answer on this request, keyed as originally asked.
+
+   Args:
+     context - The handler context
+
+   Returns:
+     A map of key to answer, or nil on a first attempt."
+  [context]
+  (mrtr/input-responses context))
+
+(defn request-state
+  "Returns the opaque state this handler sent on its previous turn.
+
+   Args:
+     context - The handler context
+
+   Returns:
+     The request-state string, or nil on a first attempt."
+  [context]
+  (mrtr/request-state context))
+
+(defn retry?
+  "Returns true when the client is retrying with answers rather than calling
+   for the first time.
+
+   Args:
+     context - The handler context
+
+   Returns:
+     true on a retry."
+  [context]
+  (mrtr/retry? context))
+
+(defn sampling-request
+  "Builds a sampling input request.
+
+   Sampling is deprecated as of 2026-07-28 but stays functional for at least
+   twelve months. Prefer talking to a model provider directly.
+
+   Args:
+     params - Sampling params, at minimum :messages and :max-tokens
+
+   Returns:
+     An input request map."
+  [params]
+  (mrtr/sampling-request params))
+
+(defn roots-request
+  "Builds a roots listing input request.
+
+   Roots is deprecated as of 2026-07-28. Prefer passing directories as tool
+   parameters or resource URIs.
+
+   Returns:
+     An input request map."
+  []
+  (mrtr/roots-request))
+
+(defn elicit-form-request
+  "Builds a form-mode elicitation input request.
+
+   Args:
+     params - Map of :message and :requested-schema
+
+   Returns:
+     An input request map."
+  [params]
+  (mrtr/elicit-form-request params))
+
+(defn elicit-url-request
+  "Builds a URL-mode elicitation input request.
+
+   Args:
+     params - Map of :message and :url
+
+   Returns:
+     An input request map."
+  [params]
+  (mrtr/elicit-url-request params))
+
+(defn missing-client-capability-error
+  "Returns the 2026-07-28 error for a request that needs a client capability
+   it did not declare.
+
+   Use it from a handler that cannot proceed, rather than asking for input the
+   client has already said it cannot provide. Returning this is clearer than an
+   input-required the client will only fail on.
+
+   Args:
+     context               - The handler context
+     required-capabilities - The ClientCapabilities shape the handler needed
+
+   Returns:
+     A full JSON-RPC error response, which the router sends as-is."
+  [context required-capabilities]
+  (mrtr/missing-client-capability-response (-> context :message :id)
+                                           required-capabilities))
+
+(defn request-client-capabilities
+  "Returns the capabilities the current request declared.
+
+   Under 2026-07-28 capabilities arrive per request in _meta rather than being
+   negotiated once, so this reads the context and falls back to the session for
+   handshake-based revisions.
+
+   Args:
+     context - The handler context
+
+   Returns:
+     The ClientCapabilities map, or nil."
+  [context]
+  (or (:client-capabilities context)
+      (some-> context :session deref :client-capabilities)))
+
+(defn request-log-level
+  "Returns the log level this request opted in to.
+
+   2026-07-28 replaced logging/setLevel with a per-request _meta field, and a
+   server must not send log notifications for a request that omitted it.
+
+   Args:
+     context - The handler context
+
+   Returns:
+     The level string, or nil when this request asked for no logs."
+  [context]
+  (:log-level context))
+
 (defn create-session
   "Returns the state of a newly created session.
    (see https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization)
@@ -651,6 +921,15 @@
 
      :logging-level - Minimum log level to send to client (default: \"debug\")
 
+     :protocol-version - Pin the session to one protocol revision. Leave it out
+                         for the handshake-based revisions, where the version is
+                         negotiated during initialize. Pass \"2026-07-28\" for a
+                         stateless session: no handshake, server/discover instead
+                         of initialize, and every request carrying its own
+                         version and capabilities in _meta.
+     :cache-policy     - Overrides the per-method {:ttl-ms :cache-scope} freshness
+                         hints on 2026-07-28 cacheable results.
+
      :on-initialized             - Callback when initialization completes (default: request-root-list)
      :on-client-root-list-changed - Callback when client notifies root list changed
      :on-client-root-list-updated - Callback after server updates root data
@@ -670,6 +949,8 @@
            resource-templates
            resource-uri-complete-fn
            logging-level
+           protocol-version
+           cache-policy
            on-initialized
            on-client-root-list-changed ;; called after the server get the notification from the client
            on-client-root-list-updated ;; called after the server updated its data
@@ -679,27 +960,41 @@
          logging-level "debug"
          on-initialized request-root-list
          on-client-root-list-changed request-root-list}}]
-  {;; About the server
-   :server-supported-protocol-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]
-   :server-info server-info
-   :server-instructions server-instructions
-   :initialized false
-   :handler-by-method server.handler/handler-by-method-pre-initialization
-   :protocol-version nil ; determined at initialization
-   :prompt-by-name (mc/index-by :name prompts)
-   :resource-by-uri (mc/index-by :uri resources)
-   :tool-by-name (mc/index-by :name tools)
-   :resource-templates resource-templates
-   :resource-uri-complete-fn resource-uri-complete-fn
-   :is-cancelled-by-request-id {} ;; "is-cancelled" atoms indexed by request-id
-   :logging-level logging-level
-   :on-initialized on-initialized
-   :on-client-root-list-changed on-client-root-list-changed
-   :on-client-root-list-updated on-client-root-list-updated
+  (let [stateless (protocol/stateless? protocol-version)]
+    {;; About the server
+     ;; What this session can actually serve, which is not the same as what the
+     ;; library implements. A session carries one era's dispatch table, so a
+     ;; stateless one cannot serve a handshake client and must not say it can.
+     :server-supported-protocol-versions (if stateless
+                                           [protocol/latest-protocol-version]
+                                           ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"])
+     :server-info server-info
+     :server-instructions server-instructions
+   ;; A stateless session has nothing to initialize: there is no handshake,
+   ;; so its dispatch table is live from the start.
+     :initialized stateless
+     :handler-by-method (if stateless
+                          server.handler-2026/handler-by-method
+                          server.handler/handler-by-method-pre-initialization)
+     :protocol-version (when stateless protocol-version)
+     :cache-policy cache-policy
+     :prompt-by-name (mc/index-by :name prompts)
+     :resource-by-uri (mc/index-by :uri resources)
+     :tool-by-name (mc/index-by :name tools)
+     :resource-templates resource-templates
+     :resource-uri-complete-fn resource-uri-complete-fn
+     :is-cancelled-by-request-id {} ;; "is-cancelled" atoms indexed by request-id
+   ;; 2026-07-28 subscriptions/listen streams, keyed by the id of the request
+   ;; that opened each one. Empty on the handshake revisions.
+     :subscription-by-id {}
+     :logging-level logging-level
+     :on-initialized on-initialized
+     :on-client-root-list-changed on-client-root-list-changed
+     :on-client-root-list-updated on-client-root-list-updated
    ;; About the client
-   :client-info nil
-   :client-capabilities nil
-   :client-subscribed-resource-uris #{}
-   :client-root-by-uri {}
-   :last-called-method-id -1 ;; Used for calling methods on the remote site
-   :handler-by-called-method-id {}}) ;; The response handlers
+     :client-info nil
+     :client-capabilities nil
+     :client-subscribed-resource-uris #{}
+     :client-root-by-uri {}
+     :last-called-method-id -1 ;; Used for calling methods on the remote site
+     :handler-by-called-method-id {}})) ;; The response handlers

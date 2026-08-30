@@ -12,7 +12,7 @@ STDIO, HTTP+SSE, Streamable HTTP, or anything else that can move JSON.
 
 We have used this internally for a good while now, across a number of
 our own projects, and exercised it against Claude Desktop and Claude
-Code. 102 tests run across Clojure and ClojureScript. The API has held
+Code. 180 tests run across Clojure and ClojureScript. The API has held
 stable in practice, though it carries no formal compatibility guarantee
 yet.
 
@@ -72,14 +72,14 @@ Full walkthrough: [Getting started](docs/guide/getting-started.md).
 | **Kebab-case end to end** | Handlers see `:max-tokens` and `:input-schema`. The camelCase conversion lives in the transport layer, so no handler does field renaming. |
 | **Malli protocol registry** | `mcp-toolkit.schema` types the protocol itself: icons, sampling requests, elicitation, tasks, content blocks. `valid?` / `validate` / `explain`, plus `!`-suffixed throwing constructors. |
 | **Dynamic resources** | A resource can compute its content at `resources/read` time through `:read-fn`, returning `:text`, `:blob`, `:contents` or `:error`, or a Promesa promise of any of them. |
-| **Four-version negotiation** | One build serves `2024-11-05` through `2025-11-25`, chosen at the handshake rather than pinned at compile time. |
+| **Five revisions, one build** | `2024-11-05` through `2025-11-25` negotiate at the handshake. `2026-07-28` removed the handshake, so a session opts into it explicitly. |
 | **Cancellation that reaches your handler** | A per-request `is-cancelled` atom plus a `notifications/cancelled` handler, so long-running work can actually stop. |
 | **Streamable HTTP reference server** | A complete implementation with sessions, the JSON-or-SSE response flip, `Last-Event-Id` resumability and Host/Origin validation. |
 
 ## Protocol and feature support
 
 Versions are negotiated automatically at the initial handshake:
-`2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25`.
+`2024-11-05`, `2025-03-26`, `2025-06-18`, `2025-11-25` and `2026-07-28`.
 
 JSON-RPC batching was removed in `2025-06-18`. Note that this library
 rejects array requests on **every** version, not only that one, so a
@@ -104,6 +104,16 @@ consult the negotiated version before rejecting.
 | Server description | `2025-11-25` | Full |
 | JSON Schema 2020-12 dialect | `2025-11-25` | Full |
 | Tasks | `2025-11-25` | Experimental, as in the spec; also Partial, see below |
+| Stateless core, no handshake | `2026-07-28` | Full, server and client |
+| `server/discover` | `2026-07-28` | Full, server and client |
+| Multi Round-Trip Requests | `2026-07-28` | Full, server and client |
+| `resultType` on every result | `2026-07-28` | Full |
+| `ttlMs` and `cacheScope` on cacheable results | `2026-07-28` | Full |
+| Deterministic list ordering | `2026-07-28` | Full |
+| Renumbered error codes | `2026-07-28` | Full |
+| `subscriptions/listen` | `2026-07-28` | Full, server and client |
+| Tasks as an extension | `2026-07-28` | Not implemented |
+| Streamable HTTP `Mcp-Method` / `Mcp-Name` headers | `2026-07-28` | Not implemented |
 | Dynamic resources via `:read-fn` | fork | Full |
 | Pagination | any | Not implemented |
 

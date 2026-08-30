@@ -1,6 +1,8 @@
 # Protocol versions
 
-This fork supports four MCP protocol versions in one library: `2024-11-05`, `2025-03-26`, `2025-06-18`, and `2025-11-25` (latest). Version negotiation happens automatically at the initial handshake. This page covers the negotiation algorithm, the feature matrix, and the breaking changes.
+This fork supports five MCP protocol revisions in one library: `2024-11-05`, `2025-03-26`, `2025-06-18`, `2025-11-25` and `2026-07-28`.
+
+The first four negotiate automatically at the initial handshake, and this page covers that algorithm, the feature matrix, and the breaking changes between them. `2026-07-28` is a different animal, since it removed the handshake altogether, so it is opted into rather than negotiated. See [2026-07-28: the stateless revision](2026-07-28-stateless.md) for that one.
 
 ## Version negotiation
 
@@ -23,7 +25,7 @@ When the client sends `initialize`, `initialize-handler` (in `src/mcp_toolkit/im
 The rules in plain English:
 
 1. If the client asks for a version this library knows about, the server agrees.
-2. If the client asks for an unknown version (e.g. `"2026-01-01"`), the server picks **the latest version it knows** — `"2025-11-25"` today.
+2. If the client asks for an unknown version, the server picks **the latest handshake version it knows**, which is `"2025-11-25"`. Note that `"2026-07-28"` is deliberately not in this list: a client speaking it never sends `initialize` in the first place.
 3. There is no minimum version enforcement. A client asking for `"2024-11-05"` against this server gets `"2024-11-05"`.
 
 The negotiated version is stored in `(:protocol-version @session)` and returned in the `initialize` response. Your handlers can branch on it if needed (rarely required — the toolkit's own handlers are already version-aware).
@@ -32,9 +34,16 @@ The client side has the symmetric rule in `src/mcp_toolkit/impl/client/handler.c
 
 ## Default version
 
-`create-session` does NOT take a default `:protocol-version` — the version is determined by the client at handshake time. If you want to force a specific version, the **client** is the one that requests it; the server accepts whatever the client asks for (subject to the negotiation rules above).
+For the handshake revisions, `create-session` takes no default version. The client decides at handshake time and the server accepts what it asks for, subject to the rules above. For a server that never acts as a client, that default is the right one: support all four and let the client pick.
 
-If you build a server-only library and never need to act as a client, the default behaviour is correct: support all four, let the client pick.
+`2026-07-28` is the exception, because there is no handshake in which to negotiate. A session speaks it only when you say so:
+
+```clojure
+(server/create-session {:protocol-version "2026-07-28"
+                        :tools [...]})
+```
+
+That session has no `initialize` handler at all, and it serves `server/discover` instead.
 
 ## Feature matrix
 

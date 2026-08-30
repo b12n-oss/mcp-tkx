@@ -1,6 +1,7 @@
 (ns ^:no-doc mcp-toolkit.impl.server.handler
   (:require
    [mcp-toolkit.impl.common :refer [user-callback]]
+   [mcp-toolkit.impl.mrtr :as mrtr]
    [mcp-toolkit.json-rpc :as json-rpc]
    [promesa.core :as p]))
 
@@ -134,6 +135,26 @@
             (p/then (fn [result]
                       ;; Support both simple and structured responses (2025-06-18 spec)
                       (cond
+                        ;; A 2026-07-28 multi round-trip interim result is not
+                        ;; tool content. Wrapping it in a text block would hide
+                        ;; the input requests from the client, so pass it out
+                        ;; untouched. Earlier revisions never set :result-type,
+                        ;; so this branch cannot fire for them.
+                        (mrtr/input-required? result)
+                        result
+
+                        ;; A tool-fn may return a full JSON-RPC response to
+                        ;; report a protocol-level failure, the way this handler
+                        ;; itself does for an unknown tool name. route-message
+                        ;; forwards those as-is, so wrapping one here would turn
+                        ;; an error into a successful result carrying the error's
+                        ;; printed form as text.
+                        (and (map? result)
+                             (contains? result :jsonrpc)
+                             (or (contains? result :error)
+                                 (contains? result :result)))
+                        result
+
                         ;; If result already has content/resources structure, use as-is
                         (and (map? result)
                              (or (contains? result :content)
