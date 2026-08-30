@@ -15,8 +15,14 @@
   "2026-07-28")
 
 (def supported-protocol-versions
-  "Every revision this library speaks, oldest first. The last entry is the
-   one a server falls back to when a client asks for something unknown."
+  "The revisions that carry a `_meta` protocol-version field.
+
+   This is NOT the list of revisions the library speaks, and nothing in
+   `src/` reads it. A session's own supported list is built by
+   `mcp-toolkit.server/create-session`, which picks one of three lists
+   depending on whether the session is plain, stateless or dual-era. That
+   is the list `initialize` negotiates against. In particular `2024-11-05`
+   is absent here but is spoken by every handshake session."
   ["2025-03-26" "2025-06-18" "2025-11-25" "2026-07-28"])
 
 (def stateless-protocol-versions

@@ -8,9 +8,9 @@
 
    What is left is notifications. Progress and log messages are
    request-scoped and arrive on the response stream of the request they
-   belong to. The list-changed notifications need `subscriptions/listen`,
-   which this library does not implement yet, so they are routed but will not
-   currently arrive."
+   belong to. The list-changed notifications arrive on a stream opened by
+   `mcp-toolkit.client/request-subscribe`, which is this revision's
+   replacement for the old per-resource subscribe."
   (:require
    [mcp-toolkit.impl.common :refer [user-callback]]))
 

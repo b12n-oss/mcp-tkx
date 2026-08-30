@@ -171,7 +171,8 @@
              :logging {}}
       (seq prompt-by-name)  (assoc :prompts {:list-changed true})
       ;; No :subscribe here. This revision replaced resources/subscribe with
-      ;; subscriptions/listen, which this library does not implement yet.
+      ;; subscriptions/listen, which lives at "subscriptions/listen" in the
+      ;; table below rather than in this capability map.
       (seq resource-by-uri) (assoc :resources {:list-changed true})
       (seq tool-by-name)    (assoc :tools {:list-changed true}))))
 
