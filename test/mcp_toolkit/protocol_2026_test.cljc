@@ -523,6 +523,35 @@
                      (is (= ["ipfs:///a" "ipfs:///b" "ipfs:///c"]
                             (mapv :uri (-> sent first :result :resources)))))))))))
 
+(deftest missing-client-capability-error-test
+  (testing "a handler can refuse rather than ask for input the client cannot give"
+    (async-test
+     3000
+     (let [needy-tool {:name "needy"
+                       :description "Needs elicitation"
+                       :input-schema {:type "object"}
+                       :tool-fn (fn [context _arguments]
+                                  (if (get-in (server/request-client-capabilities context)
+                                              [:elicitation :form])
+                                    {:content [{:type "text"
+                                                :text "ok"}]}
+                                    (server/missing-client-capability-error
+                                     context {:elicitation {:form {}}})))}]
+       (-> (drive (session-2026 {:tools [needy-tool]})
+                  [{:jsonrpc "2.0"
+                    :id 1
+                    :method "tools/call"
+                    :params {:name "needy"
+                             :arguments {}
+                             ;; declares no elicitation support
+                             :_meta {protocol/meta-protocol-version "2026-07-28"
+                                     protocol/meta-client-capabilities {}}}}])
+           (p/then (fn [sent]
+                     (let [error (-> sent first :error)]
+                       (is (= -32021 (:code error)))
+                       (is (= {:elicitation {:form {}}}
+                              (-> error :data :required-capabilities)))))))))))
+
 ;; ---------------------------------------------------------------------------
 ;; Multi round-trip requests, end to end
 ;; ---------------------------------------------------------------------------

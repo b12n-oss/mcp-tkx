@@ -11,7 +11,6 @@
    protocol version, and decorates whatever the handler returns with the
    fields the revision requires."
   (:require
-   [mcp-toolkit.impl.mrtr :as mrtr]
    [mcp-toolkit.impl.server.handler :as handler]
    [mcp-toolkit.impl.subscriptions :as subscriptions]
    [mcp-toolkit.json-rpc :as json-rpc]
@@ -256,34 +255,3 @@
              ;; Overrides the shared handler, which knows nothing of streams.
              "notifications/cancelled" (wrap-handler "notifications/cancelled"
                                                      cancelled-notification-handler))))
-
-(defn log-enabled?
-  "Returns true when the current request opted in to log notifications.
-
-   The revision is explicit that a server must not emit
-   `notifications/message` for a request that did not set `_meta` logLevel.
-
-   Args:
-     context - The handler context
-
-   Returns:
-     true when this request asked for logs."
-  [context]
-  (some? (:log-level context)))
-
-(defn client-capabilities
-  "Returns the capabilities the current request declared.
-
-   Args:
-     context - The handler context
-
-   Returns:
-     The ClientCapabilities map, or nil."
-  [context]
-  (:client-capabilities context))
-
-(defn input-required
-  "Re-exported from `mcp-toolkit.impl.mrtr` so 2026-07-28 handlers have one
-   place to reach for."
-  [opts]
-  (mrtr/input-required opts))

@@ -852,6 +852,24 @@
   [params]
   (mrtr/elicit-url-request params))
 
+(defn missing-client-capability-error
+  "Returns the 2026-07-28 error for a request that needs a client capability
+   it did not declare.
+
+   Use it from a handler that cannot proceed, rather than asking for input the
+   client has already said it cannot provide. Returning this is clearer than an
+   input-required the client will only fail on.
+
+   Args:
+     context               - The handler context
+     required-capabilities - The ClientCapabilities shape the handler needed
+
+   Returns:
+     A full JSON-RPC error response, which the router sends as-is."
+  [context required-capabilities]
+  (mrtr/missing-client-capability-response (-> context :message :id)
+                                           required-capabilities))
+
 (defn request-client-capabilities
   "Returns the capabilities the current request declared.
 
