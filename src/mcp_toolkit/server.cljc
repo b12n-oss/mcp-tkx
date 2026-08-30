@@ -962,7 +962,12 @@
          on-client-root-list-changed request-root-list}}]
   (let [stateless (protocol/stateless? protocol-version)]
     {;; About the server
-     :server-supported-protocol-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]
+     ;; What this session can actually serve, which is not the same as what the
+     ;; library implements. A session carries one era's dispatch table, so a
+     ;; stateless one cannot serve a handshake client and must not say it can.
+     :server-supported-protocol-versions (if stateless
+                                           [protocol/latest-protocol-version]
+                                           ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"])
      :server-info server-info
      :server-instructions server-instructions
    ;; A stateless session has nothing to initialize: there is no handshake,

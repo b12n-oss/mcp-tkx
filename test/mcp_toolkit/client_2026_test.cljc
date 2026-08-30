@@ -199,8 +199,10 @@
                     {})]
        (-> (client/request-discover context)
            (p/then (fn [_]
-                     (is (= protocol/supported-protocol-versions
-                            (:server-supported-protocol-versions @client-session)))
+                     (is (= ["2026-07-28"]
+                            (:server-supported-protocol-versions @client-session))
+                         "the server reports only what it can serve, not what the
+                          library implements")
                      (is (= "be nice" (:server-instructions @client-session)))
                      (is (= {:list-changed true}
                             (:tools (:server-capabilities @client-session))))

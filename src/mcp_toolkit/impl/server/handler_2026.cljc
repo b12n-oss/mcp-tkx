@@ -119,12 +119,12 @@
     result))
 
 (defn- unsupported-protocol-version-response
-  [id requested]
+  [session id requested]
   {:jsonrpc "2.0"
    :id id
    :error {:code protocol/unsupported-protocol-version-code
            :message "Unsupported protocol version"
-           :data {:supported protocol/supported-protocol-versions
+           :data {:supported (:server-supported-protocol-versions @session)
                   :requested requested}}})
 
 (defn- request-meta
@@ -172,8 +172,8 @@
    Returns:
      A DiscoverResult naming every protocol version this server speaks."
   [{:keys [session]}]
-  (let [{:keys [server-instructions]} @session]
-    (cond-> {:supported-versions protocol/supported-protocol-versions
+  (let [{:keys [server-instructions server-supported-protocol-versions]} @session]
+    (cond-> {:supported-versions server-supported-protocol-versions
              :capabilities (server-capabilities session)}
       (some? server-instructions) (assoc :instructions server-instructions))))
 
@@ -212,6 +212,29 @@
   (swap! session update :subscription-by-id dissoc (-> message :params :request-id))
   (handler/cancelled-notification-handler context))
 
+(defn initialize-handler
+  "Answers a handshake client that reached a stateless server.
+
+   This revision has no initialize, so the method is genuinely absent and a
+   bare Method-not-found would be a defensible answer. It is a bad one. A
+   handshake client has no way to move forward to a newer revision, so this
+   error is likely the only thing it can show a user, and the specification
+   asks a modern-only server to name the versions it does support in it.
+
+   UnsupportedProtocolVersion is used rather than Method-not-found because the
+   code for this case is implementation-defined, its payload is exactly the
+   diagnostic that is wanted, and it is a recognised modern error, so anything
+   able to read it also learns which era this server belongs to."
+  [{:keys [session message]}]
+  {:jsonrpc "2.0"
+   :id (:id message)
+   :error {:code protocol/unsupported-protocol-version-code
+           :message (str "This server does not implement the initialize handshake. "
+                         "It speaks a stateless revision, where each request carries "
+                         "its own protocol version in _meta.")
+           :data {:supported (:server-supported-protocol-versions @session)
+                  :requested (-> message :params :protocol-version)}}})
+
 (defn wrap-handler
   "Wraps one handler for 2026-07-28.
 
@@ -229,8 +252,8 @@
           id (:id message)]
       (if (and (some? id)
                (some? requested)
-               (not (contains? (set protocol/supported-protocol-versions) requested)))
-        (unsupported-protocol-version-response id requested)
+               (not (contains? (set (:server-supported-protocol-versions @session)) requested)))
+        (unsupported-protocol-version-response session id requested)
         (-> (p/do (handler (with-request-context context message)))
             (p/then (fn [result]
                       (->> (order-list-result method result)
@@ -250,6 +273,8 @@
                  {}
                  handler/handler-by-method-post-initialization)
       (assoc "server/discover" (wrap-handler "server/discover" discover-handler)
+             ;; Not implemented, deliberately answered anyway. See the handler.
+             "initialize" (wrap-handler "initialize" initialize-handler)
              "subscriptions/listen" (wrap-handler "subscriptions/listen"
                                                   subscriptions-listen-handler)
              ;; Overrides the shared handler, which knows nothing of streams.

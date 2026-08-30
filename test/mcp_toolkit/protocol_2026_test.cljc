@@ -262,8 +262,18 @@
     (let [session (server/create-session {:protocol-version "2026-07-28"})]
       (is (true? (:initialized session)))
       (is (= "2026-07-28" (:protocol-version session)))
-      (is (not (contains? (:handler-by-method session) "initialize")))
-      (is (contains? (:handler-by-method session) "server/discover")))))
+      (is (contains? (:handler-by-method session) "server/discover"))
+      (is (contains? (:handler-by-method session) "initialize")
+          "routed on purpose, to answer a handshake client with a diagnostic
+           rather than a bare Method not found")))
+
+  (testing "a session reports only the versions its own dispatch table serves"
+    (is (= ["2026-07-28"]
+           (:server-supported-protocol-versions
+            (server/create-session {:protocol-version "2026-07-28"})))
+        "a stateless session cannot serve a handshake client and must not say it can")
+    (is (= ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]
+           (:server-supported-protocol-versions (server/create-session {}))))))
 
 (deftest removed-methods-test
   (testing "the dispatch table drops what this revision deleted"
@@ -354,7 +364,8 @@
                   :method "server/discover"}])
          (p/then (fn [sent]
                    (let [result (-> sent first :result)]
-                     (is (= protocol/supported-protocol-versions (:supported-versions result)))
+                     (is (= ["2026-07-28"] (:supported-versions result))
+                         "only what this session can actually serve")
                      (is (= "be nice" (:instructions result)))
                      (is (= "complete" (:result-type result)))
                      (is (= 3600000 (:ttl-ms result)))
@@ -406,7 +417,7 @@
                    (let [error (-> sent first :error)]
                      (is (= -32022 (:code error)))
                      (is (= "2030-01-01" (-> error :data :requested)))
-                     (is (= protocol/supported-protocol-versions (-> error :data :supported)))))))))
+                     (is (= ["2026-07-28"] (-> error :data :supported)))))))))
 
   (testing "a supported version is served normally"
     (async-test
@@ -551,6 +562,58 @@
                        (is (= -32021 (:code error)))
                        (is (= {:elicitation {:form {}}}
                               (-> error :data :required-capabilities)))))))))))
+
+(deftest cross-era-handling-test
+  (testing "a handshake client gets a diagnostic naming the versions on offer"
+    ;; A handshake client has no way to move forward to a newer revision, so
+    ;; this error may be the only thing it can show a user. A bare Method not
+    ;; found would tell it nothing.
+    (async-test
+     3000
+     (-> (drive (session-2026 {})
+                [{:jsonrpc "2.0"
+                  :id 1
+                  :method "initialize"
+                  :params {:protocol-version "2025-11-25"
+                           :capabilities {}}}])
+         (p/then (fn [sent]
+                   (let [error (-> sent first :error)]
+                     (is (= -32022 (:code error)))
+                     (is (= ["2026-07-28"] (-> error :data :supported)))
+                     (is (= "2025-11-25" (-> error :data :requested)))
+                     (is (re-find #"initialize" (:message error))
+                         "the message has to be readable by a person")))))))
+
+  (testing "a stateless session refuses a request declaring a handshake version"
+    ;; It has no table for that revision, so serving it with 2026 semantics
+    ;; would be answering a question that was not asked.
+    (async-test
+     3000
+     (-> (drive (session-2026 {:tools [echo-tool]})
+                [{:jsonrpc "2.0"
+                  :id 1
+                  :method "tools/list"
+                  :params {:_meta {protocol/meta-protocol-version "2025-11-25"
+                                   protocol/meta-client-capabilities {}}}}])
+         (p/then (fn [sent]
+                   (let [error (-> sent first :error)]
+                     (is (= -32022 (:code error)))
+                     (is (= "2025-11-25" (-> error :data :requested)))))))))
+
+  (testing "a handshake session still negotiates as it always did"
+    (async-test
+     3000
+     (-> (drive (atom (server/create-session {:on-initialized nil}))
+                [{:jsonrpc "2.0"
+                  :id 1
+                  :method "initialize"
+                  :params {:protocol-version "2025-11-25"
+                           :capabilities {}
+                           :client-info {:name "c"
+                                         :version "1"}}}])
+         (p/then (fn [sent]
+                   (is (nil? (-> sent first :error)))
+                   (is (= "2025-11-25" (-> sent first :result :protocol-version)))))))))
 
 ;; ---------------------------------------------------------------------------
 ;; Multi round-trip requests, end to end
