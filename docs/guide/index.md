@@ -4,7 +4,7 @@
 
 What's distinctive about this fork:
 
-- **Four protocol versions in one library** — `2024-11-05`, `2025-03-26`, `2025-06-18`, and `2025-11-25` (latest), automatically negotiated at the initial handshake.
+- **Five protocol revisions in one library** — `2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25` negotiate automatically at the handshake. `2026-07-28` removed the handshake, so a session opts into it explicitly.
 - **Kebab-case keys end-to-end** — your Clojure code uses `:max-tokens` / `:input-schema` / `:list-changed`; the wire format (`maxTokens` / `inputSchema` / `listChanged`) is produced and consumed at the transport layer via `camel-snake-kebab`. No bespoke per-field renaming inside handlers.
 - **Malli-based schema validation** — `mcp-toolkit.schema` ships 31 schemas for protocol types (icons, sampling tools, elicitation requests, tasks, content blocks). `valid?` / `validate` / `explain` for sanity-checking your tool definitions and request shapes before you ship them.
 - **Dynamic resources via `:read-fn`** — resources can compute `:text` / `:blob` / `:contents` on demand at `resources/read` time, returning a plain map or a Promesa promise.
@@ -21,7 +21,7 @@ This guide focuses on the **reusable building blocks**, the patterns that lift t
 
 **Trying to understand the kebab-case story?** [Kebab-case key transformation](kebab-case-transformation.md) explains why the wire format and your code disagree on casing, where the conversion happens, and how to wire it up for STDIO and HTTP transports.
 
-**Bumping a server to the latest spec?** [Protocol versions](protocol-versions.md) is the version-by-version feature matrix and the negotiation algorithm. Then [2025-11-25 features](2025-11-25-features.md) walks through every feature added in the latest spec.
+**Bumping a server to the latest spec?** [Protocol versions](protocol-versions.md) is the version-by-version feature matrix and the negotiation algorithm. [2025-11-25 features](2025-11-25-features.md) walks through what that revision added. [2026-07-28: the stateless revision](2026-07-28-stateless.md) covers the redesign that followed, which removed the handshake and replaced server-initiated requests.
 
 **Validating tool / prompt / resource shapes before shipping?** [Schema validation](schema-validation.md) covers the Malli schema namespace and the `!`-suffixed throwing constructors.
 

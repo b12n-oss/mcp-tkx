@@ -43,8 +43,9 @@ Metosin's coordinate by accident, but neither alias is used today.
 
 ## Done
 
-Protocol support for all four revisions (`2024-11-05`, `2025-03-26`,
-`2025-06-18`, `2025-11-25`) with automatic negotiation. Elicitation and
+Protocol support for four handshake revisions (`2024-11-05`, `2025-03-26`,
+`2025-06-18`, `2025-11-25`) with automatic negotiation, plus the stateless
+`2026-07-28` revision on the server side. Elicitation and
 server description from the `2025-11-25` revision, plus tasks, which the
 spec itself marks experimental. A Malli schema registry for protocol
 types.
@@ -52,6 +53,59 @@ Dynamic resources via `:read-fn`. Four runnable examples, including a
 complete Streamable HTTP reference implementation with session
 management, the JSON-or-SSE response flip, `Last-Event-Id` resumability
 and Host/Origin validation.
+
+## 2026-07-28, and what is left of it
+
+The stateless core and Multi Round-Trip Requests are done on the server
+side. `server/discover`, per-request `_meta`, `resultType` on every result,
+`ttlMs` and `cacheScope` on the six cacheable ones, deterministic list
+ordering and the renumbered error codes all work. See
+[the guide page](docs/guide/2026-07-28-stateless.md).
+
+Four pieces of the revision are not implemented.
+
+**`subscriptions/listen`.** The revision replaced the HTTP GET endpoint and
+`resources/subscribe` with a single long-lived POST-response stream that a
+client opts into. Nothing of it exists yet, so a `2026-07-28` session sends
+no change notifications at all. The `listChanged` capabilities are still
+advertised, since the underlying features work and it is only the delivery
+mechanism that is missing.
+
+**The client side.** `mcp-toolkit.client` still speaks the handshake
+revisions only. A `2026-07-28` client needs to put its own version and
+capabilities on every request, handle an `input_required` result by
+fulfilling the requests and retrying, and call `server/discover` rather than
+`initialize`.
+
+**Tasks as an extension.** Tasks moved out of the core protocol into
+`io.modelcontextprotocol/tasks`, and the redesign replaced the blocking
+`tasks/result` with polling via `tasks/get`, added `tasks/update`, and
+dropped `tasks/list`. The experimental in-core implementation is still
+here, and it is still reachable from the handshake revisions only.
+
+**Streamable HTTP header requirements.** The revision requires `Mcp-Method`
+and `Mcp-Name` on POST requests and adds `x-mcp-header` for passing custom
+headers from tool parameters. The example transport predates all of that.
+It also still implements the session id and the resumability that
+`2026-07-28` removed, which is correct for the revisions it serves and wrong
+for this one.
+
+## Pagination, and why it is still not done
+
+`2026-07-28` touched the list-result path, since every list result now
+carries `ttlMs` and `cacheScope`. That made it worth asking whether
+pagination should ride along. It should not.
+
+The two are unrelated. Caching is about how long a client may reuse a
+result, and pagination is about splitting one that is too big. The revision
+requires the first and says nothing about the second. The
+`#_#_:next-cursor` placeholders in the three list handlers are untouched,
+and a client that expects a cursor still gets a single full page.
+
+What did land is the ordering the revision asks for. List results are now
+sorted, by name for tools and prompts and by URI for resources and
+templates, which is a precondition for stable pagination if it is ever
+added.
 
 ## Partially done
 
