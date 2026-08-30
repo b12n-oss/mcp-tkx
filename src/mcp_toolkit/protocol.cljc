@@ -7,6 +7,7 @@
    family is stateless: every request carries its own protocol version and
    client capabilities inside `_meta`, and there is no handshake at all."
   (:require
+   [camel-snake-kebab.core :as csk]
    [clojure.string :as str]))
 
 (def latest-protocol-version
@@ -52,6 +53,16 @@
 (def meta-server-info "io.modelcontextprotocol/serverInfo")
 (def meta-subscription-id "io.modelcontextprotocol/subscriptionId")
 
+(defn- key->string
+  "Renders a key as its full wire string.
+
+   `name` alone is not enough: it drops the namespace of a namespaced keyword,
+   which is exactly the data these functions exist to protect."
+  [k]
+  (if (and (keyword? k) (some? (namespace k)))
+    (str (namespace k) "/" (name k))
+    (name k)))
+
 (defn opaque-wire-key?
   "Returns true when a wire key must survive the JSON boundary verbatim
    rather than being converted to a kebab-case keyword.
@@ -71,7 +82,7 @@
    Returns:
      true when the key must be preserved verbatim."
   [k]
-  (let [s (name k)]
+  (let [s (key->string k)]
     (or (str/starts-with? s "_")
         (str/includes? s "/"))))
 
@@ -95,3 +106,49 @@
 (def legacy-resource-not-found-code
   "The code earlier revisions use for a missing resource."
   -32002)
+
+;; ---------------------------------------------------------------------------
+;; JSON key conversion
+;;
+;; MCP is camelCase on the wire and this library is kebab-case inside, so a
+;; transport has to convert in both directions. Doing that with a plain
+;; camel-snake-kebab call is wrong in two ways that fail silently, which is
+;; why these live here rather than in each transport.
+;; ---------------------------------------------------------------------------
+
+(defn decode-key
+  "Converts one inbound JSON key.
+
+   Ordinary protocol fields become kebab-case keywords. Two kinds of key do
+   not. A leading underscore marks a protocol-defined field, so `_meta`
+   becomes :_meta rather than losing its underscore. A key containing a slash
+   is a namespaced extension key and stays a string, because turning it into a
+   keyword would lose the namespace on the way back out.
+
+   Args:
+     k - The key as it appeared in the JSON
+
+   Returns:
+     A keyword for ordinary and underscore-prefixed keys, the original string
+     for namespaced ones."
+  [k]
+  (let [s (key->string k)]
+    (cond
+      (str/starts-with? s "_") (keyword s)
+      (str/includes? s "/")    s
+      :else (csk/->kebab-case-keyword s))))
+
+(defn encode-key
+  "Converts one outbound key to its JSON form.
+
+   Args:
+     k - A keyword or string key
+
+   Returns:
+     The camelCase string for ordinary keys, and the key verbatim for
+     underscore-prefixed and namespaced ones."
+  [k]
+  (let [s (key->string k)]
+    (if (opaque-wire-key? s)
+      s
+      (csk/->camelCaseString k))))

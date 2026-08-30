@@ -131,6 +131,51 @@
     (is (= -32002 protocol/legacy-resource-not-found-code))))
 
 ;; ---------------------------------------------------------------------------
+;; JSON key conversion
+;; ---------------------------------------------------------------------------
+
+(deftest wire-key-conversion-test
+  (testing "ordinary protocol fields convert between camelCase and kebab-case"
+    (is (= :result-type (protocol/decode-key "resultType")))
+    (is (= :ttl-ms (protocol/decode-key "ttlMs")))
+    (is (= :cache-scope (protocol/decode-key "cacheScope")))
+    (is (= "resultType" (protocol/encode-key :result-type)))
+    (is (= "ttlMs" (protocol/encode-key :ttl-ms))))
+
+  (testing "_meta keeps its underscore in both directions"
+    (is (= :_meta (protocol/decode-key "_meta")))
+    (is (= "_meta" (protocol/encode-key :_meta))))
+
+  (testing "namespaced keys stay strings, since a keyword would lose the namespace"
+    (is (= protocol/meta-protocol-version (protocol/decode-key protocol/meta-protocol-version)))
+    (is (= protocol/meta-server-info (protocol/encode-key protocol/meta-server-info)))
+    (is (= "mcp-toolkit/who" (protocol/decode-key "mcp-toolkit/who"))))
+
+  (testing "the whole 2026-07-28 wire vocabulary round-trips losslessly"
+    (doseq [k [protocol/meta-protocol-version
+               protocol/meta-client-capabilities
+               protocol/meta-client-info
+               protocol/meta-log-level
+               protocol/meta-server-info
+               protocol/meta-subscription-id
+               "_meta" "progressToken" "resultType" "ttlMs" "cacheScope"
+               "supportedVersions" "inputRequests" "requestState"]]
+      (is (= k (protocol/encode-key (protocol/decode-key k)))
+          (str k " must survive a round trip unchanged"))))
+
+  (testing "a namespaced keyword keeps its namespace"
+    ;; js->clj with :keywordize-keys hands over namespaced keywords, and `name`
+    ;; alone would silently drop the namespace here.
+    (is (= "io.modelcontextprotocol/protocolVersion"
+           (protocol/encode-key :io.modelcontextprotocol/protocolVersion))))
+
+  (testing "correlation keys survive the boundary, which is why they are namespaced"
+    (doseq [k [:who :step1 :foo_bar :github-login]]
+      (let [wire (mrtr/->wire-key k)]
+        (is (= wire (protocol/encode-key (protocol/decode-key wire))))
+        (is (= k (mrtr/<-wire-key (protocol/decode-key wire))))))))
+
+;; ---------------------------------------------------------------------------
 ;; Multi round-trip correlation keys
 ;; ---------------------------------------------------------------------------
 

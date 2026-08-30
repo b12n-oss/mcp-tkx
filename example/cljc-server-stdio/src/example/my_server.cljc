@@ -2,10 +2,10 @@
   #?@
    (:clj
     [(:require
-      [camel-snake-kebab.core :as csk]
       [example.server-content :as content]
       [jsonista.core :as j]
       [mcp-toolkit.json-rpc :as json-rpc]
+      [mcp-toolkit.protocol :as protocol]
       [mcp-toolkit.server :as server]
       [nrepl.server :as nrepl])
      (:import
@@ -13,11 +13,11 @@
       (java.io OutputStreamWriter))]
     :cljs
     [(:require
-      [camel-snake-kebab.core :as csk]
       [camel-snake-kebab.extras :as cske]
       [clojure.string :as str]
       [example.server-content :as content]
       [mcp-toolkit.json-rpc :as json-rpc]
+      [mcp-toolkit.protocol :as protocol]
       [mcp-toolkit.server :as server])]))
 
 ;; Example of usage of this library.
@@ -38,7 +38,7 @@
      {:session session
       :send-message (let [^OutputStreamWriter writer *out*
                           ;; Convert kebab-case keywords to camelCase strings for wire format
-                          json-mapper (j/object-mapper {:encode-key-fn csk/->camelCaseString})]
+                          json-mapper (j/object-mapper {:encode-key-fn protocol/encode-key})]
                       (fn [message]
                         (.write writer (j/write-value-as-string message json-mapper))
                         (.write writer "\n")
@@ -48,7 +48,7 @@
                           ^LineNumberingPushbackReader reader]
      (let [{:keys [send-message]} context
            ;; Convert camelCase strings to kebab-case keywords for idiomatic Clojure
-           json-mapper (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword})]
+           json-mapper (j/object-mapper {:decode-key-fn protocol/decode-key})]
        (loop []
          ;; line = nil means that the reader is closed
          (when-some [line (.readLine reader)]
@@ -82,7 +82,7 @@
       :send-message (fn [message]
                       ;; Convert kebab-case keywords to camelCase strings for wire format
                       (js/process.stdout.write (-> message
-                                                   (cske/transform-keys csk/->camelCaseString)
+                                                   (cske/transform-keys protocol/encode-key)
                                                    clj->js
                                                    js/JSON.stringify
                                                    (str "\n"))))}))
@@ -98,8 +98,8 @@
                                                     ;; Convert camelCase to kebab-case keywords for idiomatic Clojure
                                                     (-> line
                                                         js/JSON.parse
-                                                        (js->clj :keywordize-keys true)
-                                                        (->> (cske/transform-keys csk/->kebab-case-keyword)))
+                                                        js->clj
+                                                        (->> (cske/transform-keys protocol/decode-key)))
                                                     (catch js/SyntaxError e
                                                       (json-rpc/send-message context json-rpc/parse-error-response)
                                                       (js/process.stderr.write (str "<<-" line "->>"))

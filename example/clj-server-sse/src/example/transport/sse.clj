@@ -1,33 +1,20 @@
 (ns example.transport.sse
   "This namespace provides a 2024-11-05 compatible SSE transport for MCP Toolkit."
   (:require
-   [camel-snake-kebab.core :as csk]
    [clojure.string :as str]
    [jsonista.core :as j]
    [mcp-toolkit.json-rpc :as json-rpc]
+   [mcp-toolkit.protocol :as protocol]
    [org.httpkit.server :as http-kit]
    [taoensso.telemere :as tel]))
 
 ;; Convert camelCase ↔ kebab-case at the JSON boundary.
-;; MCP uses `_meta` (leading underscore) as a protocol-defined metadata key, and
-;; camel-snake-kebab strips leading underscores in both directions
-;; (_meta → :meta on decode; :_meta → "meta" on encode), which silently drops
-;; e.g. the progressToken that drives notify-progress. Preserve any key starting
-;; with "_" verbatim.
-(defn- decode-key [k]
-  (if (str/starts-with? k "_")
-    (keyword k)
-    (csk/->kebab-case-keyword k)))
-
-(defn- encode-key [k]
-  (let [n (name k)]
-    (if (str/starts-with? n "_")
-      n
-      (csk/->camelCaseString k))))
-
+;; The rules are subtle enough that they live in the library: `_meta` must keep
+;; its underscore, and namespaced keys such as the 2026-07-28 _meta fields must
+;; stay strings, since converting them loses the namespace on the way back out.
 (def object-mapper
-  (j/object-mapper {:decode-key-fn decode-key
-                    :encode-key-fn encode-key}))
+  (j/object-mapper {:decode-key-fn protocol/decode-key
+                    :encode-key-fn protocol/encode-key}))
 
 (defn parse-message
   [ctx]

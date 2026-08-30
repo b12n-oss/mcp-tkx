@@ -2,11 +2,11 @@
   #?@
    (:clj
     [(:require
-      [camel-snake-kebab.core :as csk]
       [example.client-content :as content]
       [jsonista.core :as j]
       [mcp-toolkit.client :as client]
-      [mcp-toolkit.json-rpc :as json-rpc])
+      [mcp-toolkit.json-rpc :as json-rpc]
+      [mcp-toolkit.protocol :as protocol])
      (:import
       (clojure.lang LineNumberingPushbackReader)
       (java.io
@@ -19,12 +19,12 @@
     [(:require
       ["child_process" :refer [spawn]]
       ["path" :as path]
-      [camel-snake-kebab.core :as csk]
       [camel-snake-kebab.extras :as cske]
       [clojure.string :as str]
       [example.client-content :as content]
       [mcp-toolkit.client :as client]
-      [mcp-toolkit.json-rpc :as json-rpc])]))
+      [mcp-toolkit.json-rpc :as json-rpc]
+      [mcp-toolkit.protocol :as protocol])]))
 
 ;; Example of usage of this library.
 
@@ -49,7 +49,7 @@
                           ^LineNumberingPushbackReader reader]
      (let [{:keys [send-message]} context
            ;; Convert camelCase strings to kebab-case keywords
-           json-mapper (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword})]
+           json-mapper (j/object-mapper {:decode-key-fn protocol/decode-key})]
        (loop []
          ;; line = nil means that the reader is closed
          (when-some [line (.readLine reader)]
@@ -81,7 +81,7 @@
            ;; Hook up the I/O functions to the context
            ctx (swap! context assoc
                       ;; Convert kebab-case keywords to camelCase strings
-                      :send-message (let [json-mapper (j/object-mapper {:encode-key-fn csk/->camelCaseString})]
+                      :send-message (let [json-mapper (j/object-mapper {:encode-key-fn protocol/encode-key})]
                                       (fn [message]
                                         (prn [:--> message])
                                         (.write writer (j/write-value-as-string message json-mapper))
@@ -118,7 +118,7 @@
                       :send-message (fn [message]
                                       (prn [:--> message])
                                       (.write writer (str (-> message
-                                                              (cske/transform-keys csk/->camelCaseString)
+                                                              (cske/transform-keys protocol/encode-key)
                                                               clj->js
                                                               js/JSON.stringify) "\n")))
                       :close-connection (fn []
@@ -133,8 +133,8 @@
                                       ;; Convert camelCase to kebab-case keywords
                                       (-> line
                                           js/JSON.parse
-                                          (js->clj :keywordize-keys true)
-                                          (->> (cske/transform-keys csk/->kebab-case-keyword)))
+                                          js->clj
+                                          (->> (cske/transform-keys protocol/decode-key)))
                                       (catch js/SyntaxError e
                                         (json-rpc/send-message ctx json-rpc/parse-error-response)
                                         (js/process.stderr.write (str "<<-" line "->>"))
