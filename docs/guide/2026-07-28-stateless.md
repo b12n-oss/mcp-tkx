@@ -249,6 +249,86 @@ There is no `logging/setLevel` any more. Set `:log-level` on the session and
 it rides along on every request. A server must not send log notifications for
 a request that did not ask for them.
 
+## Subscriptions
+
+`subscriptions/listen` is the only way a server tells a client anything on
+its own initiative. It replaced both `resources/subscribe` and the HTTP GET
+endpoint.
+
+It matters more than it looks, because list results now carry `ttlMs`. A
+client is invited to cache your tool list, so without a change notification
+it can legitimately serve a stale one for the whole TTL. Caching without
+invalidation is worse than neither.
+
+### Subscribing
+
+```clojure
+(client/request-subscribe
+ context
+ {:tools-list-changed true
+  :resource-subscriptions ["file:///project/"]})
+```
+
+The promise this returns resolves at the **end** of the subscription, not the
+start. The request itself is the stream: it stays open for the subscription's
+life, and it is answered only if the server closes it gracefully. Do not
+await it before carrying on.
+
+The server replies first with an acknowledgement naming the subset of the
+filter it will actually honour, which reaches `:on-subscription-acknowledged`.
+Check it. A type the server cannot support is omitted rather than refused, so
+a stream that is merely quiet and one that was never going to carry anything
+look identical otherwise.
+
+A URI ending in a slash covers everything beneath it, so
+`file:///project/` also catches `file:///project/config.json`. One without a
+slash matches exactly, which stops `file:///proj` from quietly capturing
+`file:///project`.
+
+### Receiving
+
+Every message on a stream carries the subscription's id, which is the
+JSON-RPC id of the `subscriptions/listen` request that opened it:
+
+```clojure
+(client/create-session
+ {:protocol-version "2026-07-28"
+  :on-server-resource-changed
+  (fn [context]
+    (println "changed on stream" (client/subscription-id context)
+             (-> context :message :params :uri)))})
+```
+
+On stdio every stream shares one channel, so that id is the only way to tell
+them apart. A client may hold several at once.
+
+### On the server
+
+Notifications fan out only to the subscriptions that asked for them. Nothing
+extra to write:
+
+```clojure
+(server/add-tool context my-tool)          ;; reaches toolsListChanged subscribers
+(server/notify-resource-updated context {:uri "file:///project/config.json"})
+```
+
+One thing to get right. A tool-fn's own context sends to the response of the
+call it is serving, which is the wrong destination for a subscription
+notification. Whatever context your application uses to raise notifications
+has to be one whose `send-message` routes to the subscription streams, which
+is what the example transport's `server-context` does.
+
+To end a subscription deliberately, answer it:
+
+```clojure
+(server/close-subscription! context subscription-id)
+(server/close-all-subscriptions! context)   ;; on shutdown
+(server/active-subscriptions context)
+```
+
+A stream that just stops looks to a client like a dropped transport, which it
+may reconnect on. Closing it properly says the ending was intentional.
+
 ## Results changed shape
 
 Every result names its own type, and the six cacheable ones carry a freshness
@@ -322,11 +402,15 @@ If you are converting in ClojureScript, do not reach for
 keywords before your converter sees them, and the namespace is already at risk
 by then. Parse to string keys, then convert.
 
+For a worked HTTP transport, `example/clj-server-streamable-http` ships two.
+`streamable-http` serves the handshake revisions with sessions and
+resumability. `streamable-http-2026` is the stateless one: POST only, no
+session id, no GET endpoint, and one held-open SSE response per
+`subscriptions/listen`. Run it with
+`bb example:server:streamable-http:2026`.
+
 ## What is not implemented yet
 
-- `subscriptions/listen`, so no server-to-client change notifications on this
-  revision. `listChanged` capabilities are still advertised because the
-  underlying features work, and the delivery mechanism is what is missing.
 - The `io.modelcontextprotocol/tasks` extension, which is where Tasks went.
 - The required Streamable HTTP headers, `Mcp-Method` and `Mcp-Name`, and
   `x-mcp-header` support.

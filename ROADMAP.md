@@ -61,17 +61,12 @@ The stateless core and Multi Round-Trip Requests are done on both sides.
 `ttlMs` and `cacheScope` on the six cacheable ones, deterministic list
 ordering and the renumbered error codes all work. A client fulfils a
 server's requests for input and retries automatically, so calling code does
-not change between revisions. See
+not change between revisions. `subscriptions/listen` carries change
+notifications on both sides, and `example/clj-server-streamable-http` ships
+a stateless HTTP transport for it beside the 2025 one. See
 [the guide page](docs/guide/2026-07-28-stateless.md).
 
-Three pieces of the revision are not implemented.
-
-**`subscriptions/listen`.** The revision replaced the HTTP GET endpoint and
-`resources/subscribe` with a single long-lived POST-response stream that a
-client opts into. Nothing of it exists yet, so a `2026-07-28` session sends
-no change notifications at all. The `listChanged` capabilities are still
-advertised, since the underlying features work and it is only the delivery
-mechanism that is missing.
+Two pieces of the revision are not implemented.
 
 **Tasks as an extension.** Tasks moved out of the core protocol into
 `io.modelcontextprotocol/tasks`, and the redesign replaced the blocking
