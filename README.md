@@ -5,9 +5,10 @@ and servers in Clojure and ClojureScript.
 
 `mcp-tkx` is an independently maintained fork of
 [metosin/mcp-toolkit](https://github.com/metosin/mcp-toolkit). It speaks
-all five MCP protocol revisions, negotiates the version at the
-handshake, and keeps your handler code in kebab-case while the wire
-stays camelCase. It does no I/O of its own, so you can put it behind
+all five MCP protocol revisions: four negotiate at the handshake, and
+`2026-07-28` removed the handshake, so a session opts into it
+explicitly. It keeps your handler code in kebab-case while the wire
+stays camelCase, and does no I/O of its own, so you can put it behind
 STDIO, HTTP+SSE, Streamable HTTP, or anything else that can move JSON.
 
 We have used this internally for a good while now, across a number of
@@ -215,10 +216,10 @@ lifting pieces of this into other projects.
 | [Architecture](docs/guide/architecture.md) | Session atom, context hashmap, message lifecycle, namespace map |
 | [Kebab-case transformation](docs/guide/kebab-case-transformation.md) | Where the casing boundary sits, and how to wire it per transport |
 | [Protocol versions](docs/guide/protocol-versions.md) | The negotiation algorithm and what each revision adds |
-| [2026-07-28: the stateless revision](docs/guide/2026-07-28-stateless.md) | The redesign that removed the handshake, and what replaced it |
 | [Schema validation](docs/guide/schema-validation.md) | The Malli registry and the throwing constructors |
 | [Dynamic resources](docs/guide/dynamic-resources.md) | `:read-fn`, its return contract, and when to prefer static content |
 | [2025-11-25 features](docs/guide/2025-11-25-features.md) | Elicitation, tasks, sampling with tools, icons |
+| [2026-07-28: the stateless revision](docs/guide/2026-07-28-stateless.md) | The redesign that removed the handshake, and what replaced it |
 | [Claude Desktop setup](docs/guide/claude-desktop-setup.md) | `claude_desktop_config.json` and `claude mcp add` |
 | [Streamable HTTP](docs/guide/streamable-http.md) | The current remote transport, end to end |
 | [REPL workflow](docs/guide/repl-workflow.md) | Editing tools while a client stays connected |
