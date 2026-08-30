@@ -12,7 +12,7 @@ STDIO, HTTP+SSE, Streamable HTTP, or anything else that can move JSON.
 
 We have used this internally for a good while now, across a number of
 our own projects, and exercised it against Claude Desktop and Claude
-Code. 138 tests run across Clojure and ClojureScript. The API has held
+Code. 152 tests run across Clojure and ClojureScript. The API has held
 stable in practice, though it carries no formal compatibility guarantee
 yet.
 
@@ -104,9 +104,9 @@ consult the negotiated version before rejecting.
 | Server description | `2025-11-25` | Full |
 | JSON Schema 2020-12 dialect | `2025-11-25` | Full |
 | Tasks | `2025-11-25` | Experimental, as in the spec; also Partial, see below |
-| Stateless core, no handshake | `2026-07-28` | Full, server side |
-| `server/discover` | `2026-07-28` | Full |
-| Multi Round-Trip Requests | `2026-07-28` | Full, server side |
+| Stateless core, no handshake | `2026-07-28` | Full, server and client |
+| `server/discover` | `2026-07-28` | Full, server and client |
+| Multi Round-Trip Requests | `2026-07-28` | Full, server and client |
 | `resultType` on every result | `2026-07-28` | Full |
 | `ttlMs` and `cacheScope` on cacheable results | `2026-07-28` | Full |
 | Deterministic list ordering | `2026-07-28` | Full |

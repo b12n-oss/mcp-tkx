@@ -56,13 +56,15 @@ and Host/Origin validation.
 
 ## 2026-07-28, and what is left of it
 
-The stateless core and Multi Round-Trip Requests are done on the server
-side. `server/discover`, per-request `_meta`, `resultType` on every result,
+The stateless core and Multi Round-Trip Requests are done on both sides.
+`server/discover`, per-request `_meta`, `resultType` on every result,
 `ttlMs` and `cacheScope` on the six cacheable ones, deterministic list
-ordering and the renumbered error codes all work. See
+ordering and the renumbered error codes all work. A client fulfils a
+server's requests for input and retries automatically, so calling code does
+not change between revisions. See
 [the guide page](docs/guide/2026-07-28-stateless.md).
 
-Four pieces of the revision are not implemented.
+Three pieces of the revision are not implemented.
 
 **`subscriptions/listen`.** The revision replaced the HTTP GET endpoint and
 `resources/subscribe` with a single long-lived POST-response stream that a
@@ -70,12 +72,6 @@ client opts into. Nothing of it exists yet, so a `2026-07-28` session sends
 no change notifications at all. The `listChanged` capabilities are still
 advertised, since the underlying features work and it is only the delivery
 mechanism that is missing.
-
-**The client side.** `mcp-toolkit.client` still speaks the handshake
-revisions only. A `2026-07-28` client needs to put its own version and
-capabilities on every request, handle an `input_required` result by
-fulfilling the requests and retrying, and call `server/discover` rather than
-`initialize`.
 
 **Tasks as an extension.** Tasks moved out of the core protocol into
 `io.modelcontextprotocol/tasks`, and the redesign replaced the blocking

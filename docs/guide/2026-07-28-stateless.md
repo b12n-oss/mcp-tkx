@@ -176,6 +176,79 @@ revision, with a removal window of at least twelve months. For new code, talk
 to a model provider directly rather than sampling, and take file locations as
 tool arguments rather than roots.
 
+## The client side
+
+A client opts in the same way, and then stops thinking about any of this.
+
+```clojure
+(require '[mcp-toolkit.client :as client])
+
+(def session
+  (atom (client/create-session
+         {:protocol-version "2026-07-28"
+          :client-info {:name "my-client" :version "1.0.0"}
+          :client-capabilities {:elicitation {:form {}}}
+          :on-elicitation-requested
+          (fn [_context params]
+            ;; ask your user, however your app does that
+            {:action "accept" :content {:name (prompt-user (:message params))}})})))
+```
+
+Every request it sends carries the version, capabilities and identity in
+`_meta` automatically. You do not assemble that yourself.
+
+### Round trips are handled for you
+
+This is the part worth understanding. When a server answers with
+`input_required`, the client fulfils the requests and re-issues the call,
+echoing the server's keys and `requestState` back untouched. Your code sees
+only the finished result:
+
+```clojure
+(client/request-tool-invocation context "greet" {})
+;; => a promise of {:result-type "complete" :content [{:type "text" :text "hello octocat"}]}
+```
+
+Two round trips happened there, and an elicitation was answered in the middle,
+and the calling code is identical to what you would write against
+`2025-11-25`. That is deliberate. The protocol changed underneath; the shape
+of a tool call did not.
+
+Requests are routed by kind:
+
+| Server asks for | Answered by |
+| --- | --- |
+| `roots/list` | The session's own `:roots`, no callback needed |
+| `sampling/createMessage` | `:on-sampling-requested`, the same callback the handshake revisions use |
+| `elicitation/create` | `:on-elicitation-requested`, new, since this was never an inbound request before |
+
+Two things stop it going wrong. A server that keeps asking is cut off after
+`:max-round-trips`, which defaults to 8. A request you have no handler for
+fails immediately, naming both the method and the callback that was missing,
+rather than hanging.
+
+### Discovery
+
+`request-discover` is optional. A stateless client may go straight to
+`tools/call`. What it buys you is the server's capabilities, which the
+default `:on-initialized` then uses to fetch the prompt, resource and tool
+lists.
+
+```clojure
+(client/request-discover context)
+(client/server-supports-protocol-version? context)  ;; true, false, or nil before discovery
+```
+
+It does not switch versions for you. Moving between `2026-07-28` and the
+handshake revisions is a change of mode rather than of version, so if the
+server does not list yours, that is reported and the decision is yours.
+
+### Logging
+
+There is no `logging/setLevel` any more. Set `:log-level` on the session and
+it rides along on every request. A server must not send log notifications for
+a request that did not ask for them.
+
 ## Results changed shape
 
 Every result names its own type, and the six cacheable ones carry a freshness
@@ -254,8 +327,6 @@ by then. Parse to string keys, then convert.
 - `subscriptions/listen`, so no server-to-client change notifications on this
   revision. `listChanged` capabilities are still advertised because the
   underlying features work, and the delivery mechanism is what is missing.
-- Client-side support. `mcp-toolkit.client` still speaks the handshake
-  revisions only.
 - The `io.modelcontextprotocol/tasks` extension, which is where Tasks went.
 - The required Streamable HTTP headers, `Mcp-Method` and `Mcp-Name`, and
   `x-mcp-header` support.
