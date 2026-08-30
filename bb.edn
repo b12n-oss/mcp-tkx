@@ -60,7 +60,34 @@
           (println "  git clone" docs-engine-repo "../docs-engine")
           (println)
           (println "CI does not need this. It checks the engine out itself.")
-          (System/exit 1)))))
+          (System/exit 1))))
+
+    ;; --- clojure-lsp across every project in the repo ------------------------
+    ;; example/* are separate deps.edn projects. clojure-lsp resolves one
+    ;; classpath per --project-root, so a single invocation at the repo root
+    ;; sees src/ and test/ and nothing under example/. Each project therefore
+    ;; needs its own run.
+    (defn lsp-project-roots
+      "The repo root, then every example/* directory that has a deps.edn."
+      []
+      (into [repo-root]
+            (->> (fs/list-dir (fs/file repo-root "example"))
+                 (filter (fn [d] (fs/exists? (fs/file d "deps.edn"))))
+                 (map str)
+                 sort)))
+
+    (defn lsp-across-projects
+      "Runs `clojure-lsp <args> --project-root R` for every project R.
+       Returns the number that failed, after running all of them, so one
+       bad project does not hide the state of the rest."
+      [& args]
+      (reduce (fn [failed root]
+                (println (str "  " (if (= root repo-root) "." (str/replace root (str repo-root "/") ""))))
+                (let [argv (concat ["clojure-lsp"] args ["--project-root" root])
+                      {:keys [exit]} (apply p/shell {:continue true} argv)]
+                  (if (zero? exit) failed (inc failed))))
+              0
+              (lsp-project-roots))))
 
   ;; =============================================================================
   ;; Development Tasks
@@ -229,24 +256,20 @@
    :task (do
            (println "\n🎨 Formatting Code with clojure-lsp")
            (println "===================================")
-           (let [{:keys [exit]} (p/shell {:continue true}
-                                         "clojure-lsp" "format"
-                                         "--project-root" (str (fs/cwd)))]
-             (if (zero? exit)
+           (let [failed (lsp-across-projects "format")]
+             (if (zero? failed)
                (println "✅ Code formatted!")
                (do
-                 (println "❌ Formatting failed")
-                 (System/exit exit)))))}
+                 (println (str "❌ Formatting failed in " failed " project(s)"))
+                 (System/exit 1)))))}
 
   lsp:format-check
   {:doc "Check formatting without making changes (dry run)"
    :task (do
            (println "\n🔍 Checking Code Formatting")
            (println "===========================")
-           (let [{:keys [exit]} (p/shell {:continue true}
-                                         "clojure-lsp" "format" "--dry"
-                                         "--project-root" (str (fs/cwd)))]
-             (if (zero? exit)
+           (let [failed (lsp-across-projects "format" "--dry")]
+             (if (zero? failed)
                (println "✅ All files properly formatted!")
                (do
                  (println "⚠️  Files need formatting (see diff above)")
@@ -258,29 +281,25 @@
    :task (do
            (println "\n🧹 Cleaning Namespace Forms")
            (println "===========================")
-           (let [{:keys [exit]} (p/shell {:continue true}
-                                         "clojure-lsp" "clean-ns"
-                                         "--project-root" (str (fs/cwd)))]
-             (if (zero? exit)
+           (let [failed (lsp-across-projects "clean-ns")]
+             (if (zero? failed)
                (println "✅ Namespaces cleaned!")
                (do
-                 (println "❌ clean-ns failed")
-                 (System/exit exit)))))}
+                 (println (str "❌ clean-ns failed in " failed " project(s)"))
+                 (System/exit 1)))))}
 
   lsp:clean-ns-check
   {:doc "Check ns forms without making changes (dry run)"
    :task (do
            (println "\n🔍 Checking Namespace Forms")
            (println "===========================")
-           (let [{:keys [exit]} (p/shell {:continue true}
-                                         "clojure-lsp" "clean-ns" "--dry"
-                                         "--project-root" (str (fs/cwd)))]
-             (if (zero? exit)
+           (let [failed (lsp-across-projects "clean-ns" "--dry")]
+             (if (zero? failed)
                (println "✅ All namespace forms are clean!")
                (do
                  (println "⚠️  Namespaces need cleaning (see diff above)")
                  (println "ℹ️  Run 'bb lsp:clean-ns' to fix")
-                 (System/exit exit)))))}
+                 (System/exit 1)))))}
 
   lsp:diagnostics
   {:doc "Run clojure-lsp diagnostics"
