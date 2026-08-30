@@ -118,13 +118,25 @@
       (update collection-key (fn [items] (vec (sort-by sort-key items)))))
     result))
 
+(defn modern-protocol-versions
+  "The versions this session can serve statelessly.
+
+   Not the same as what it serves overall. A dual-era session also answers
+   handshake clients, but a request arriving on the modern path may only
+   declare a version the modern path actually implements. Validating against
+   the wider list would accept a handshake version in `_meta` and then answer
+   it with stateless semantics."
+  [session]
+  (or (:modern-protocol-versions @session)
+      (:server-supported-protocol-versions @session)))
+
 (defn- unsupported-protocol-version-response
   [session id requested]
   {:jsonrpc "2.0"
    :id id
    :error {:code protocol/unsupported-protocol-version-code
            :message "Unsupported protocol version"
-           :data {:supported (:server-supported-protocol-versions @session)
+           :data {:supported (modern-protocol-versions session)
                   :requested requested}}})
 
 (defn- request-meta
@@ -232,7 +244,7 @@
            :message (str "This server does not implement the initialize handshake. "
                          "It speaks a stateless revision, where each request carries "
                          "its own protocol version in _meta.")
-           :data {:supported (:server-supported-protocol-versions @session)
+           :data {:supported (modern-protocol-versions session)
                   :requested (-> message :params :protocol-version)}}})
 
 (defn wrap-handler
@@ -252,7 +264,7 @@
           id (:id message)]
       (if (and (some? id)
                (some? requested)
-               (not (contains? (set (:server-supported-protocol-versions @session)) requested)))
+               (not (contains? (set (modern-protocol-versions session)) requested)))
         (unsupported-protocol-version-response session id requested)
         (-> (p/do (handler (with-request-context context message)))
             (p/then (fn [result]

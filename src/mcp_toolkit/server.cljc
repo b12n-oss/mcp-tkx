@@ -5,6 +5,7 @@
    [mcp-toolkit.impl.mrtr :as mrtr]
    [mcp-toolkit.impl.server.handler :as server.handler]
    [mcp-toolkit.impl.server.handler-2026 :as server.handler-2026]
+   [mcp-toolkit.impl.server.handler-dual :as server.handler-dual]
    [mcp-toolkit.impl.subscriptions :as subscriptions]
    [mcp-toolkit.json-rpc :as json-rpc]
    [mcp-toolkit.protocol :as protocol]
@@ -476,19 +477,40 @@
     (json-rpc/notification topic params)
     (json-rpc/notification topic)))
 
+(defn- notify-subscribers
+  "Fans out to the stateless subscriptions that opted in, tagging each copy."
+  [context topic params uri]
+  (doseq [subscription-id (subscriptions/subscriber-ids @(:session context) topic uri)]
+    (json-rpc/send-message context
+                           (subscriptions/tag (notification-message topic params)
+                                              subscription-id))))
+
+(defn- notify-handshake-client
+  "Sends straight down the connection, which is all the handshake revisions
+   have and all they need."
+  [context topic params]
+  (json-rpc/send-message context (notification-message topic params)))
+
 (defn- send-notification
   ([context topic]
    (send-notification context topic nil nil))
   ([context topic params]
    (send-notification context topic params nil))
   ([context topic params uri]
-   (let [{:keys [session]} context]
-     (if (protocol/stateless? (:protocol-version @session))
-       (doseq [subscription-id (subscriptions/subscriber-ids @session topic uri)]
-         (json-rpc/send-message context
-                                (subscriptions/tag (notification-message topic params)
-                                                   subscription-id)))
-       (json-rpc/send-message context (notification-message topic params))))
+   (let [{:keys [dual-era? protocol-version initialized]} @(:session context)]
+     (cond
+       ;; A dual session may have stateless subscribers and a handshake client
+       ;; at the same time, and both are entitled to hear about this.
+       dual-era?
+       (do (notify-subscribers context topic params uri)
+           (when initialized
+             (notify-handshake-client context topic params)))
+
+       (protocol/stateless? protocol-version)
+       (notify-subscribers context topic params uri)
+
+       :else
+       (notify-handshake-client context topic params)))
    nil))
 
 (defn close-subscription!
@@ -590,16 +612,25 @@
    Returns:
      nil"
   [context resource]
+  ;; The two eras track interest differently. A stateless subscription names
+  ;; URIs in its filter, and one ending in a slash covers everything beneath
+  ;; it; a handshake client accumulates URIs through resources/subscribe.
   (let [{:keys [session]} context
-        {:keys [client-subscribed-resource-uris]} @session
-        {:keys [uri]} resource]
-    (if (protocol/stateless? (:protocol-version @session))
-      ;; 2026-07-28 tracks interest per subscription, and a subscription to a
-      ;; URI ending in a slash also covers everything beneath it.
-      (send-notification context "resources/updated" {:uri uri} uri)
-      (when (contains? client-subscribed-resource-uris uri)
-        (json-rpc/send-message context (json-rpc/notification "resources/updated"
-                                                              {:uri uri})))))
+        {:keys [client-subscribed-resource-uris dual-era? protocol-version initialized]} @session
+        {:keys [uri]} resource
+        subscribed? (contains? client-subscribed-resource-uris uri)]
+    (cond
+      dual-era?
+      (do (notify-subscribers context "resources/updated" {:uri uri} uri)
+          (when (and initialized subscribed?)
+            (notify-handshake-client context "resources/updated" {:uri uri})))
+
+      (protocol/stateless? protocol-version)
+      (notify-subscribers context "resources/updated" {:uri uri} uri)
+
+      :else
+      (when subscribed?
+        (notify-handshake-client context "resources/updated" {:uri uri}))))
   nil)
 
 (defn notify-resource-list-changed
@@ -927,6 +958,11 @@
                          stateless session: no handshake, server/discover instead
                          of initialize, and every request carrying its own
                          version and capabilities in _meta.
+     :dual-era?        - Serve both eras on one session. A request declaring a
+                         protocol version in _meta gets stateless semantics; an
+                         initialize gets the handshake. Use it when one endpoint
+                         has to serve a mixed fleet of clients. Overrides
+                         :protocol-version.
      :cache-policy     - Overrides the per-method {:ttl-ms :cache-scope} freshness
                          hints on 2026-07-28 cacheable results.
 
@@ -950,6 +986,7 @@
            resource-uri-complete-fn
            logging-level
            protocol-version
+           dual-era?
            cache-policy
            on-initialized
            on-client-root-list-changed ;; called after the server get the notification from the client
@@ -960,23 +997,36 @@
          logging-level "debug"
          on-initialized request-root-list
          on-client-root-list-changed request-root-list}}]
-  (let [stateless (protocol/stateless? protocol-version)]
+  (let [stateless (protocol/stateless? protocol-version)
+        handshake-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]]
     {;; About the server
      ;; What this session can actually serve, which is not the same as what the
      ;; library implements. A session carries one era's dispatch table, so a
      ;; stateless one cannot serve a handshake client and must not say it can.
-     :server-supported-protocol-versions (if stateless
-                                           [protocol/latest-protocol-version]
-                                           ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"])
+     :server-supported-protocol-versions (cond
+                                           dual-era? (conj handshake-versions
+                                                           protocol/latest-protocol-version)
+                                           stateless [protocol/latest-protocol-version]
+                                           :else handshake-versions)
+     ;; The subset a request may declare in _meta. A dual session serves both
+     ;; eras but only ever answers one of them statelessly.
+     :modern-protocol-versions (when (or stateless dual-era?)
+                                 [protocol/latest-protocol-version])
+     :dual-era? (boolean dual-era?)
      :server-info server-info
      :server-instructions server-instructions
-   ;; A stateless session has nothing to initialize: there is no handshake,
-   ;; so its dispatch table is live from the start.
-     :initialized stateless
-     :handler-by-method (if stateless
-                          server.handler-2026/handler-by-method
-                          server.handler/handler-by-method-pre-initialization)
-     :protocol-version (when stateless protocol-version)
+   ;; A stateless session has nothing to initialize. A dual one starts
+   ;; un-initialized, because a handshake client may still arrive.
+     :initialized (and stateless (not dual-era?))
+     :handler-by-method (cond
+                          dual-era? server.handler-dual/handler-by-method
+                          stateless server.handler-2026/handler-by-method
+                          :else server.handler/handler-by-method-pre-initialization)
+   ;; Where the handshake era's own table lives on a dual session, since
+   ;; :handler-by-method holds the dual dispatch and must not be swapped.
+     :legacy-handler-by-method (when dual-era?
+                                 server.handler-dual/legacy-handler-by-method-pre-initialization)
+     :protocol-version (when (and stateless (not dual-era?)) protocol-version)
      :cache-policy cache-policy
      :prompt-by-name (mc/index-by :name prompts)
      :resource-by-uri (mc/index-by :uri resources)
