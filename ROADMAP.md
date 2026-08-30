@@ -81,6 +81,30 @@ It also still implements the session id and the resumability that
 `2026-07-28` removed, which is correct for the revisions it serves and wrong
 for this one.
 
+## Dual-era serving
+
+The specification describes a server that serves both eras on one endpoint,
+choosing per request: modern `_meta` means stateless, an `initialize` means
+the handshake. This library does not do it. A session carries one era's
+dispatch table, and you pick which when you create it.
+
+Both eras work today and report themselves honestly, so nothing is broken by
+this. What it costs is deployments that need one endpoint for a mixed fleet
+of clients.
+
+The naive implementation is a trap worth writing down. Merging the two tables
+and letting `initialize` flip the session to the handshake table would work
+for one client and break every other one, because the session is shared. The
+correct shape dispatches per request on whether modern `_meta` is present and
+never flips shared state.
+
+There is one complication. The stateless handler is deliberately lenient
+about a request that omits its protocol version, so the STDIO
+`server/discover` probe works. Under dual-era that leniency turns into
+ambiguity, since a request with no `_meta` could belong to either era. It
+would need tightening to "modern only when `_meta` names a version", with
+`server/discover` as the single exception.
+
 ## Pagination, and why it is still not done
 
 `2026-07-28` touched the list-result path, since every list result now

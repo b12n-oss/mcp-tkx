@@ -409,6 +409,45 @@ session id, no GET endpoint, and one held-open SSE response per
 `subscriptions/listen`. Run it with
 `bb example:server:streamable-http:2026`.
 
+## Talking to the other era
+
+`2026-07-28` supersedes the handshake revisions rather than extending them.
+The specification's own compatibility matrix is blunt: a modern client and a
+handshake server fail, and so do a handshake client and a modern server.
+There is no negotiation to rescue either, because there is no handshake left
+to negotiate in.
+
+A session in this library speaks one era, chosen when you create it. Both are
+fully supported, side by side, but not at the same time on one session:
+
+```clojure
+(server/create-session {})                             ;; handshake, four revisions
+(server/create-session {:protocol-version "2026-07-28"});; stateless, this one
+```
+
+Each reports only what it can actually serve. Ask a stateless server what it
+supports and it says `["2026-07-28"]`, not every revision the library
+implements, and a request declaring an older version is refused rather than
+answered with the wrong semantics.
+
+A handshake client that reaches a stateless server gets a diagnostic instead
+of a shrug:
+
+```json
+{"jsonrpc": "2.0", "id": 1,
+ "error": {"code": -32022,
+           "message": "This server does not implement the initialize handshake...",
+           "data": {"supported": ["2026-07-28"], "requested": "2025-11-25"}}}
+```
+
+That matters because such a client has no way to move forward to a newer
+revision. This error is probably the only thing it can put in front of a
+person, so it names the versions that would have worked.
+
+The specification also describes a **dual-era** server, one that serves both
+on the same endpoint and picks its behaviour from how the client opens. This
+library does not do that yet. See [ROADMAP.md](../../ROADMAP.md).
+
 ## What is not implemented yet
 
 - The `io.modelcontextprotocol/tasks` extension, which is where Tasks went.
