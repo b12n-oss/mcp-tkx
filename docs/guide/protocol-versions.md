@@ -6,14 +6,29 @@ The first four negotiate automatically at the initial handshake, and this page c
 
 ## Version negotiation
 
-The session is created with a fixed list of supported versions:
+`create-session` picks one of three lists of supported versions, by session kind:
 
 ```clojure
-;; src/mcp_toolkit/server.cljc create-session
-:server-supported-protocol-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]
+;; src/mcp_toolkit/server.cljc create-session, lines 1000-1010
+(let [stateless (protocol/stateless? protocol-version)
+      handshake-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]]
+  {:server-supported-protocol-versions
+   (cond
+     dual-era? (conj handshake-versions protocol/latest-protocol-version)
+     stateless [protocol/latest-protocol-version]
+     :else handshake-versions)
+   ...})
 ```
 
-When the client sends `initialize`, `initialize-handler` (in `src/mcp_toolkit/impl/server/handler.cljc`) picks the negotiated version:
+- A plain handshake session, the default, gets the four versions above.
+- A stateless session (`:protocol-version "2026-07-28"`, no `:dual-era?`) gets
+  a single-entry list, `["2026-07-28"]`, since it has no handshake to
+  negotiate at all.
+- A dual-era session (`:dual-era? true`) gets the four handshake versions
+  with `2026-07-28` appended, so the list ends with the newest revision
+  instead of `2025-11-25`.
+
+When the client sends `initialize`, `initialize-handler` (in `src/mcp_toolkit/impl/server/handler.cljc`) picks the negotiated version from whichever list the session was given:
 
 ```clojure
 (let [protocol-version
@@ -24,9 +39,27 @@ When the client sends `initialize`, `initialize-handler` (in `src/mcp_toolkit/im
 
 The rules in plain English:
 
-1. If the client asks for a version this library knows about, the server agrees.
-2. If the client asks for an unknown version, the server picks **the latest handshake version it knows**, which is `"2025-11-25"`. Note that `"2026-07-28"` is deliberately not in this list: a client speaking it never sends `initialize` in the first place.
+1. If the client asks for a version the session's list contains, the server agrees.
+2. If the client asks for an unknown version, the server picks the last entry in that list. For a plain session that is `"2025-11-25"`, the latest handshake revision. A dual-era session's list ends with `"2026-07-28"` instead, so an unrecognised version falls back there rather than to a handshake revision.
 3. There is no minimum version enforcement. A client asking for `"2024-11-05"` against this server gets `"2024-11-05"`.
+
+Those three rules hold for a plain session. A dual-era one complicates them:
+
+> **Open question: what a dual-era session should do at `initialize`.**
+> It is not yet settled whether the following is intended. First, it
+> accepts `2026-07-28` at `initialize` and returns it, so a client can
+> reach that revision through a handshake the revision itself removed.
+> Second, a version it does not recognise falls back to `2026-07-28` too.
+> The fallback is `(last server-supported-protocol-versions)`
+> (`handler.cljc:212-214`), and `create-session` appends `2026-07-28` to
+> the dual list, so the offer made to the client least likely to speak it
+> is the newest revision; a plain session correctly offers `2025-11-25`
+> here. Third, both paths advertise `resources.subscribe`, which
+> `server/discover` on the same session omits on purpose, because
+> `2026-07-28` replaced `resources/subscribe` with `subscriptions/listen`.
+> Whether to narrow the dual list, change the fallback, or accept all
+> three as the cost of serving both eras is an open decision. This page
+> describes the behaviour as it stands.
 
 The negotiated version is stored in `(:protocol-version @session)` and returned in the `initialize` response. Your handlers can branch on it if needed (rarely required — the toolkit's own handlers are already version-aware).
 
@@ -46,6 +79,11 @@ For the handshake revisions, `create-session` takes no default version. The clie
 That session has no `initialize` handler at all, and it serves `server/discover` instead.
 
 ## Feature matrix
+
+This matrix covers the four handshake revisions only. `2026-07-28` negotiates
+differently and has its own feature set. See
+[2026-07-28: the stateless revision](2026-07-28-stateless.md) and the
+[capability table in the README](../../README.md#protocol-and-feature-support).
 
 | Feature | 2024-11-05 | 2025-03-26 | 2025-06-18 | 2025-11-25 |
 |---|---|---|---|---|
@@ -210,7 +248,7 @@ you.
 
 ## What 2025-11-25 added
 
-This is the latest spec; most production clients haven't negotiated up to it yet but Claude Desktop and Claude Code do. See [2025-11-25 features](2025-11-25-features.md) for the full walkthrough — the headline list:
+This is the latest handshake revision; most production clients haven't negotiated up to it yet but Claude Desktop and Claude Code do. See [2025-11-25 features](2025-11-25-features.md) for the full walkthrough — the headline list:
 
 - **Server description** — `:server-info :description` field for human-readable server intent.
 - **Icons** — Visual icons on prompts / resources / tools / templates (data:image/ URIs or https:// URLs).
@@ -235,7 +273,7 @@ Two practical consequences:
 ## See also
 
 - [Architecture](architecture.md) — the initialization handshake that negotiates the version.
-- [2025-11-25 features](2025-11-25-features.md) — every new feature in the latest spec.
+- [2025-11-25 features](2025-11-25-features.md) — every new feature in the latest handshake revision.
 - [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md) — the 2025-03-26 → 2025-06-18 migration writeup.
 - [`docs/reference/MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md) — the 2025-06-18 → 2025-11-25 migration writeup.
 - [Spec — 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
