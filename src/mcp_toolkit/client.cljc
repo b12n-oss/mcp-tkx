@@ -2,9 +2,125 @@
   (:require
    [mate.core :as mc]
    [mcp-toolkit.impl.client.handler :as client.handler]
+   [mcp-toolkit.impl.client.handler-2026 :as client.handler-2026]
    [mcp-toolkit.impl.common :refer [user-callback]]
    [mcp-toolkit.json-rpc :as json-rpc]
+   [mcp-toolkit.protocol :as protocol]
    [promesa.core :as p]))
+
+;; ---------------------------------------------------------------------------
+;; 2026-07-28 plumbing
+;;
+;; Two things change for every request on the stateless revision. It carries
+;; the client's own protocol version and capabilities in _meta, since nothing
+;; was negotiated up front. And its result may come back asking for input
+;; rather than answering, in which case the client fulfils the requests and
+;; re-issues the same call.
+;;
+;; Both are handled here so the request functions below stay unchanged and
+;; work on either revision.
+;; ---------------------------------------------------------------------------
+
+(def ^:private default-max-round-trips
+  "How many times one request may come back asking for input before the client
+   gives up. A well-behaved server converges in one or two. The cap exists so a
+   server that keeps asking cannot spin a client forever."
+  8)
+
+(defn- stateless-session?
+  [session]
+  (protocol/stateless? (:protocol-version @session)))
+
+(defn- request-meta
+  [session]
+  (let [{:keys [protocol-version client-capabilities client-info log-level]} @session]
+    (cond-> {protocol/meta-protocol-version protocol-version
+             ;; An empty map is meaningful here: it says the client supports no
+             ;; optional capabilities, which is different from saying nothing.
+             protocol/meta-client-capabilities (or client-capabilities {})}
+      (some? client-info) (assoc protocol/meta-client-info client-info)
+      (some? log-level) (assoc protocol/meta-log-level log-level))))
+
+(defn- own-roots
+  [session]
+  {:roots (-> @session
+              :root-by-uri
+              vals
+              (->> (mapv (fn [root] (select-keys root [:uri :name])))))})
+
+(defn- missing-handler
+  [method callback-key]
+  (fn [_context _params]
+    (p/rejected
+     (ex-info (str "The server asked for " method
+                   ", but this session has no " callback-key " handler")
+              {:type :missing-input-request-handler
+               :method method
+               :callback callback-key}))))
+
+(defn- fulfil-input-request
+  "Answers one request the server made, and returns a promise of
+   [wire-key response]. The key is echoed back exactly as received, since the
+   server chose it and treats it as its own."
+  [context wire-key {:keys [method params]}]
+  (let [{:keys [session]} context
+        handler (fn [callback-key]
+                  (or (get @session callback-key)
+                      (missing-handler method callback-key)))]
+    (p/let [response (case method
+                       "roots/list"
+                       (own-roots session)
+
+                       "sampling/createMessage"
+                       ((handler :on-sampling-requested) context params)
+
+                       "elicitation/create"
+                       ((handler :on-elicitation-requested) context params)
+
+                       (p/rejected
+                        (ex-info (str "Unsupported input request: " method)
+                                 {:type :unsupported-input-request
+                                  :method method})))]
+      [wire-key response])))
+
+(defn- call-with-round-trips
+  "Calls a method, answering any request for input and retrying until the
+   server returns a complete result.
+
+   The retry is the same request with the answers and the server's own
+   request-state attached. A server implementing an earlier revision omits
+   result-type entirely, which the spec says to read as complete."
+  [context message]
+  (let [{:keys [session]} context
+        max-round-trips (or (:max-round-trips @session) default-max-round-trips)]
+    (p/loop [params (:params message)
+             round-trips 0]
+      (p/let [result (json-rpc/call-remote-method
+                      context
+                      (assoc message :params (assoc params :_meta (request-meta session))))]
+        (if (not= "input_required" (:result-type result))
+          result
+          (if (<= max-round-trips round-trips)
+            (p/rejected
+             (ex-info "The server kept asking for input"
+                      {:type :too-many-round-trips
+                       :method (:method message)
+                       :max-round-trips max-round-trips}))
+            (p/let [answers (p/all (mapv (fn [[wire-key request]]
+                                           (fulfil-input-request context wire-key request))
+                                         (:input-requests result)))]
+              (p/recur (assoc params
+                              :input-responses (into {} answers)
+                              :request-state (:request-state result))
+                       (inc round-trips)))))))))
+
+(defn- call-method
+  "Calls a remote method. On the stateless revision this adds the per-request
+   _meta and runs the multi round-trip loop. Otherwise it is a plain call."
+  [context message]
+  (if (stateless-session? (:session context))
+    (call-with-round-trips context message)
+    (json-rpc/call-remote-method context message)))
 
 (defn request-set-logging-level
   "Sets the logging level on the MCP server.
@@ -17,8 +133,8 @@
    Returns:
      A promise that resolves when the server acknowledges the level change."
   [context level]
-  (json-rpc/call-remote-method context {:method "logging/setLevel"
-                                        :params {:level level}}))
+  (call-method context {:method "logging/setLevel"
+                        :params {:level level}}))
 
 (defn request-complete-prompt-param
   "Requests autocompletion for a prompt parameter from the MCP server.
@@ -34,11 +150,11 @@
      A promise that resolves to completion suggestions from the server."
   [context prompt-name
    param-name param-value]
-  (json-rpc/call-remote-method context {:method "completion/complete"
-                                        :params {:ref {:type "ref/prompt"
-                                                       :name prompt-name}
-                                                 :argument {:name param-name
-                                                            :value param-value}}}))
+  (call-method context {:method "completion/complete"
+                        :params {:ref {:type "ref/prompt"
+                                       :name prompt-name}
+                                 :argument {:name param-name
+                                            :value param-value}}}))
 
 (defn request-complete-resource-uri
   "Requests autocompletion for a resource URI parameter from the MCP server.
@@ -54,11 +170,11 @@
      A promise that resolves to completion suggestions from the server."
   [context uri-template
    param-name param-value]
-  (json-rpc/call-remote-method context {:method "completion/complete"
-                                        :params {:ref {:type "ref/resource"
-                                                       :uri uri-template}
-                                                 :argument {:name param-name
-                                                            :value param-value}}}))
+  (call-method context {:method "completion/complete"
+                        :params {:ref {:type "ref/resource"
+                                       :uri uri-template}
+                                 :argument {:name param-name
+                                            :value param-value}}}))
 
 (defn request-prompt-list
   "Requests the list of available prompts from the MCP server.
@@ -75,7 +191,7 @@
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
     (when (contains? server-capabilities :prompts)
-      (-> (json-rpc/call-remote-method context {:method "prompts/list"})
+      (-> (call-method context {:method "prompts/list"})
           (p/then (fn [{:keys [prompts]}]
                     (swap! session assoc :server-prompt-by-name (mc/index-by :name prompts))
                     ((user-callback :on-server-prompt-list-updated) context)))))))
@@ -92,9 +208,9 @@
    Returns:
      A promise that resolves to the prompt response from the server."
   [context prompt-name arguments]
-  (json-rpc/call-remote-method context {:method "prompts/get"
-                                        :params {:name prompt-name
-                                                 :arguments arguments}}))
+  (call-method context {:method "prompts/get"
+                        :params {:name prompt-name
+                                 :arguments arguments}}))
 
 (defn request-resource-list
   "Requests the list of available resources from the MCP server.
@@ -111,7 +227,7 @@
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
     (when (contains? server-capabilities :resources)
-      (-> (json-rpc/call-remote-method context {:method "resources/list"})
+      (-> (call-method context {:method "resources/list"})
           (p/then (fn [{:keys [resources]}]
                     (swap! session assoc :server-resource-by-uri (mc/index-by :uri resources))
                     ((user-callback :on-server-resource-list-updated) context)))))))
@@ -127,8 +243,8 @@
    Returns:
      A promise that resolves to the resource content from the server."
   [context resource-uri]
-  (json-rpc/call-remote-method context {:method "resources/read"
-                                        :params {:uri resource-uri}}))
+  (call-method context {:method "resources/read"
+                        :params {:uri resource-uri}}))
 
 (defn request-resource-template-list
   "Requests the list of available resource templates from the MCP server.
@@ -140,7 +256,7 @@
    Returns:
      A promise that resolves to the list of resource templates."
   [context]
-  (json-rpc/call-remote-method context {:method "resources/templates/list"}))
+  (call-method context {:method "resources/templates/list"}))
 
 (defn request-subscribe-resource
   "Subscribes to changes for a specific resource on the MCP server.
@@ -153,8 +269,8 @@
    Returns:
      A promise that resolves when subscription is confirmed."
   [context resource-uri]
-  (json-rpc/call-remote-method context {:method "resources/subscribe"
-                                        :params {:uri resource-uri}}))
+  (call-method context {:method "resources/subscribe"
+                        :params {:uri resource-uri}}))
 
 (defn request-unsubscribe-resource
   "Unsubscribes from changes for a specific resource on the MCP server.
@@ -167,8 +283,8 @@
    Returns:
      A promise that resolves when unsubscription is confirmed."
   [context resource-uri]
-  (json-rpc/call-remote-method context {:method "resources/unsubscribe"
-                                        :params {:uri resource-uri}}))
+  (call-method context {:method "resources/unsubscribe"
+                        :params {:uri resource-uri}}))
 
 (defn request-tool-list
   "Requests the list of available tools from the MCP server.
@@ -184,8 +300,8 @@
   [context]
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
-    (when (contains? server-capabilities :prompts)
-      (-> (json-rpc/call-remote-method context {:method "tools/list"})
+    (when (contains? server-capabilities :tools)
+      (-> (call-method context {:method "tools/list"})
           (p/then (fn [{:keys [tools]}]
                     (swap! session assoc :server-tool-by-name (mc/index-by :name tools))
                     ((user-callback :on-server-tool-list-updated) context)))))))
@@ -202,9 +318,9 @@
    Returns:
      A promise that resolves to the tool execution result."
   [context tool-name arguments]
-  (json-rpc/call-remote-method context {:method "tools/call"
-                                        :params {:name tool-name
-                                                 :arguments arguments}}))
+  (call-method context {:method "tools/call"
+                        :params {:name tool-name
+                                 :arguments arguments}}))
 
 (defn notify-cancel-request
   "Sends a cancellation notification for a specific request to the MCP server.
@@ -262,6 +378,57 @@
     (notify-root-list-changed context))
   nil)
 
+(defn request-discover
+  "Asks a 2026-07-28 server what it supports.
+
+   This replaces the initialize handshake, with one important difference: it
+   is an ordinary request that may be sent at any time, and its result is
+   cacheable. Calling it is optional, since a stateless client can go straight
+   to tools/call, but it is how you learn a server's capabilities and it
+   doubles as a backward-compatibility probe on STDIO.
+
+   The server's answer is stored on the session and the :on-initialized
+   callback runs, which by default fetches the prompt, resource and tool
+   lists.
+
+   This does not switch protocol versions for you. If the server does not list
+   the version this session speaks, that is reported through
+   `server-supports-protocol-version?` and the choice of what to do about it is
+   yours, because moving between 2026-07-28 and the handshake revisions is a
+   change of mode rather than of version.
+
+   Args:
+     context - The client session context
+
+   Returns:
+     A promise that resolves once the server description is stored."
+  [context]
+  (let [{:keys [session]} context]
+    (-> (call-method context {:method "server/discover"})
+        (p/then (fn [{:keys [supported-versions capabilities instructions]}]
+                  (swap! session assoc
+                         :server-supported-protocol-versions supported-versions
+                         :server-capabilities capabilities
+                         :server-instructions instructions)
+                  ((user-callback :on-initialized) context))))))
+
+(defn server-supports-protocol-version?
+  "Returns true when the server named this session's protocol version in its
+   discovery result.
+
+   Returns nil when discovery has not run, which is not the same as false.
+
+   Args:
+     context - The client session context
+
+   Returns:
+     true, false, or nil if server/discover has not been called."
+  [context]
+  (let [{:keys [session]} context
+        {:keys [server-supported-protocol-versions protocol-version]} @session]
+    (when (some? server-supported-protocol-versions)
+      (contains? (set server-supported-protocol-versions) protocol-version))))
+
 (defn send-first-handshake-message
   "Sends the initial handshake message to establish the MCP connection.
    Initializes the session with server capabilities and triggers the on-initialized callback
@@ -299,12 +466,41 @@
   (request-tool-list context))
 
 (defn create-session
-  "Returns the state of a newly created session."
+  "Returns the state of a newly created session.
+
+   Options:
+     :client-info         - Map identifying this client, :name and :version
+     :client-capabilities - What this client supports. An empty map means none.
+     :protocol-version    - The revision to speak. Pass \"2026-07-28\" for a
+                            stateless session, which sends no handshake, calls
+                            server/discover instead of initialize, and puts its
+                            version and capabilities on every request.
+     :roots               - Vector of roots this client exposes
+     :log-level           - 2026-07-28 only. Opt in to log notifications by
+                            naming a level; a server must not send any without
+                            it. Replaces the logging/setLevel request.
+     :max-round-trips     - 2026-07-28 only. How many times one request may come
+                            back asking for input before the client gives up.
+                            Defaults to 8.
+
+     :on-elicitation-requested - 2026-07-28. Called as (f context params) when a
+                                 server asks the user for input. Returns the
+                                 answer, or a promise of it.
+     :on-sampling-requested    - Called as (f context params) when a server asks
+                                 for a model completion. On the handshake
+                                 revisions this arrives as an inbound request;
+                                 on 2026-07-28 it arrives through the multi
+                                 round-trip loop and is answered the same way.
+
+   Roots requests are answered from :roots automatically and need no callback."
   [{:keys [client-info
            client-capabilities
            protocol-version
            roots
+           log-level
+           max-round-trips
            on-initialized
+           on-elicitation-requested
            on-sampling-requested
            on-server-progress
            on-server-log
@@ -323,25 +519,33 @@
          on-server-prompt-list-changed request-prompt-list
          on-server-resource-list-changed request-resource-list
          on-server-tool-list-changed request-tool-list}}]
-  {:client-info client-info
-   :client-capabilities client-capabilities
-   :protocol-version protocol-version
-   :initialized false
-   :on-initialized on-initialized
-   :handler-by-method client.handler/handler-by-method-pre-initialization
-   :root-by-uri (mc/index-by :uri roots)
-   :server-prompt-by-name {}
-   :server-resource-by-uri {}
-   :server-tool-by-name {}
-   :on-sampling-requested on-sampling-requested
-   :on-server-progress on-server-progress
-   :on-server-log on-server-log
-   :on-server-prompt-list-changed on-server-prompt-list-changed
-   :on-server-prompt-list-updated on-server-prompt-list-updated
-   :on-server-resource-changed on-server-resource-changed
-   :on-server-resource-list-changed on-server-resource-list-changed
-   :on-server-resource-list-updated on-server-resource-list-updated
-   :on-server-tool-list-changed on-server-tool-list-changed
-   :on-server-tool-list-updated on-server-tool-list-updated
-   :last-called-method-id -1 ;; Used for calling methods on the remote site
-   :handler-by-called-method-id {}}) ;; The response handlers
+  (let [stateless (protocol/stateless? protocol-version)]
+    {:client-info client-info
+     :client-capabilities client-capabilities
+     :protocol-version protocol-version
+   ;; A stateless session has no handshake to complete, so it is usable
+   ;; immediately and its dispatch table is live from the start.
+     :initialized stateless
+     :on-initialized on-initialized
+     :handler-by-method (if stateless
+                          client.handler-2026/handler-by-method
+                          client.handler/handler-by-method-pre-initialization)
+     :log-level log-level
+     :max-round-trips max-round-trips
+     :on-elicitation-requested on-elicitation-requested
+     :root-by-uri (mc/index-by :uri roots)
+     :server-prompt-by-name {}
+     :server-resource-by-uri {}
+     :server-tool-by-name {}
+     :on-sampling-requested on-sampling-requested
+     :on-server-progress on-server-progress
+     :on-server-log on-server-log
+     :on-server-prompt-list-changed on-server-prompt-list-changed
+     :on-server-prompt-list-updated on-server-prompt-list-updated
+     :on-server-resource-changed on-server-resource-changed
+     :on-server-resource-list-changed on-server-resource-list-changed
+     :on-server-resource-list-updated on-server-resource-list-updated
+     :on-server-tool-list-changed on-server-tool-list-changed
+     :on-server-tool-list-updated on-server-tool-list-updated
+     :last-called-method-id -1 ;; Used for calling methods on the remote site
+     :handler-by-called-method-id {}})) ;; The response handlers
