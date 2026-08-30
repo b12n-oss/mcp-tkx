@@ -11,42 +11,76 @@ what it requires.
 flowchart TD
   subgraph pub["Public API, the stable surface you depend on"]
     server["server.cljc<br/>create-session, add-tool,<br/>request-sampling, notify-progress"]
-    client["client.cljc<br/>create-session, request-prompt,<br/>request-resource-list, request-tool-call"]
-    jsonrpc["json_rpc.cljc<br/>handle-message, route-message,<br/>call-remote-method, error responses"]
+    client["client.cljc<br/>create-session, request-prompt,<br/>request-tool-call, request-subscribe"]
+    jsonrpc["json_rpc.cljc<br/>handle-message, route-message,<br/>call-remote-method, hold-open"]
+    protocol["protocol.cljc<br/>revision predicates, _meta field names,<br/>latest-protocol-version"]
     schema["schema.cljc<br/>Malli schemas for MCP protocol types<br/>+ helper constructors"]
   end
 
   subgraph impl["impl/, marked ^:no-doc and evolved with the spec"]
-    shandler["server/handler.cljc<br/>initialize, prompts/list,<br/>resources/read, tools/call"]
-    chandler["client/handler.cljc<br/>client-side per-method handlers"]
+    shandler["server/handler.cljc<br/>the handshake era: initialize,<br/>prompts/list, resources/read, tools/call"]
+    shandler26["server/handler_2026.cljc<br/>the stateless era: server/discover,<br/>subscriptions/listen"]
+    shandlerd["server/handler_dual.cljc<br/>picks an era per request"]
+    chandler["client/handler.cljc<br/>client-side handshake handlers"]
+    chandler26["client/handler_2026.cljc<br/>client-side 2026-07-28 notifications"]
+    mrtr["mrtr.cljc<br/>multi-round-trip requests"]
+    subs["subscriptions.cljc<br/>subscriptions/listen stream state"]
     common["common.cljc<br/>user-callback dispatch helper"]
     meta["meta_support.cljc<br/>_meta field merging (2025-06-18 spec)"]
   end
 
   server --> shandler
+  server --> shandler26
+  server --> shandlerd
+  server --> mrtr
+  server --> subs
   server --> jsonrpc
+  server --> protocol
   server --> common
   client --> chandler
+  client --> chandler26
   client --> jsonrpc
+  client --> protocol
   client --> common
   shandler --> jsonrpc
+  shandler --> mrtr
   shandler --> common
+  shandler26 --> shandler
+  shandler26 --> subs
+  shandler26 --> jsonrpc
+  shandler26 --> protocol
+  shandlerd --> shandler
+  shandlerd --> shandler26
+  shandlerd --> jsonrpc
+  shandlerd --> protocol
+  shandlerd --> common
   chandler --> common
+  chandler26 --> common
+  mrtr --> protocol
+  subs --> protocol
 ```
 
 `schema.cljc` and `meta_support.cljc` sit on their own: neither is required by
 another namespace here, so you reach for them directly rather than through the
-message path.
+message path. `server.cljc` mentions `mcp-toolkit.schema` in its docstrings, but
+that is a pointer for readers, not a dependency.
+
+`protocol.cljc` is the one public namespace you may not have expected to need.
+Transport authors read it, because a 2026-07-28 transport has to recognise the
+`_meta` field names it defines.
 
 | Namespace | Public? | Lines | Role |
 |---|---|---|---|
-| `mcp-toolkit.server` | yes | ~684 | Server-side public API. `create-session` is the entry point; everything else operates on the `context` (which holds the `session`). |
-| `mcp-toolkit.client` | yes | ~347 | Client-side public API. `create-session` (different shape — for clients), then `request-*` / `notify-*` fns to drive the server. |
-| `mcp-toolkit.json-rpc` | yes | ~202 | JSON-RPC plumbing. `handle-message` is the single entry point you call when an inbound JSON-RPC message arrives. `call-remote-method` is the outbound side. |
-| `mcp-toolkit.schema` | yes | ~791 | Malli schemas + `valid?` / `validate` / `explain` + `!`-suffixed throwing constructors (`enum-schema!`, `url-elicitation!`, `form-elicitation!`, `tool-result-message!`). |
-| `mcp-toolkit.impl.*` | **no** (`^:no-doc`) | ~280 total | Per-method handlers. You don't call these directly — they're wired into the session at create-time. |
+| `mcp-toolkit.server` | yes | 1050 | Server-side public API. `create-session` is the entry point; everything else operates on the `context` (which holds the `session`). |
+| `mcp-toolkit.client` | yes | 621 | Client-side public API. `create-session` (a different shape, for clients), then `request-*` / `notify-*` fns to drive the server. |
+| `mcp-toolkit.schema` | yes | 791 | Malli schemas + `valid?` / `validate` / `explain` + `!`-suffixed throwing constructors (`enum-schema!`, `url-elicitation!`, `form-elicitation!`, `tool-result-message!`). |
+| `mcp-toolkit.json-rpc` | yes | 234 | JSON-RPC plumbing. `handle-message` is the single entry point you call when an inbound JSON-RPC message arrives. `call-remote-method` is the outbound side, and `hold-open` is the sentinel a handler returns to keep a stream open. |
+| `mcp-toolkit.protocol` | yes | 160 | Revision predicates, the `_meta` field names 2026-07-28 uses, and `latest-protocol-version`. Transport authors need this one. |
+| `mcp-toolkit.impl.*` | **no** (`^:no-doc`) | 1138 total | Per-method handlers, across nine namespaces. You don't call these directly. They're wired into the session at create-time. |
 
-The split is deliberate: any code under `impl/` is meant to be evolved with the spec, while `server.cljc` / `client.cljc` / `json_rpc.cljc` / `schema.cljc` are the stable surface you depend on.
+That is 14 namespaces and 3,994 lines in total.
+
+The split is deliberate: any code under `impl/` is meant to be evolved with the spec, while `server.cljc` / `client.cljc` / `json_rpc.cljc` / `protocol.cljc` / `schema.cljc` are the stable surface you depend on.
 
 ## The session atom
 
@@ -66,18 +100,23 @@ After `(server/create-session opts)` returns, the atom value contains:
 
 | Key | What it holds |
 |---|---|
-| `:initialized` | `false` until the client sends `notifications/initialized`, then `true` |
-| `:protocol-version` | `nil` until handshake; one of `"2024-11-05"` / `"2025-03-26"` / `"2025-06-18"` / `"2025-11-25"` after |
-| `:server-supported-protocol-versions` | `["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]` |
+| `:initialized` | `(and stateless (not dual-era?))` at creation: `true` only for a pure stateless session, `false` for plain and dual-era. On the handshake path, `notifications/initialized` sets it `true`. |
+| `:protocol-version` | `nil` at creation for plain and dual-era sessions, `"2026-07-28"` for a stateless one. `initialize` sets it on the handshake path, so five string values are possible: the four handshake revisions or `"2026-07-28"`. |
+| `:server-supported-protocol-versions` | one of three lists, chosen by a `cond` on session kind: `["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]` for a plain session, those four plus `"2026-07-28"` for a dual-era one, or `["2026-07-28"]` alone for a stateless one |
+| `:dual-era?` | `true` when `create-session` was called with `:dual-era? true`, `false` otherwise. Overrides `:protocol-version`. |
+| `:modern-protocol-versions` | `nil` for a plain session; `["2026-07-28"]` for a stateless or dual-era one. The subset of `:server-supported-protocol-versions` a request may declare in `_meta`. |
+| `:cache-policy` | `nil` unless passed to `create-session`. Overrides the per-method `{:ttl-ms :cache-scope}` freshness hints on 2026-07-28 cacheable results. |
 | `:server-info` / `:server-instructions` | static metadata you passed in |
 | `:client-info` / `:client-capabilities` | populated from the `initialize` request |
 | `:prompt-by-name` / `:resource-by-uri` / `:tool-by-name` | indexed registries |
 | `:resource-templates` / `:resource-uri-complete-fn` | resource template metadata |
 | `:client-subscribed-resource-uris` | `#{}` of URIs the client has subscribed to (`resources/subscribe`) |
+| `:subscription-by-id` | `{}` at creation, keyed by the id of the request that opened each stream. The 2026-07-28 counterpart to `:client-subscribed-resource-uris`: `subscriptions/listen` replaces the older per-resource `resources/subscribe` on that path, and this key stays empty on the handshake revisions. |
 | `:client-root-by-uri` | populated after `roots/list` to the client |
 | `:logging-level` | `"debug"` by default |
 | `:on-initialized` / `:on-client-root-list-changed` / `:on-client-root-list-updated` | user callbacks |
-| `:handler-by-method` | the method dispatch table; swapped from `pre-initialization` to `post-initialization` after `notifications/initialized` |
+| `:handler-by-method` | the method dispatch table. On a plain session, swapped from `pre-initialization` to `post-initialization` after `notifications/initialized`. On a dual-era session it holds the dual dispatch and is never swapped: see `:legacy-handler-by-method` below. |
+| `:legacy-handler-by-method` | `nil` except on a dual-era session, where it holds the handshake era's own pre-initialization table. `initialized-notification-handler` swaps this key instead of `:handler-by-method`, so one client finishing the handshake does not strand the stateless clients sharing the session. |
 | `:is-cancelled-by-request-id` | `{request-id → atom of bool}` for in-flight cancellable requests |
 | `:last-called-method-id` / `:handler-by-called-method-id` | tracking outbound calls awaiting a response |
 
@@ -97,8 +136,12 @@ The context is an immutable Clojure value that the toolkit threads through every
 | `:message` | the current JSON-RPC message being processed (added by `route-message`) |
 | `:is-cancelled` | per-request atom (added when a cancellable method is in flight) |
 | `:completion-context` | when a `completion/complete` request includes 2025-06-18-spec context |
+| `:protocol-version` | 2026-07-28 only: the revision this request declared in `_meta`, put there by `with-request-context`. Never written to the session. |
+| `:client-capabilities` | 2026-07-28 only: the capabilities this request declared in `_meta`. Read it via `request-client-capabilities`, which falls back to the session for a handshake-based session. |
+| `:client-info` | 2026-07-28 only: the client identity this request declared in `_meta` |
+| `:log-level` | 2026-07-28 only: the log level this request opted into in `_meta`. Read it via `request-log-level`; a server must not send log notifications for a request that omitted it. |
 
-You construct the bare context once (with `:session` + `:send-message`); the toolkit decorates it per-message.
+You construct the bare context once (with `:session` + `:send-message`); the toolkit decorates it per-message. The last four keys above come from `with-request-context`, and only for a 2026-07-28 request: capabilities and identity arrive per request now, and writing either one onto the shared session would let two concurrent requests race.
 
 The **session-vs-context** rule: anything that mutates per message goes in the session atom; anything you want to pass down to handlers as a one-shot value goes in the context. You can add your own keys to either — handlers receive the context as their one and only argument.
 
@@ -121,7 +164,9 @@ flowchart TD
   nf["method-not-found-response, -32601<br/>sent only when the message has an :id"]
   hasid{"has :id?"}
   notif["notification:<br/>handler runs, no response"]
-  method["method call:<br/>register the :is-cancelled atom, run handler,<br/>wrap into {:result ...},<br/>clean up the atom on settle"]
+  method["method call:<br/>register the :is-cancelled atom, run handler,<br/>clean up the atom on settle"]
+  heldopen{"result =<br/>json-rpc/hold-open?"}
+  held["stream stays open:<br/>no response sent now,<br/>subscriptions/listen answers later, or never"]
   resp["response to OUR earlier outbound call:<br/>look up :handler-by-called-method-id,<br/>resolve or reject the original promise,<br/>remove the entry"]
   out["Outbound response, Clojure map"]
   send["TOOLKIT: passes to :send-message"]
@@ -135,7 +180,9 @@ flowchart TD
   found -->|no| nf --> out
   found -->|yes| hasid
   hasid -->|no| notif
-  hasid -->|yes| method --> out
+  hasid -->|yes| method --> heldopen
+  heldopen -->|yes| held
+  heldopen -->|"no: wrap into {:result ...}"| out
   kind -->|"no, has :id plus :result or :error"| resp
   out --> send --> encode --> wire2
 ```
@@ -185,9 +232,28 @@ The toolkit detects what the client supports via the `:client-capabilities` map 
 (client-supports-sampling-tools? context)         ; :sampling {:tools ...}
 (client-supports-tasks? context)                  ; :tasks key present
 (client-supports-task-augmented-sampling? context); :tasks {:requests {:sampling {:create-message ...}}}
+(client-supports-task-augmented-elicitation? context); :tasks {:requests {:elicitation {:create ...}}}
 (client-supports-tasks-list? context)             ; :tasks {:list ...}
 (client-supports-tasks-cancel? context)           ; :tasks {:cancel ...}
 ```
+
+> **These helpers only work on a handshake session.** All nine
+> `client-supports-*?` predicates read `:client-capabilities` from the session.
+> A 2026-07-28 client sends its capabilities per request in `_meta` instead, and
+> `with-request-context` deliberately never writes them to the session, because
+> two concurrent requests can declare different capabilities and writing either
+> one would let them race.
+>
+> So on a stateless session every one of these returns `false`, including for a
+> client that did declare the capability. Guard a stateless code path with
+> `request-client-capabilities`, which reads the context first and falls back to
+> the session:
+>
+> ```clojure
+> ;; Works on both eras.
+> (when (contains? (server/request-client-capabilities context) :elicitation)
+>   (server/request-elicitation context {...}))
+> ```
 
 The convention: **always** check the capability before calling a feature that requires it. The `request-*` fns in `mcp-toolkit.server` themselves check capabilities and return `nil` (don't send anything) when the client doesn't declare support. See [2025-11-25 features](2025-11-25-features.md) for the full feature-by-feature breakdown.
 
