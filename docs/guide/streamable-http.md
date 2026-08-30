@@ -51,6 +51,23 @@ This is what lets `tools/call` stream progress and still return a normal JSON-RP
 
 Every server→client SSE frame carries a monotonic `id:` and is buffered in a bounded per-session ring (capped by count and age; eviction is logged). If a stream drops, the client reconnects with a `Last-Event-Id: <n>` header and the server replays buffered frames with `id > n` before resuming live delivery. The ring is bounded, so a long-disconnected client whose events have been evicted gets a fresh stream (the resume is silently lossy — acceptable for a reference example; a production server would track the oldest-retained id and signal the gap).
 
+## 2026-07-28 (stateless)
+
+`2026-07-28` is not a mode of the transport above. It is a second transport,
+[`transport/streamable_http_2026.clj`](../../example/clj-server-streamable-http/src/example/transport/streamable_http_2026.clj), served by a second example server, [`example.my-server-2026`](../../example/clj-server-streamable-http/src/example/my_server_2026.clj), on its own port. Endpoints, Sessions, the JSON/SSE flip, and Resumability above are all
+specific to the handshake revisions and none of them apply here.
+
+What changes, from the transport's point of view:
+
+- **No session id.** There is no `Mcp-Session-Id` header to mint, carry, or expire, and no `DELETE /mcp` to end anything, because there is nothing session-shaped to end. One server session serves every connection.
+- **Capabilities arrive per request.** A handshake client negotiates once, at `initialize`, and the server remembers. A `2026-07-28` request carries its own protocol version and capabilities in `_meta` instead, since there is no handshake to remember them from.
+- **`subscriptions/listen` replaces the `GET` stream.** It is a `POST` whose request never gets an ordinary response. The handler returns `mcp-toolkit.json-rpc/hold-open`, the transport keeps that connection open, and writes the eventual response only when the subscription ends. Notifications for that subscription arrive as SSE frames on the same connection while it stays open.
+- **No resumability.** There is no event log and no `Last-Event-Id`, so a dropped stream loses whatever request was in flight and the client re-issues it.
+
+Host, Origin and Content-Type validation, and the JSON encoding, carry over unchanged: the 2026 transport reuses them from the transport above rather than duplicating them.
+
+Run it with `bb example:server:streamable-http:2026`; the example's [README](../../example/clj-server-streamable-http/README.md) has a full curl walkthrough, including a working `subscriptions/listen` round trip. The protocol-level detail behind all of this, discovery, capabilities, Multi Round-Trip Requests, and the subscription filter shape, lives in [2026-07-28: the stateless revision](2026-07-28-stateless.md). This page covers the transport; that one covers the protocol.
+
 ## Security
 
 The transport applies DNS-rebinding protection on every verb, lifted from the SSE example and hardened:
@@ -90,6 +107,7 @@ claude mcp add toolkit-http --transport http http://127.0.0.1:7926/mcp
 ## See also
 
 - [`example/clj-server-streamable-http/README.md`](../../example/clj-server-streamable-http/README.md) — full `curl` walkthrough + Inspector setup.
+- [2026-07-28: the stateless revision](2026-07-28-stateless.md). Covers the protocol this fork's stateless transport implements: discovery, capabilities, Multi Round-Trip Requests, and subscriptions.
 - [Architecture](architecture.md) — the transport-agnostic `handle-message` / `:send-message` contract.
 - [Kebab-case key transformation](kebab-case-transformation.md) — the JSON ↔ Clojure boundary (note: `_meta` keeps its leading underscore — `:_meta`).
 - [Protocol versions](protocol-versions.md) — what `2025-03-26` / `2025-06-18` add and the negotiation algorithm.
