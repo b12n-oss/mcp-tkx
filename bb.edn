@@ -118,6 +118,15 @@
            (p/shell {:dir "example/clj-server-streamable-http"}
                     "clojure" "-X:mcp-server"))}
 
+  example:server:streamable-http:2026
+  {:doc "Run example Streamable HTTP MCP server (2026-07-28, stateless)"
+   :task (do
+           (header "🚀 Starting Example 2026-07-28 Streamable HTTP Server")
+           (info "No session, no GET endpoint. POST only, plus one SSE stream")
+           (info "per subscriptions/listen. Listens on 127.0.0.1:7927")
+           (p/shell {:dir "example/clj-server-streamable-http"}
+                    "clojure" "-M" "-m" "example.my-server-2026"))}
+
   example:client:stdio
   {:doc "Run example stdio MCP client (CLJ)"
    :task (do
@@ -632,6 +641,7 @@ echo \"✅ All pre-commit checks passed!\"
            (println "   bb example:server:stdio  Run stdio server (CLJ)")
            (println "   bb example:server:sse    Run SSE server")
            (println "   bb example:server:streamable-http  Run Streamable HTTP server")
+           (println "   bb example:server:streamable-http:2026  Run the 2026-07-28 server")
            (println "   bb example:client:stdio  Run stdio client (CLJ)")
            (println "")
            (println "🧪 Testing:")
