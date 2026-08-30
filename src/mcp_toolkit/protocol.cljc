@@ -15,7 +15,8 @@
   "2026-07-28")
 
 (def supported-protocol-versions
-  "The revisions that carry a `_meta` protocol-version field.
+  "Every protocol revision this fork implements except the original
+   `2024-11-05`.
 
    This is NOT the list of revisions the library speaks, and nothing in
    `src/` reads it. A session's own supported list is built by

@@ -60,7 +60,7 @@ client may call at any time, and its result is cacheable.
 {:jsonrpc "2.0" :id 1 :method "server/discover"}
 
 ;; result
-{:supported-versions ["2025-03-26" "2025-06-18" "2025-11-25" "2026-07-28"]
+{:supported-versions ["2026-07-28"]
  :capabilities {:completions {} :logging {} :tools {:list-changed true}}
  :instructions "..."
  :result-type "complete"

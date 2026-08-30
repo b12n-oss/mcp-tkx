@@ -76,7 +76,11 @@ For the handshake revisions, `create-session` takes no default version. The clie
                         :tools [...]})
 ```
 
-That session has no `initialize` handler at all, and it serves `server/discover` instead.
+That session's dispatch table still has an `initialize` entry, but it can't
+perform a handshake. Calling it returns the `UnsupportedProtocolVersion`
+diagnostic described in [2026-07-28: the stateless revision](2026-07-28-stateless.md),
+naming the versions the server does support, and a client is expected to call
+`server/discover` instead.
 
 ## Feature matrix
 

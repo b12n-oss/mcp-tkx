@@ -7,7 +7,9 @@ revisions (MCP `2025-03-26`+): single endpoint `/mcp`, session id via the
 revision: same `/mcp` endpoint, POST only, no session id, no GET, and one
 long-lived stream per `subscriptions/listen` instead. Both share the same MCP
 content (the pirate prompt, two doc resources, `parentify`) and run on
-different ports, so you can start both at once.
+different ports, so you can start both at once. `example.my-server-2026` adds
+one tool of its own, `touch`, used below to demonstrate a subscription firing.
+It does not exist on the `2025-03-26`+ server.
 
 Companion to the older [`clj-server-sse`](../clj-server-sse) example (2024-11-05
 HTTP+SSE transport).
@@ -163,4 +165,5 @@ server (port `7926`). It has no `2026-07-28` mode to point at the other one.
   `transport/streamable_http_2026.clj` for the full reasoning.
 
 Both transports share the same MCP content (prompts/resources/tools) with the
-SSE example via [`common-mcp-content`](../common-mcp-content).
+SSE example via [`common-mcp-content`](../common-mcp-content). The `touch`
+tool is the one exception, added only on `example.my-server-2026`.

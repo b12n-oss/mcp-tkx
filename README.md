@@ -188,9 +188,10 @@ everything at once instead.
 
 ## Examples
 
-All four live under [`example/`](example) and share their MCP content
-through [`common-mcp-content`](example/common-mcp-content), so the
-transports are directly comparable.
+Four directories live under [`example/`](example) and share their MCP content
+through [`common-mcp-content`](example/common-mcp-content), so the transports
+are directly comparable. `clj-server-streamable-http` ships two servers, one
+per protocol era, so the table below has five rows.
 
 | Example | Transport | Run it |
 |---|---|---|

@@ -11,7 +11,7 @@ what it requires.
 flowchart TD
   subgraph pub["Public API, the stable surface you depend on"]
     server["server.cljc<br/>create-session, add-tool,<br/>request-sampling, notify-progress"]
-    client["client.cljc<br/>create-session, request-prompt,<br/>request-tool-call, request-subscribe"]
+    client["client.cljc<br/>create-session, request-prompt,<br/>request-tool-invocation, request-subscribe"]
     jsonrpc["json_rpc.cljc<br/>handle-message, route-message,<br/>call-remote-method, hold-open"]
     protocol["protocol.cljc<br/>revision predicates, _meta field names,<br/>latest-protocol-version"]
     schema["schema.cljc<br/>Malli schemas for MCP protocol types<br/>+ helper constructors"]
@@ -262,20 +262,20 @@ The toolkit detects what the client supports via the `:client-capabilities` map 
 > or more of `server/sampling-request`, `server/roots-request`,
 > `server/elicit-form-request` or `server/elicit-url-request`, then reads the
 > answer back on the retry with `server/input-response`:
->
-> ```clojure
-> (defn greet [context _arguments]
->   (if-some [answer (server/input-response context :who)]
->     {:content [{:type "text" :text (str "hello " (-> answer :content :name))}]}
->     (server/input-required
->      {:input-requests {:who (server/elicit-form-request
->                              {:message "Who are you?"
->                               :requested-schema {:type "object"
->                                                  :properties {:name {:type "string"}}
->                                                  :required ["name"]}})}
->       :request-state "asked-for-name"})))
-> ```
->
+
+```clojure
+(defn greet [context _arguments]
+  (if-some [answer (server/input-response context :who)]
+    {:content [{:type "text" :text (str "hello " (-> answer :content :name))}]}
+    (server/input-required
+     {:input-requests {:who (server/elicit-form-request
+                             {:message "Who are you?"
+                              :requested-schema {:type "object"
+                                                 :properties {:name {:type "string"}}
+                                                 :required ["name"]}})}
+      :request-state "asked-for-name"})))
+```
+
 > `server/missing-client-capability-error` returns the 2026-07-28 error for a
 > handler that cannot proceed because the client never declared the needed
 > capability, which is clearer than an `input-required` the client can only

@@ -40,7 +40,7 @@ This guide focuses on the **reusable building blocks**, the patterns that lift t
 | Page | What you'll learn |
 |---|---|
 | [Getting started](getting-started.md) | Install via `deps.edn`; first STDIO server in CLJC; smoke test against MCP Inspector + Claude Desktop |
-| [Architecture](architecture.md) | `session` atom + `context` hashmap split, message lifecycle, namespace map (`server` / `client` / `json-rpc` / `schema` / `impl/*`), capability negotiation, cancellation |
+| [Architecture](architecture.md) | `session` atom + `context` hashmap split, message lifecycle, namespace map (`server` / `client` / `json-rpc` / `protocol` / `schema` / `impl/*`), capability negotiation, cancellation |
 | [Kebab-case key transformation](kebab-case-transformation.md) | Why kebab-case internally, where the camelCase ↔ kebab-case conversion sits (transport layer), `jsonista` + `camel-snake-kebab` setup for STDIO, equivalent for shadow-cljs / Node, the wire format reference table |
 | [Protocol versions](protocol-versions.md) | Version negotiation algorithm, what each of the four handshake revisions adds, breaking changes (JSON-RPC batching removed in 2025-06-18), backward-compat notes |
 | [Schema validation](schema-validation.md) | Malli schema namespace tour (Icon, EnumSchema, SamplingRequest, FormElicitationRequest, UrlElicitationRequest, Task, ToolResultMessage, content-block schemas), `valid?` / `validate` / `explain`, `!`-suffix throwing constructors (`enum-schema!`, `url-elicitation!`, `form-elicitation!`, `tool-result-message!`) |
@@ -82,7 +82,7 @@ This guide focuses on the **reusable building blocks**, the patterns that lift t
 | Kebab-case keys internally + camelCase on the wire (transport-layer conversion) | `example/cljc-server-stdio/src/example/my_server.cljc` (the canonical wiring); `csk/->camelCaseString` + `csk/->kebab-case-keyword` via `jsonista` | (none as a standalone library; Metosin upstream uses raw camelCase) |
 | Malli registry of MCP protocol schemas with `!`-suffix throwing constructors | `src/mcp_toolkit/schema.cljc` | (none — most MCP SDKs validate ad hoc rather than through a shared schema registry) |
 | Dynamic resources via `:read-fn` returning `{:text}` / `{:blob}` / `{:contents}` / `{:error}` (or a Promesa promise of any) | `src/mcp_toolkit/impl/server/handler.cljc` (`resource-read-handler`) | (none — most MCP SDKs only support static resource content) |
-| Multi-version automatic negotiation against `:server-supported-protocol-versions` (`["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]`) | `src/mcp_toolkit/impl/server/handler.cljc` (`initialize-handler`) | (none — most MCP SDKs hardcode a single version) |
+| Multi-version automatic negotiation against `:server-supported-protocol-versions`, one of three lists chosen by session kind (`["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]` for a plain session) | `src/mcp_toolkit/impl/server/handler.cljc` (`initialize-handler`) | (none — most MCP SDKs hardcode a single version) |
 | MCP cancellation via per-request `is-cancelled` atom + `notifications/cancelled` handler | `src/mcp_toolkit/json_rpc.cljc` (`route-message`) + `src/mcp_toolkit/impl/server/handler.cljc` (`cancelled-notification-handler`) | (none — Promesa promises don't have a built-in cancel signal; this pattern lifts to any long-running async handler) |
 
 If you're picking patterns:
