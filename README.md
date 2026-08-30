@@ -12,7 +12,7 @@ STDIO, HTTP+SSE, Streamable HTTP, or anything else that can move JSON.
 
 We have used this internally for a good while now, across a number of
 our own projects, and exercised it against Claude Desktop and Claude
-Code. 180 tests run across Clojure and ClojureScript. The API has held
+Code. 196 tests run across Clojure and ClojureScript. The API has held
 stable in practice, though it carries no formal compatibility guarantee
 yet.
 
@@ -112,6 +112,7 @@ consult the negotiated version before rejecting.
 | Deterministic list ordering | `2026-07-28` | Full |
 | Renumbered error codes | `2026-07-28` | Full |
 | `subscriptions/listen` | `2026-07-28` | Full, server and client |
+| Dual-era serving, both on one session | `2026-07-28` | Full in the library, not in the example HTTP transport |
 | Tasks as an extension | `2026-07-28` | Not implemented |
 | Streamable HTTP `Mcp-Method` / `Mcp-Name` headers | `2026-07-28` | Not implemented |
 | Dynamic resources via `:read-fn` | fork | Full |

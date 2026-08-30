@@ -83,27 +83,31 @@ for this one.
 
 ## Dual-era serving
 
-The specification describes a server that serves both eras on one endpoint,
-choosing per request: modern `_meta` means stateless, an `initialize` means
-the handshake. This library does not do it. A session carries one era's
-dispatch table, and you pick which when you create it.
+Done in the library. `(server/create-session {:dual-era? true ...})` answers
+a handshake client and a stateless one on the same session, choosing per
+request: a protocol version in `_meta` selects stateless semantics, an
+`initialize` selects the handshake.
 
-Both eras work today and report themselves honestly, so nothing is broken by
-this. What it costs is deployments that need one endpoint for a mixed fleet
-of clients.
+Not done in the example HTTP transport. The stateless transport routes a
+notification by the subscription id the library stamps on it, and drops
+anything untagged. On a dual session the untagged copy is the one meant for
+the handshake client's own connection, so an HTTP transport serving both
+needs to hold that connection and send it there. stdio needs nothing: one
+process is one connection, and the subscription id separates the streams.
 
-The naive implementation is a trap worth writing down. Merging the two tables
-and letting `initialize` flip the session to the handshake table would work
-for one client and break every other one, because the session is shared. The
-correct shape dispatches per request on whether modern `_meta` is present and
-never flips shared state.
+Two things about the implementation are worth keeping written down, because
+both were confirmed rather than assumed and both fail silently.
 
-There is one complication. The stateless handler is deliberately lenient
-about a request that omits its protocol version, so the STDIO
-`server/discover` probe works. Under dual-era that leniency turns into
-ambiguity, since a request with no `_meta` could belong to either era. It
-would need tightening to "modern only when `_meta` names a version", with
-`server/discover` as the single exception.
+Merging the two dispatch tables and letting `notifications/initialized` swap
+in the post-handshake table does not work. It shrinks the table from 16
+entries to 14 as soon as one handshake client connects, stranding every
+stateless client on that session. The dual table is therefore fixed for the
+session's life, and the handshake table it delegates to moves underneath it.
+
+Era detection keys on a protocol version being present, not absent. The
+stateless handler is lenient about a missing version so the STDIO
+`server/discover` probe works, and that leniency is ambiguity here, so the
+dual dispatcher decides first. `server/discover` is the single exception.
 
 ## Pagination, and why it is still not done
 

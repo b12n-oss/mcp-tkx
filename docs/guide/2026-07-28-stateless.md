@@ -444,9 +444,33 @@ That matters because such a client has no way to move forward to a newer
 revision. This error is probably the only thing it can put in front of a
 person, so it names the versions that would have worked.
 
-The specification also describes a **dual-era** server, one that serves both
-on the same endpoint and picks its behaviour from how the client opens. This
-library does not do that yet. See [ROADMAP.md](../../ROADMAP.md).
+### Serving both at once
+
+If one endpoint has to serve a mixed fleet, a session can answer both:
+
+```clojure
+(server/create-session {:dual-era? true
+                        :tools [my-tool]})
+```
+
+It picks per request. A protocol version in `_meta` gets stateless
+semantics; an `initialize` gets a real handshake. Neither disturbs the other,
+so a stateless client keeps working after a handshake client connects.
+
+Such a session reports all five revisions from `server/discover`, since it
+serves them all, but the stateless path still only accepts the one revision
+it implements. Declaring `2025-11-25` in `_meta` is refused rather than
+answered with the wrong semantics.
+
+Notifications reach both audiences from one call. Every subscription gets a
+copy tagged with its id, and once a handshake has completed one more goes
+down that connection untagged.
+
+On stdio this needs nothing from the transport: one process is one
+connection. On HTTP it does, because the untagged copy has to reach the
+handshake client's own connection, and the stateless transport in
+`example/` drops anything it cannot route to a subscription. See
+[ROADMAP.md](../../ROADMAP.md).
 
 ## What is not implemented yet
 
