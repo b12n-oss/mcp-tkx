@@ -12,9 +12,9 @@ Lift-and-shift recipes for reusable patterns from `mcp-tkx`. Each recipe answers
 
 **What you copy:**
 
-- The two `j/object-mapper` calls, one with `{:encode-key-fn csk/->camelCaseString}` for outbound, one with `{:decode-key-fn csk/->kebab-case-keyword}` for inbound. Stable across STDIO, HTTP, WebSocket, only the IO bytes change.
+- The two `j/object-mapper` calls, one with `{:encode-key-fn protocol/encode-key}` for outbound, one with `{:decode-key-fn protocol/decode-key}` for inbound. Stable across STDIO, HTTP, WebSocket, only the IO bytes change.
 - The deps, `metosin/jsonista` (Jackson wrapper) + `camel-snake-kebab/camel-snake-kebab`.
-- The shadow-cljs / Node analogue: `cske/transform-keys csk/->camelCaseString` for outbound, `cske/transform-keys csk/->kebab-case-keyword` for inbound. Slower (walks the whole tree) but simpler, JS doesn't have an analogue to Jackson's stream-based per-key conversion.
+- The shadow-cljs / Node analogue: `(cske/transform-keys protocol/encode-key message)` for outbound and `protocol/decode-key` for inbound. Slower (walks the whole tree) but simpler, JS doesn't have an analogue to Jackson's stream-based per-key conversion. Note the argument order: `transform-keys` takes the function first, so threading with `->` silently yields the function object rather than the map.
 - The discipline: NEVER hand-write camelCase keys in handler code. Always kebab.
 
 **What to skip:**
@@ -32,7 +32,8 @@ Idiomatic Clojure code uses kebab-case. Mixing camelCase keys for protocol field
 
 - **Already-camelCase string keys survive `csk/->camelCaseString` unchanged.** `"inputSchema"` (string) and `:input-schema` (kebab keyword) both serialize to `"inputSchema"`. Don't mix them in the same map: pick one form per project.
 - **JSON Schema documents are camelCase by spec convention** (`additionalProperties`, `minLength`, `oneOf`). If you write `:additional-properties` in handler code and let the encoder convert, downstream consumers that read your tool-list response see `additionalProperties` (correct on the wire). But if a non-MCP consumer reads your tool registry directly and bypasses the encoder, they'll see kebab where camelCase is expected. The conservative choice is to write JSON Schema keys as camelCase strings (or camelCase keywords) from the start.
-- **`csk/->kebab-case-keyword` keywordizes everything.** Even keys you wanted to keep as strings (e.g. user-supplied dictionary keys in a generic content map) become keywords on inbound. If that's a problem, scope the conversion narrower: maybe only the JSON-RPC envelope fields, not arbitrary user content.
+- **Key conversion keywordizes nearly everything.** `protocol/decode-key` returns keywords for ordinary fields, so user-supplied dictionary keys in a generic content map become keywords on inbound too. It makes two exceptions, both required by MCP: a key starting with `_` keeps its underscore, and a key containing `/` stays a string so its namespace survives the trip back out. If keywordising user content is a problem, scope the conversion narrower: maybe only the JSON-RPC envelope fields.
+- **Do not reach for `camel-snake-kebab` directly here.** It handles ordinary fields identically, which is what makes the mistake easy, but it strips the underscore from `_meta` and mangles namespaced keys. `protocol/encode-key` and `protocol/decode-key` are that library plus those two exceptions.
 
 **See:** [Kebab-case key transformation](kebab-case-transformation.md), [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc).
 

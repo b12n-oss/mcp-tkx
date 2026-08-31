@@ -74,7 +74,7 @@ The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc
 (def context
   {:session session
    :send-message (let [^OutputStreamWriter writer *out*
-                       json-mapper (j/object-mapper {:encode-key-fn csk/->camelCaseString})]
+                       json-mapper (j/object-mapper {:encode-key-fn protocol/encode-key})]
                    (fn [message]
                      (.write writer (j/write-value-as-string message json-mapper))
                      (.write writer "\n")
@@ -83,7 +83,7 @@ The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc
 ;; 3. Inbound, read JSON-RPC lines, decode, hand to the toolkit
 (defn listen-messages [context reader]
   (let [{:keys [send-message]} context
-        json-mapper (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword})]
+        json-mapper (j/object-mapper {:decode-key-fn protocol/decode-key})]
     (loop []
       (when-some [line (.readLine reader)]
         (let [message (try (j/read-value line json-mapper)

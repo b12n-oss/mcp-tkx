@@ -39,6 +39,14 @@ The process is best described in the example projects which are well commented:
 
 ### Key Transformation
 
+> **This section is preserved from upstream and is not the wiring this fork
+> uses.** Raw `camel-snake-kebab` strips the underscore from `_meta` and mangles
+> namespaced keys, both of which this fork's `2025-11-25` and `2026-07-28`
+> support depends on. Use `mcp-toolkit.protocol/encode-key` and
+> `mcp-toolkit.protocol/decode-key` instead, which are that library plus those
+> two exceptions. See
+> [Kebab-case key transformation](../guide/kebab-case-transformation.md).
+
 The library uses kebab-case internally. At the transport layer, use `camel-snake-kebab` to convert:
 
 ```clojure

@@ -79,7 +79,7 @@ This guide focuses on the **reusable building blocks**, the patterns that lift t
 
 | Pattern | Where it lives | Closest sibling |
 |---|---|---|
-| Kebab-case keys internally + camelCase on the wire (transport-layer conversion) | `example/cljc-server-stdio/src/example/my_server.cljc` (the canonical wiring); `csk/->camelCaseString` + `csk/->kebab-case-keyword` via `jsonista` | (none as a standalone library; Metosin upstream uses raw camelCase) |
+| Kebab-case keys internally + camelCase on the wire (transport-layer conversion) | `example/cljc-server-stdio/src/example/my_server.cljc` (the canonical wiring); `protocol/encode-key` + `protocol/decode-key` via `jsonista` | (none as a standalone library; Metosin upstream uses raw camelCase) |
 | Malli registry of MCP protocol schemas with `!`-suffix throwing constructors | `src/mcp_toolkit/schema.cljc` | (none, most MCP SDKs validate ad hoc rather than through a shared schema registry) |
 | Dynamic resources via `:read-fn` returning `{:text}` / `{:blob}` / `{:contents}` / `{:error}` (or a Promesa promise of any) | `src/mcp_toolkit/impl/server/handler.cljc` (`resource-read-handler`) | (none, most MCP SDKs only support static resource content) |
 | Multi-version automatic negotiation against `:server-supported-protocol-versions`, one of three lists chosen by session kind (`["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]` for a plain session) | `src/mcp_toolkit/impl/server/handler.cljc` (`initialize-handler`) | (none, most MCP SDKs hardcode a single version) |

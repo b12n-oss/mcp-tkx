@@ -2,6 +2,8 @@
   "Tests for protocol revision 2026-07-28: the stateless core and multi
    round-trip requests."
   (:require
+   [camel-snake-kebab.core :as csk]
+   [camel-snake-kebab.extras :as cske]
    [clojure.test :refer [#?(:cljs async) deftest is testing]]
    [mcp-toolkit.impl.mrtr :as mrtr]
    [mcp-toolkit.impl.server.handler-2026 :as handler-2026]
@@ -168,6 +170,35 @@
     ;; alone would silently drop the namespace here.
     (is (= "io.modelcontextprotocol/protocolVersion"
            (protocol/encode-key :io.modelcontextprotocol/protocolVersion))))
+
+  (testing "the transport wiring the guides document survives a whole-message walk"
+    ;; docs/guide/kebab-case-transformation.md and getting-started.md tell a
+    ;; transport author to use protocol/encode-key and protocol/decode-key.
+    ;; Those guides previously taught raw camel-snake-kebab, which silently
+    ;; corrupts the two keys asserted here. This pins the documented wiring so
+    ;; the guides and the code cannot drift apart again.
+    (let [message  {:max-tokens 10
+                    :input-schema {:type "object"}
+                    :_meta {protocol/meta-protocol-version "2026-07-28"}}
+          on-wire  (cske/transform-keys protocol/encode-key message)
+          returned (cske/transform-keys protocol/decode-key on-wire)]
+      (is (= {"maxTokens"   10
+              "inputSchema" {"type" "object"}
+              "_meta"       {protocol/meta-protocol-version "2026-07-28"}}
+             on-wire)
+          "outbound: ordinary keys camelise, _meta and namespaced keys are verbatim")
+      (is (= message returned)
+          "inbound: the message round-trips back to exactly what we sent")))
+
+  (testing "raw camel-snake-kebab corrupts the two keys protocol/* protects"
+    ;; The reason protocol/encode-key and protocol/decode-key exist at all. If
+    ;; this ever starts passing, csk gained the exceptions and the guides'
+    ;; warning can be revisited.
+    (is (not= :_meta (csk/->kebab-case-keyword "_meta"))
+        "csk drops the underscore, so _meta stops matching")
+    (is (not= protocol/meta-protocol-version
+              (csk/->kebab-case-keyword protocol/meta-protocol-version))
+        "csk mangles a namespaced key, which then cannot round-trip"))
 
   (testing "correlation keys survive the boundary, which is why they are namespaced"
     (doseq [k [:who :step1 :foo_bar :github-login]]
