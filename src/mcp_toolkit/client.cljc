@@ -208,7 +208,13 @@
   [context]
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
-    (when (contains? server-capabilities :prompts)
+    ;; The capability gate only applies to the handshake era, where
+    ;; :server-capabilities is filled in by initialize. A stateless session has
+    ;; no handshake, and request-discover is explicitly optional, so gating
+    ;; there made all three of these silently send nothing and return nil on a
+    ;; session the library itself calls "usable immediately".
+    (when (or (stateless-session? session)
+              (contains? server-capabilities :prompts))
       (-> (call-method context {:method "prompts/list"})
           (p/then (fn [{:keys [prompts]}]
                     (swap! session assoc :server-prompt-by-name (mc/index-by :name prompts))
@@ -244,7 +250,13 @@
   [context]
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
-    (when (contains? server-capabilities :resources)
+    ;; The capability gate only applies to the handshake era, where
+    ;; :server-capabilities is filled in by initialize. A stateless session has
+    ;; no handshake, and request-discover is explicitly optional, so gating
+    ;; there made all three of these silently send nothing and return nil on a
+    ;; session the library itself calls "usable immediately".
+    (when (or (stateless-session? session)
+              (contains? server-capabilities :resources))
       (-> (call-method context {:method "resources/list"})
           (p/then (fn [{:keys [resources]}]
                     (swap! session assoc :server-resource-by-uri (mc/index-by :uri resources))
@@ -318,7 +330,13 @@
   [context]
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
-    (when (contains? server-capabilities :tools)
+    ;; The capability gate only applies to the handshake era, where
+    ;; :server-capabilities is filled in by initialize. A stateless session has
+    ;; no handshake, and request-discover is explicitly optional, so gating
+    ;; there made all three of these silently send nothing and return nil on a
+    ;; session the library itself calls "usable immediately".
+    (when (or (stateless-session? session)
+              (contains? server-capabilities :tools))
       (-> (call-method context {:method "tools/list"})
           (p/then (fn [{:keys [tools]}]
                     (swap! session assoc :server-tool-by-name (mc/index-by :name tools))

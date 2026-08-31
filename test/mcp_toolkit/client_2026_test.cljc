@@ -8,6 +8,7 @@
    [mcp-toolkit.json-rpc :as json-rpc]
    [mcp-toolkit.protocol :as protocol]
    [mcp-toolkit.server :as server]
+   [mcp-toolkit.test.util :as util]
    [promesa.core :as p]))
 
 (defn- async-test
@@ -364,3 +365,32 @@
                        (is (nil? (-> initialize :params :_meta)))
                        (is (nil? (-> tools-list :params :_meta))
                            "_meta belongs to 2026-07-28 and must not leak backwards")))))))))
+
+(deftest list-functions-work-on-a-stateless-session-test
+  ;; All three gated on :server-capabilities, which initialize fills in. A
+  ;; stateless session has no handshake, and request-discover is explicitly
+  ;; optional, so all three sent nothing and returned nil on a session
+  ;; create-session marks :initialized and the docs call usable immediately.
+  (testing "prompts, resources and tools list without a prior discover"
+    (let [sent (atom [])
+          session (atom (client/create-session {:protocol-version "2026-07-28"
+                                                :on-initialized nil}))
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)}]
+      (is (not (contains? @session :server-capabilities))
+          "nothing has seeded capabilities, which is the whole point")
+      (client/request-prompt-list context)
+      (client/request-resource-list context)
+      (client/request-tool-list context)
+      ;; The stateless path goes through call-with-round-trips, which is a
+      ;; p/loop, so the send lands on a later tick. Wait on it rather than
+      ;; reading the atom straight after the call.
+      (async-test
+       3000
+       (p/let [_ (util/assert-atom sent
+                                   (fn [msgs] (= 3 (count msgs)))
+                                   2000
+                                   "all three list calls reach the wire")]
+         (is (= #{"prompts/list" "resources/list" "tools/list"}
+                (set (map :method @sent)))
+             "and they are the three we asked for"))))))
