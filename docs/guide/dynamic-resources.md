@@ -39,7 +39,7 @@ It returns one of:
 | `{:text "..."}` | Wraps as `{:contents [<resource-meta-merged-with-text>]}` and returns to client |
 | `{:blob "..."}` | Same, but with `:blob` (base64-encoded binary) |
 | `{:contents [{:uri ... :mime-type ... :text ...} ...]}` | Returned as-is, useful when one read produces multiple content parts |
-| `{:error {:code "..." :message "..."}}` | Returned as the result without wrapping. Client sees the error envelope. |
+| `{:error {:code 123 :message "..."}}` | Sent as a JSON-RPC **error** response. `:code` is used when it is an integer, and falls back to `-32603` otherwise, since the spec requires an integer. |
 | **A Promesa promise of any of the above** | Awaited; result handled per the cases above |
 
 The handler implementation in [`src/mcp_toolkit/impl/server/handler.cljc`](../../src/mcp_toolkit/impl/server/handler.cljc) (`resource-read-handler`) does exactly this:
@@ -47,17 +47,17 @@ The handler implementation in [`src/mcp_toolkit/impl/server/handler.cljc`](../..
 ```clojure
 (if-some [read-fn (:read-fn resource)]
   ;; Dynamic content via :read-fn
-  (-> (read-fn context uri)
+  (-> (p/do (read-fn context uri))
       (p/then (fn [result]
-                (if (:error result)
-                  result
+                (if-some [error (:error result)]
+                  (read-error-response (:id message) error)
                   (if (:contents result)
                     result
                     {:contents [(merge (select-keys resource [:uri :description :mime-type])
                                        result)]}))))
       (p/catch (fn [exception]
-                 {:error {:code "read-error"
-                          :message (ex-message exception)}})))
+                 (read-error-response (:id message)
+                                      {:message (ex-message exception)}))))
   ;; Static content from :text or :blob
   {:contents [(select-keys resource [:uri :description :mime-type :text :blob])]})
 ```

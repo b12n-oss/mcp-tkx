@@ -959,3 +959,85 @@
                                   "a synchronous throw becomes an internal error, not an escape")
                               (is (= "sync prompt boom" (-> response :error :data :message))
                                   "carrying the reason")))))))
+
+(deftest invalid-logging-level-is-rejected-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "an unknown logging/setLevel is refused instead of poisoning the session"
+                        ;; It used to be accepted and stored. notify-log then looked the
+                        ;; stored level up with no default, got nil, and threw on the JVM
+                        ;; while ClojureScript coerced it to 0 and emitted everything. One
+                        ;; bad request from any client broke logging for the whole session.
+                        (let [outputs (atom [])
+                              session (atom (server/create-session {:on-initialized nil}))
+                              context {:session session
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "t" :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 5
+                                                              :method "logging/setLevel"
+                                                              :params {:level "verbose"}})
+                            (util/assert-atom outputs
+                                              (fn [msgs] (some (fn [m] (= 5 (:id m))) msgs))
+                                              2000
+                                              "setLevel is answered")
+                            (let [response (first (filter (fn [m] (= 5 (:id m))) @outputs))]
+                              (is (= -32602 (-> response :error :code))
+                                  "an unknown level is invalid params, not an accepted setting"))
+                            (is (= "debug" (:logging-level @session))
+                                "and the session keeps its previous level")
+                            ;; The whole point: logging still works afterwards.
+                            (server/notify-log context "error" "test-logger" "still alive")
+                            (is (some (fn [m] (= "notifications/message" (:method m))) @outputs)
+                                "notify-log must still function after a rejected level"))))))
+
+(deftest read-fn-failure-is-a-json-rpc-error-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "a :read-fn that fails produces an error envelope, not a success"
+                        ;; The old shape returned {:error {:code "read-error" ...}} bare, so
+                        ;; route-message nested it under :result. The client saw a SUCCESS
+                        ;; carrying an error map, with a string code where the spec requires
+                        ;; an integer.
+                        (let [outputs (atom [])
+                              boom-resource {:uri "test://boom"
+                                             :name "Boom"
+                                             :read-fn (fn [_ _] (throw (ex-info "disk on fire" {})))}
+                              session (atom (server/create-session {:resources [boom-resource]
+                                                                    :on-initialized nil}))
+                              context {:session session
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "t" :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 9
+                                                              :method "resources/read"
+                                                              :params {:uri "test://boom"}})
+                            (util/assert-atom outputs
+                                              (fn [msgs] (some (fn [m] (= 9 (:id m))) msgs))
+                                              2000
+                                              "the failing read is answered")
+                            (let [response (first (filter (fn [m] (= 9 (:id m))) @outputs))]
+                              (is (not (contains? response :result))
+                                  "a failed read must not be reported as a success")
+                              (is (int? (-> response :error :code))
+                                  "JSON-RPC requires an integer error code")
+                              (is (= "disk on fire" (-> response :error :message))
+                                  "carrying the reason")))))))

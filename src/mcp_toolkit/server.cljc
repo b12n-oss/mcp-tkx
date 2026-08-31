@@ -32,15 +32,7 @@
                                                                 (into progress))))))
   nil)
 
-(def ^:private log-level->importance
-  {"debug"     0
-   "info"      1
-   "notice"    2
-   "warning"   3
-   "error"     4
-   "critical"  5
-   "alert"     6
-   "emergency" 7})
+(def ^:private log-level->importance protocol/log-level->importance)
 
 (defn notify-log
   "Sends a log message to the client if it meets the current logging level threshold.
@@ -57,7 +49,12 @@
   [context level logger data]
   (let [{:keys [session]} context
         logging-level (:logging-level @session)]
-    (when (>= (log-level->importance level -1) (log-level->importance logging-level))
+    ;; Both lookups carry a default. Only the first one did, so an unrecognised
+    ;; stored level produced nil and blew up the comparison on the JVM, while
+    ;; ClojureScript coerced it to 0 and emitted everything instead. Defaulting
+    ;; an unknown threshold to "debug" errs toward sending rather than silence.
+    (when (>= (log-level->importance level -1)
+              (log-level->importance logging-level 0))
       (json-rpc/send-message context (json-rpc/notification "message"
                                                             {:level level
                                                              :logger logger

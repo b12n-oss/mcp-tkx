@@ -53,6 +53,22 @@
 ;; rule applied to multi round-trip correlation keys.
 ;; ---------------------------------------------------------------------------
 
+(def log-level->importance
+  "The eight logging levels the spec defines, ordered by severity.
+
+   Shared rather than private, because the server API filters notifications
+   against it and the handshake handler has to reject a level that is not in
+   it. A level outside this map is not a quieter level, it is a protocol
+   error."
+  {"debug"     0
+   "info"      1
+   "notice"    2
+   "warning"   3
+   "error"     4
+   "critical"  5
+   "alert"     6
+   "emergency" 7})
+
 (def meta-protocol-version "io.modelcontextprotocol/protocolVersion")
 (def meta-client-capabilities "io.modelcontextprotocol/clientCapabilities")
 (def meta-client-info "io.modelcontextprotocol/clientInfo")

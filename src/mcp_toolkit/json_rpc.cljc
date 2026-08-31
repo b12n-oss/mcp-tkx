@@ -69,6 +69,21 @@
            :data {:uri uri}}
    :id id})
 
+(defn invalid-params-response
+  "Creates a JSON-RPC error response for a request whose params are invalid.
+
+   Args:
+     id      - The request ID from the original method call
+     message - What was wrong with the params
+
+   Returns:
+     A JSON-RPC error response map with invalid params error (-32602)."
+  [id message]
+  {:jsonrpc "2.0"
+   :error {:code -32602
+           :message message}
+   :id id})
+
 (defn invalid-tool-name
   "Creates a JSON-RPC error response for when a tool name is invalid or unknown.
 

@@ -3,6 +3,7 @@
    [mcp-toolkit.impl.common :refer [user-callback]]
    [mcp-toolkit.impl.mrtr :as mrtr]
    [mcp-toolkit.json-rpc :as json-rpc]
+   [mcp-toolkit.protocol :as protocol]
    [promesa.core :as p]))
 
 (defn ping-handler
@@ -10,10 +11,20 @@
   {})
 
 (defn set-logging-level-handler
+  "Handles logging/setLevel.
+
+   The level is validated before it is stored. An unrecognised level used to be
+   accepted and written to the session, where it then read as nil severity and
+   broke notify-log for the rest of the session, so one bad request from any
+   client silently disabled logging for everyone on it."
   [{:keys [session message]}]
   (let [logging-level (-> message :params :level)]
-    (swap! session assoc :logging-level logging-level))
-  {})
+    (if (contains? protocol/log-level->importance logging-level)
+      (do (swap! session assoc :logging-level logging-level)
+          {})
+      (json-rpc/invalid-params-response
+       (:id message)
+       (str "Unknown logging level: " (pr-str logging-level))))))
 
 (defn completion-complete-handler
   [{:keys [session message]
@@ -72,6 +83,19 @@
                                (select-keys resource [:uri :name :title :description :mime-type :icon])))))
    #_#_:next-cursor "next-page-cursor"})
 
+(defn- read-error-response
+  "Turns a :read-fn failure into a JSON-RPC error response.
+
+   Takes the caller's :code when it is already an integer, since the spec
+   requires one, and falls back to -32603 for anything else, including the
+   string codes the old shape encouraged."
+  [id error]
+  (let [code (:code error)]
+    {:jsonrpc "2.0"
+     :error {:code (if (int? code) code -32603)
+             :message (or (:message error) "Resource read failed")}
+     :id id}))
+
 (defn resource-read-handler
   "Handle resources/read requests.
    
@@ -95,16 +119,21 @@
         ;; read-fn never reaches it.
         (-> (p/do (read-fn context uri))
             (p/then (fn [result]
-                      (if (:error result)
-                        result
+                      (if-some [error (:error result)]
+                        ;; A real JSON-RPC error response, not a map nested
+                        ;; under :result. Returning {:error ...} bare made
+                        ;; route-message wrap it as a SUCCESS, so a client
+                        ;; checking the JSON-RPC :error key saw none, and the
+                        ;; code was a string where the spec requires an integer.
+                        (read-error-response (:id message) error)
                         ;; Ensure contents is returned
                         (if (:contents result)
                           result
                           {:contents [(merge (select-keys resource [:uri :description :mime-type])
                                              result)]}))))
             (p/catch (fn [exception]
-                       {:error {:code "read-error"
-                                :message (ex-message exception)}})))
+                       (read-error-response (:id message)
+                                            {:message (ex-message exception)}))))
         ;; Static content from :text or :blob
         {:contents [(select-keys resource [:uri :description :mime-type :text :blob])]})
       ;; Full JSON-RPC response, route-message sends it as-is (no :result wrap)
