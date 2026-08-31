@@ -72,8 +72,8 @@
 ;; A session record (keys namespaced :session/…):
 ;;   :session/id           session id (UUID string)
 ;;   :session/data         the mcp-toolkit session atom
-;;   :session/get-channel  (atom nil) — the open GET stream channel, or nil
-;;   :session/event-log    (atom {:next-id 0 :events []}) — resumability (Phase 4)
+;;   :session/get-channel  (atom nil): the open GET stream channel, or nil
+;;   :session/event-log    (atom {:next-id 0 :events []}): resumability (Phase 4)
 (defn assoc-session! [ctx session-id session-data]
   (let [rec {:session/id session-id
              :session/data session-data
@@ -143,7 +143,7 @@
 (defn record-event!
   "Allocate a monotonic per-session id, build the SSE frame, append to the
    bounded ring (prune by age, then evict oldest beyond max-events). Logs a
-   :warn only on real count-eviction — age-pruning is normal and not logged.
+   :warn only on real count-eviction, since age-pruning is normal and not logged.
    Returns {:id <n> :frame <sse-string>}.
 
    Public for testability and for the no-stream buffering path in
@@ -175,7 +175,7 @@
 (defn events-after
   "Buffered SSE frame strings with event id > `last-event-id`, in order.
    NOTE: the ring is bounded (max-events / max-age-ms), so if the requested
-   id was already evicted the replay is silently lossy — a client cannot
+   id was already evicted the replay is silently lossy, and a client cannot
    distinguish 'nothing missed' from 'missed but evicted'. Acceptable for this
    example; a production server would track the oldest-retained id and signal
    the gap to the client."
@@ -196,7 +196,7 @@
              "mcp-session-id" session-id}
    :body (->json body)})
 
-;; NOTE: `accepted-response` is reused from Phase 2 (P2.T2) — do NOT redeclare it.
+;; NOTE: `accepted-response` is reused from Phase 2 (P2.T2), do NOT redeclare it.
 
 (defn- handle-request-over-channel [ctx session req-message]
   (let [request-id (:id req-message)

@@ -785,7 +785,7 @@
                                                               :method "notifications/initialized"})
                             ;; A REPEAT initialized notification: the post-init method
                             ;; table no longer routes it, but a notification must not
-                            ;; be answered — not even with -32601.
+                            ;; be answered, not even with -32601.
                             (json-rpc/handle-message context {:jsonrpc "2.0"
                                                               :method "notifications/initialized"})
                             (is (= 1 (count @outputs))

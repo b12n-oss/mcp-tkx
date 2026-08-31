@@ -177,7 +177,7 @@
                               nil
 
                               ;; The handler returned a full JSON-RPC response
-                              ;; (e.g. invalid-tool-name, resource-not-found) —
+                              ;; (e.g. invalid-tool-name, resource-not-found),
                               ;; send it as-is instead of nesting it in :result.
                               (and (map? result)
                                    (contains? result :jsonrpc)

@@ -47,7 +47,7 @@
   (when (str/ends-with? pattern ":*")
     (let [base (subs pattern 0 (- (count pattern) 2))]
       (when (str/starts-with? value (str base ":"))
-        ;; require a numeric port — reject userinfo injection like
+        ;; require a numeric port, rejecting userinfo injection like
         ;; "127.0.0.1:80@evil.com" which would otherwise pass the prefix check
         (let [port-part (subs value (inc (count base)))]
           (boolean (re-matches #"\d+" port-part)))))))
