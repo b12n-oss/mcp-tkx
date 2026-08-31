@@ -19,7 +19,12 @@
   [{:keys [session message]
     :as handler-context}]
   (let [{:keys [ref argument context]} (:params message)] ;; context from params (2025-06-18)
-    (-> (case (:type ref)
+    ;; p/do wraps the whole expression, not the individual complete-fn calls,
+    ;; so the (or ...) default still applies when no complete-fn is registered.
+    ;; Wrapping the calls themselves would make the case always return a
+    ;; promise, which is truthy, and the default would become unreachable.
+    (p/do
+      (-> (case (:type ref)
           "ref/prompt" (when-some [prompt-param-complete-fn (-> @session :prompt-by-name (get (:name ref)) :complete-fn)]
                          ;; Pass context if provided (2025-06-18 spec)
                          (if context
@@ -35,9 +40,9 @@
                                                        (:name argument)
                                                        (:value argument))
                              (resource-uri-complete-fn handler-context (:uri ref) (:name argument) (:value argument)))))
-        (or {:completion {:values []
-                          :total 0
-                          :has-more false}}))))
+          (or {:completion {:values []
+                            :total 0
+                            :has-more false}})))))
 
 (defn prompt-list-handler
   [{:keys [session]}]
@@ -53,7 +58,11 @@
     :as context}]
   (let [{:keys [name arguments]} (:params message)]
     (if-some [prompt-fn (-> @session :prompt-by-name (get name) :prompt-fn)]
-      (prompt-fn context arguments)
+      ;; p/do, so a prompt-fn that throws synchronously becomes a rejected
+      ;; promise that route-message can answer, rather than an exception that
+      ;; escapes handle-message and kills the caller's read loop. Matches how
+      ;; tool-fn is guarded.
+      (p/do (prompt-fn context arguments))
       (json-rpc/method-not-found-response (:id message)))))
 
 (defn resource-list-handler
@@ -81,7 +90,10 @@
     (if-some [resource (-> @session :resource-by-uri (get uri))]
       (if-some [read-fn (:read-fn resource)]
         ;; Dynamic content via :read-fn
-        (-> (read-fn context uri)
+        ;; p/do for the same reason as prompt-fn above. The p/catch below only
+        ;; sees an async rejection; without this a synchronous throw from
+        ;; read-fn never reaches it.
+        (-> (p/do (read-fn context uri))
             (p/then (fn [result]
                       (if (:error result)
                         result

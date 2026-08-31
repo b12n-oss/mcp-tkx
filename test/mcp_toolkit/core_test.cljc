@@ -388,26 +388,33 @@
                                                     :value "val"}
                                          :context {:previous-values {:key "value"}}}}]
 
-      ;; Call handler with context
-      (server.handler/completion-complete-handler (assoc context :message message-with-context))
+      ;; The handler is promise-returning, since a complete-fn is now called
+      ;; inside p/do so a synchronous throw cannot escape. Await it rather than
+      ;; reading the atoms straight after the call, which only happened to work
+      ;; while the call was synchronous.
+      (promesa-async-test
+       3000
+       (p/do
+         (server.handler/completion-complete-handler (assoc context :message message-with-context))
 
-      (is @completion-called "Completion function should be called")
-      (is (= {:previous-values {:key "value"}} @completion-context-received)
-          "Context should be passed to completion function")
+         (is @completion-called "Completion function should be called")
+         (is (= {:previous-values {:key "value"}} @completion-context-received)
+             "Context should be passed to completion function")
 
-      ;; Reset for next test
-      (reset! completion-called false)
-      (reset! completion-context-received nil)
+         ;; Reset for next test
+         (reset! completion-called false)
+         (reset! completion-context-received nil)
 
-      ;; Test without context (backward compatibility)
-      (let [message-without-context {:params {:ref {:type "ref/prompt"
-                                                    :name "test_prompt"}
-                                              :argument {:name "arg1"
-                                                         :value "val"}}}]
-        (server.handler/completion-complete-handler (assoc context :message message-without-context))
+         ;; Test without context (backward compatibility)
+         (let [message-without-context {:params {:ref {:type "ref/prompt"
+                                                       :name "test_prompt"}
+                                                 :argument {:name "arg1"
+                                                            :value "val"}}}]
+           (p/do
+             (server.handler/completion-complete-handler (assoc context :message message-without-context))
 
-        (is @completion-called "Completion function should be called without context")
-        (is (nil? @completion-context-received) "No context should be passed when not provided")))))
+             (is @completion-called "Completion function should be called without context")
+             (is (nil? @completion-context-received) "No context should be passed when not provided"))))))))
 
 (deftest meta-field-support-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
@@ -910,3 +917,45 @@
                                   "and it should be a JSON-RPC internal error")
                               (is (= "prompt exploded" (-> response :error :data :message))
                                   "carrying the reason, so the caller can act on it")))))))
+
+(deftest handler-sync-throw-does-not-escape-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "a prompt-fn that throws synchronously is answered, not propagated"
+                        ;; Without the p/do guard this exception escaped route-message and
+                        ;; handle-message entirely. On the stdio example that kills the read
+                        ;; loop, so the server stops answering anything at all, not just
+                        ;; this request.
+                        (let [throwing-prompt {:name "sync_boom_prompt"
+                                               :description "Throws synchronously"
+                                               :prompt-fn (fn [_ _] (throw (ex-info "sync prompt boom" {})))}
+                              outputs (atom [])
+                              context {:session (atom (server/create-session {:prompts [throwing-prompt]
+                                                                              :on-initialized nil}))
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "test"
+                                                                                     :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            ;; This call must not throw.
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 11
+                                                              :method "prompts/get"
+                                                              :params {:name "sync_boom_prompt"
+                                                                       :arguments {}}})
+                            (util/assert-atom outputs
+                                              (fn [msgs] (some (fn [m] (= 11 (:id m))) msgs))
+                                              2000
+                                              "the synchronously-throwing request is answered")
+                            (let [response (first (filter (fn [m] (= 11 (:id m))) @outputs))]
+                              (is (= -32603 (-> response :error :code))
+                                  "a synchronous throw becomes an internal error, not an escape")
+                              (is (= "sync prompt boom" (-> response :error :data :message))
+                                  "carrying the reason")))))))
