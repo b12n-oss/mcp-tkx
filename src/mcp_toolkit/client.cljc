@@ -114,6 +114,24 @@
                               :request-state (:request-state result))
                        (inc round-trips)))))))))
 
+(defn- send-notification
+  "Sends a notification, stamping the per-request _meta on the stateless
+   revision.
+
+   A dual-era server decides which era a message belongs to by looking for the
+   protocol version in _meta. A notification sent without it is treated as a
+   handshake-era message and routed to the legacy table, where a 2026-only
+   notification has no handler and is silently dropped. That made
+   notify-unsubscribe a no-op against a dual-era server: the subscription
+   stayed open and kept delivering."
+  [context topic params]
+  (let [{:keys [session]} context
+        message (json-rpc/notification topic params)]
+    (json-rpc/send-message context
+                           (if (stateless-session? session)
+                             (assoc-in message [:params :_meta] (request-meta session))
+                             message))))
+
 (defn- call-method
   "Calls a remote method. On the stateless revision this adds the per-request
    _meta and runs the multi round-trip loop. Otherwise it is a plain call."
@@ -333,8 +351,7 @@
    Returns:
      nil"
   [context request-id]
-  (json-rpc/send-message context (json-rpc/notification "cancelled"
-                                                        {:request-id request-id})))
+  (send-notification context "cancelled" {:request-id request-id}))
 
 (defn notify-root-list-changed
   "Notifies the MCP server that the client's root list has been changed.
@@ -426,8 +443,7 @@
    Returns:
      nil"
   [context subscription-id]
-  (json-rpc/send-message context (json-rpc/notification "cancelled"
-                                                        {:request-id subscription-id})))
+  (send-notification context "cancelled" {:request-id subscription-id}))
 
 (defn subscription-id
   "Returns the subscription a notification arrived on.

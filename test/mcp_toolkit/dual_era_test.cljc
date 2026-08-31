@@ -5,6 +5,7 @@
    _meta means stateless, an initialize means the handshake."
   (:require
    [clojure.test :refer [#?(:cljs async) deftest is testing]]
+   [mcp-toolkit.client :as client]
    [mcp-toolkit.impl.server.handler :as handler]
    [mcp-toolkit.impl.server.handler-2026 :as handler-2026]
    [mcp-toolkit.impl.server.handler-dual :as handler-dual]
@@ -345,3 +346,39 @@
                                                   (get protocol/meta-subscription-id)))
                                       @sent))
                          "the handshake client never subscribed to this URI"))))))))
+
+;; ---------------------------------------------------------------------------
+;; Unsubscribing across the era boundary
+;; ---------------------------------------------------------------------------
+
+(deftest unsubscribe-reaches-the-modern-table-test
+  ;; A dual-era server picks the era from _meta. notify-unsubscribe used to
+  ;; send notifications/cancelled with no _meta at all, so it was read as a
+  ;; handshake message and routed to the legacy table, where it cancelled
+  ;; nothing. The subscription stayed open and kept delivering, and the client
+  ;; had no way to tell.
+  (testing "a cancelled notification carrying _meta is a stateless request"
+    (is (true? (handler-dual/modern-request?
+                {:method "notifications/cancelled"
+                 :params {:request-id 1
+                          :_meta modern-meta}}))))
+
+  (testing "and without _meta it is not, which is what made unsubscribe a no-op"
+    (is (false? (handler-dual/modern-request?
+                 {:method "notifications/cancelled"
+                  :params {:request-id 1}}))))
+
+  (testing "the client stamps _meta on a stateless session, so it routes modern"
+    (let [sent (atom [])
+          client-session (atom (client/create-session {:protocol-version "2026-07-28"
+                                                       :on-initialized nil}))
+          context {:session client-session
+                   :send-message (fn [m] (swap! sent conj m) nil)}]
+      (client/notify-unsubscribe context 7)
+      (let [message (first @sent)]
+        (is (= "notifications/cancelled" (:method message)))
+        (is (= 7 (-> message :params :request-id)))
+        (is (= "2026-07-28" (-> message :params :_meta (get protocol/meta-protocol-version)))
+            "the protocol version must be present or a dual-era server mis-routes it")
+        (is (true? (handler-dual/modern-request? message))
+            "and the dual dispatch must agree it is a stateless request")))))
