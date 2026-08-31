@@ -41,7 +41,7 @@ All internal Clojure code uses **kebab-case** keys (`:max-tokens`, `:input-schem
 ;; deps.edn
 {:deps {io.github.b12n-oss/mcp-tkx
         {:git/url "git@github.com:b12n-oss/mcp-tkx.git"
-         :git/sha "97a2980a16541d647563e64d6fdc249fb8f0041b"}}}
+         :git/sha "666ed1f5af0f27bb75017ec97d429b445ada814f"}}}
 ```
 
 ### Protocol Version

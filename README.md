@@ -13,7 +13,7 @@ STDIO, HTTP+SSE, Streamable HTTP, or anything else that can move JSON.
 
 We have used this internally for a good while now, across a number of
 our own projects, and exercised it against Claude Desktop and Claude
-Code. 204 tests run across Clojure and ClojureScript. The API has held
+Code. 218 tests run across Clojure and ClojureScript. The API has held
 stable in practice, though it carries no formal compatibility guarantee
 yet.
 
@@ -24,7 +24,7 @@ There is no Clojars release. Depend on it by git SHA:
 ```clojure
 {:deps {io.github.b12n-oss/mcp-tkx
         {:git/url "git@github.com:b12n-oss/mcp-tkx.git"
-         :git/sha "97a2980a16541d647563e64d6fdc249fb8f0041b"}}}
+         :git/sha "666ed1f5af0f27bb75017ec97d429b445ada814f"}}}
 ```
 
 The explicit `:git/url` is deliberate. While this repo is private the
