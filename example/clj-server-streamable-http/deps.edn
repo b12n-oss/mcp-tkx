@@ -9,7 +9,7 @@
          metosin/reitit-core        {:mvn/version "0.10.0"}
          medley/medley              {:mvn/version "1.4.0"}
          funcool/promesa            {:mvn/version "11.0.678"}
-         io.github.burinc/mcp-tkx     {:local/root "../.."}
+         io.github.b12n-oss/mcp-tkx     {:local/root "../.."}
          example/common-mcp-content {:local/root "../common-mcp-content"}}
  :aliases
  {:dev        {:extra-paths ["dev"]

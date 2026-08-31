@@ -22,14 +22,16 @@ yet.
 There is no Clojars release. Depend on it by git SHA:
 
 ```clojure
-{:deps {io.github.burinc/mcp-tkx
+{:deps {io.github.b12n-oss/mcp-tkx
         {:git/url "git@github.com:b12n-oss/mcp-tkx.git"
          :git/sha "97a2980a16541d647563e64d6fdc249fb8f0041b"}}}
 ```
 
-The SSH URL is deliberate. This repo is private, so the shorter
-`io.github.burinc/mcp-tkx` shorthand resolves to an unauthenticated
-`https://` URL and fails even for someone who has access over SSH.
+The explicit `:git/url` is deliberate. While this repo is private the
+shorthand form resolves to an unauthenticated `https://` URL and fails
+even for someone who has access over SSH. The coordinate itself does
+match the repo, so once the repo is public the shorthand works and the
+`:git/url` line becomes optional.
 
 Examples inside this repo use `:local/root "../.."` instead.
 

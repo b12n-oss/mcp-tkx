@@ -4,7 +4,7 @@
            thheller/shadow-cljs       {:mvn/version "3.3.4"}
            nrepl/nrepl                {:mvn/version "1.5.2"}
            metosin/jsonista           {:mvn/version "0.3.13"}
-           io.github.burinc/mcp-tkx     {:local/root "../.."}
+           io.github.b12n-oss/mcp-tkx     {:local/root "../.."}
            example/common-mcp-content {:local/root "../common-mcp-content"}}
  :aliases {;; clojure -X:mcp-server
            :mcp-server {:exec-fn   example.my-server/main

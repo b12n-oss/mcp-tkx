@@ -115,13 +115,13 @@
                                 (is (= [[:-> {:jsonrpc "2.0"
                                               :method "initialize"
                                               :params {:client-info {:name "mcp-toolkit"
-                                                                     :version "2025-11-25"}
+                                                                     :version "2026-07-28"}
                                                        :protocol-version "2025-11-25"
                                                        :capabilities {:roots {:list-changed true}}}
                                               :id 0}]
                                         [:<- {:jsonrpc "2.0"
                                               :result {:server-info {:name "mcp-toolkit"
-                                                                     :version "2025-11-25"}
+                                                                     :version "2026-07-28"}
                                                        :protocol-version "2025-11-25"
                                                        :capabilities {:logging {}
                                                                       :completions {}

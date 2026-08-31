@@ -1,5 +1,5 @@
 {:paths ["src"]
- :deps {io.github.burinc/mcp-tkx {:local/root "../.."}}
+ :deps {io.github.b12n-oss/mcp-tkx {:local/root "../.."}}
  :aliases {:dev {:extra-deps {org.clojure/clojure       {:mvn/version "1.12.4"}
                               org.clojure/clojurescript {:mvn/version "1.12.134"}}}
            ;; clojure -M:outdated --upgrade

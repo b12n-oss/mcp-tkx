@@ -993,7 +993,7 @@
            on-client-root-list-updated ;; called after the server updated its data
            ]
     :or {server-info {:name "mcp-toolkit"
-                      :version "2025-11-25"}
+                      :version "2026-07-28"}
          logging-level "debug"
          on-initialized request-root-list
          on-client-root-list-changed request-root-list}}]

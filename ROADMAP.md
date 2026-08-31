@@ -38,7 +38,7 @@ that number cannot be verified without adding the remote back.
 
 **No Clojars release.** The library is consumed by git SHA. The `:jar`
 and `:deploy` aliases carry the right coordinate,
-`io.github.burinc/mcp-tkx`, so that a future release cannot land on
+`io.github.b12n-oss/mcp-tkx`, so that a future release cannot land on
 Metosin's coordinate by accident, but neither alias is used today.
 
 ## Done

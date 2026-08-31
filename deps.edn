@@ -63,9 +63,9 @@
   {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
    :exec-fn      hf.depstar/jar
    :exec-args    {:sync-pom    true
-                  :group-id    "io.github.burinc"
+                  :group-id    "io.github.b12n-oss"
                   :artifact-id "mcp-tkx"
-                  :version     "2025-11-25"
+                  :version     "2026-07-28"
                   :jar         "mcp-tkx.jar"}}
 
   :deploy

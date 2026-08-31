@@ -22,15 +22,16 @@
 ### Via `deps.edn` (git SHA)
 
 ```clojure
-{:deps {io.github.burinc/mcp-tkx
+{:deps {io.github.b12n-oss/mcp-tkx
         {:git/url "git@github.com:b12n-oss/mcp-tkx.git"
          :git/sha "97a2980a16541d647563e64d6fdc249fb8f0041b"}}}
 ```
 
-The SSH URL is deliberate. This repo is private, so the shorter
-`io.github.burinc/mcp-tkx {:git/tag ...}` form would resolve to an
-unauthenticated `https://` URL and fail even for someone who has
-access over SSH.
+The explicit `:git/url` is deliberate. While this repo is private the
+shorthand form resolves to an unauthenticated `https://` URL and fails
+even for someone who has access over SSH. The coordinate itself does
+match the repo, so once the repo is public the shorthand works and the
+`:git/url` line becomes optional.
 
 There is no Clojars release, so there is no `:mvn/version` form.
 
@@ -39,7 +40,7 @@ There is no Clojars release, so there is no `:mvn/version` form.
 If you are working on this fork itself, or want it on your classpath without pinning a SHA, clone the repo and depend on it locally:
 
 ```clojure
-{:deps {io.github.burinc/mcp-tkx {:local/root "/path/to/mcp-tkx"}
+{:deps {io.github.b12n-oss/mcp-tkx {:local/root "/path/to/mcp-tkx"}
         funcool/promesa        {:mvn/version "11.0.678"}
         metosin/jsonista       {:mvn/version "0.3.13"}
         camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}}}
