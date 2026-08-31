@@ -1041,3 +1041,32 @@
                                   "JSON-RPC requires an integer error code")
                               (is (= "disk on fire" (-> response :error :message))
                                   "carrying the reason")))))))
+
+(deftest close-connection-settles-pending-calls-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "an in-flight remote call is rejected when the connection closes"
+                        ;; call-remote-method has no timeout and settles only on a matching
+                        ;; response. close-connection touched neither the pending registry
+                        ;; nor the subscriptions, so every outstanding request-sampling or
+                        ;; request-elicitation stayed pending forever and leaked its entry.
+                        (let [session (atom (server/create-session {:on-initialized nil}))
+                              closed (atom false)
+                              context {:session session
+                                       :send-message (fn [_] nil)
+                                       :close-connection (fn [] (reset! closed true))}
+                              ;; Never answered, exactly like a peer that vanished.
+                              pending (json-rpc/call-remote-method context {:method "roots/list"})]
+                          (is (= 1 (count (:handler-by-called-method-id @session)))
+                              "the call is registered while in flight")
+                          (json-rpc/close-connection context)
+                          (is @closed "the transport's own close fn still runs")
+                          (is (= {} (:handler-by-called-method-id @session))
+                              "and the pending registry is emptied rather than leaked")
+                          (-> pending
+                              (p/then (fn [_]
+                                        (is false "a call cut off by a close must not resolve")))
+                              (p/catch (fn [ex]
+                                         (is (= "Connection closed" (:message (ex-data ex)))
+                                             "it rejects with the reason instead of hanging"))))))))

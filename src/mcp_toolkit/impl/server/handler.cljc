@@ -74,7 +74,13 @@
       ;; escapes handle-message and kills the caller's read loop. Matches how
       ;; tool-fn is guarded.
       (p/do (prompt-fn context arguments))
-      (json-rpc/method-not-found-response (:id message)))))
+      ;; -32602, not -32601. The prompts/get METHOD exists, it is the prompt
+      ;; NAME that is bad. Returning method-not-found told a client the server
+      ;; does not implement prompts at all, so one bad name could make it
+      ;; disable prompt support wholesale. tool-call-handler already gets this
+      ;; right with invalid-tool-name.
+      (json-rpc/invalid-params-response (:id message)
+                                        (str "Unknown prompt: " name)))))
 
 (defn resource-list-handler
   [{:keys [session]}]

@@ -205,14 +205,24 @@
   (let [subscription-id (:id message)
         requested (-> message :params :notifications)
         honoured (subscriptions/honoured-filter (server-capabilities session) requested)]
-    (swap! session assoc-in [:subscription-by-id subscription-id] honoured)
-    (json-rpc/send-message
-     context
-     (subscriptions/tag {:jsonrpc "2.0"
-                         :method "notifications/subscriptions/acknowledged"
-                         :params {:notifications honoured}}
-                        subscription-id))
-    json-rpc/hold-open))
+    ;; A JSON-RPC id is unique per connection, not per session, and stateless
+    ;; requests share one session over HTTP. assoc-in used to overwrite, so two
+    ;; clients both picking id 1 left the first acknowledged but silently
+    ;; unsubscribed, with no way to find out. Refusing the second is the honest
+    ;; answer: the id is genuinely taken on this session.
+    (if (contains? (:subscription-by-id @session) subscription-id)
+      (json-rpc/invalid-params-response
+       subscription-id
+       (str "Subscription id already in use on this session: " (pr-str subscription-id)))
+      (do
+        (swap! session assoc-in [:subscription-by-id subscription-id] honoured)
+        (json-rpc/send-message
+         context
+         (subscriptions/tag {:jsonrpc "2.0"
+                             :method "notifications/subscriptions/acknowledged"
+                             :params {:notifications honoured}}
+                            subscription-id))
+        json-rpc/hold-open))))
 
 (defn cancelled-notification-handler
   "Cancels a request, and ends a subscription when the id names one.

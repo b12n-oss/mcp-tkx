@@ -179,6 +179,22 @@
    Returns:
      The result of calling close-connection, or nil if not available."
   [context]
+  (when-some [session (:session context)]
+    ;; Settle every in-flight remote call before the transport goes away.
+    ;; call-remote-method returns a promise that resolves only when a matching
+    ;; response arrives, and there is no timeout, so without this every
+    ;; request-sampling, request-elicitation and request-root-list outstanding
+    ;; at disconnect stayed pending forever and leaked its registry entry.
+    ;; The snapshot is taken first because each handler removes its own entry.
+    (let [pending (:handler-by-called-method-id @session)]
+      (doseq [[_ response-handler] pending]
+        (response-handler (assoc context
+                                 :message {:error {:code -32603
+                                                   :message "Connection closed"}})))
+      (swap! session assoc :handler-by-called-method-id {}))
+    ;; Subscriptions go too. close-subscription! is deliberately not used here:
+    ;; it writes a closing response down a channel that is already gone.
+    (swap! session assoc :subscription-by-id {}))
   (when-some [close-connection (:close-connection context)]
     (close-connection)))
 
