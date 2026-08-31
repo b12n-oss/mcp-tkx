@@ -150,6 +150,28 @@
       (is (= [] (subscriptions/subscriber-ids session-value "resources/updated"
                                               "file:///other/a.json"))))))
 
+(deftest subscriber-ids-mixed-id-types-test
+  ;; JSON-RPC lets a client pick a string id or a numeric one, so a server with
+  ;; two clients can hold both at once. A bare `sort` throws ClassCastException
+  ;; on that mixture, which took out every notification fan-out and
+  ;; close-all-subscriptions! along with it.
+  (let [session-value {:subscription-by-id
+                       {1     {:tools-list-changed true}
+                        "abc" {:tools-list-changed true}
+                        2     {:tools-list-changed true}
+                        "zzz" {:prompts-list-changed true}}}]
+    (testing "a mixture of string and numeric ids does not throw"
+      (is (= [1 2 "abc"]
+             (subscriptions/subscriber-ids session-value "tools/list_changed" nil))))
+
+    (testing "the order is deterministic, with numbers before strings"
+      (is (= (subscriptions/subscriber-ids session-value "tools/list_changed" nil)
+             (subscriptions/subscriber-ids session-value "tools/list_changed" nil))))
+
+    (testing "an all-string subscriber set still works"
+      (is (= ["zzz"]
+             (subscriptions/subscriber-ids session-value "prompts/list_changed" nil))))))
+
 ;; ---------------------------------------------------------------------------
 ;; Holding a request open
 ;; ---------------------------------------------------------------------------

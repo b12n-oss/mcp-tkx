@@ -101,9 +101,27 @@
       (true? (get subscription-filter filter-key)))
     false))
 
+(defn- compare-subscription-ids
+  "Orders two JSON-RPC ids, which may be numbers or strings.
+
+   `sort` alone throws a ClassCastException the moment one client picks a
+   numeric id and another picks a string, and JSON-RPC allows both. Numbers
+   sort before strings, and within a type the natural order applies."
+  [a b]
+  (let [rank (fn [id] (if (number? id) 0 1))
+        ra   (rank a)
+        rb   (rank b)]
+    (if (= ra rb)
+      (compare a b)
+      (compare ra rb))))
+
 (defn subscriber-ids
-  "Returns the ids of every subscription that opted in to this notification,
-   in the order the subscriptions were opened.
+  "Returns the ids of every subscription that opted in to this notification.
+
+   The order is deterministic but is not the order the subscriptions were
+   opened, because `:subscription-by-id` is an unordered map. Ids are sorted,
+   with numbers before strings, so that a fan-out is reproducible whatever
+   mixture of id types the connected clients happen to have chosen.
 
    Args:
      session-value - A dereferenced server session
@@ -116,7 +134,7 @@
   (->> (:subscription-by-id session-value)
        (filter (fn [[_ subscription-filter]] (wants? subscription-filter topic uri)))
        (map key)
-       sort))
+       (sort compare-subscription-ids)))
 
 (defn tag
   "Stamps a message's params with the subscription it belongs to.
