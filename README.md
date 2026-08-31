@@ -325,14 +325,7 @@ without either side needing to agree.
 
 ## License
 
-Distributed under the [Eclipse Public License v2.0](LICENSE.txt), the same
-licence upstream uses. `LICENSE.txt` is the unmodified EPL-2.0 text.
+Distributed under the [Eclipse Public License v2.0](LICENSE.txt).
 
-Copyright (c) [Metosin](https://metosin.fi) and contributors, for
-[mcp-toolkit](https://github.com/metosin/mcp-toolkit), which this fork began
-from and still shares most of its code with.
-
-Copyright (c) 2026 the `mcp-tkx` contributors, for the work added here.
-
-Both notices matter. Keeping only the first would understate what this fork
-adds, and keeping only the second would misrepresent whose design this is.
+Copyright (c) Metosin and contributors.
+Copyright (c) 2026 the `mcp-tkx` contributors.
