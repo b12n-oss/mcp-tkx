@@ -117,8 +117,10 @@
                       ;; Convert kebab-case keywords to camelCase strings
                       :send-message (fn [message]
                                       (prn [:--> message])
-                                      (.write writer (str (-> message
-                                                              (cske/transform-keys protocol/encode-key)
+                                      ;; transform-keys takes the fn first. Threading with
+                                      ;; -> would pass the message first and return the fn
+                                      ;; itself, which stringifies to "undefined" silently.
+                                      (.write writer (str (-> (cske/transform-keys protocol/encode-key message)
                                                               clj->js
                                                               js/JSON.stringify) "\n")))
                       :close-connection (fn []

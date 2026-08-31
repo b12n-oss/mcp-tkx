@@ -80,16 +80,23 @@
    (def context
      {:session session
       :send-message (fn [message]
-                      ;; Convert kebab-case keywords to camelCase strings for wire format
-                      (js/process.stdout.write (-> message
-                                                   (cske/transform-keys protocol/encode-key)
+                      ;; Convert kebab-case keywords to camelCase strings for wire format.
+                      ;; transform-keys takes the fn first, so the arguments are
+                      ;; passed explicitly here. Threading with -> would put the
+                      ;; message first and return the fn itself, which stringifies
+                      ;; to "undefined" without raising.
+                      (js/process.stdout.write (-> (cske/transform-keys protocol/encode-key message)
                                                    clj->js
                                                    js/JSON.stringify
                                                    (str "\n"))))}))
 #?(:cljs
    (defn main [& args]
      (js/process.stdin.setEncoding "utf8")
-     (js/process.stdout.setEncoding "utf8")
+     ;; No stdout.setEncoding. process.stdout is a Writable, and only Readable
+     ;; streams have setEncoding, so that call throws TypeError and kills the
+     ;; server on startup. Writable's equivalent is setDefaultEncoding, and it
+     ;; is unnecessary here because writing a string already defaults to utf8.
+     (js/process.stdout.setDefaultEncoding "utf8")
      (js/process.stdin.on "data"
                           (fn [chunk]
                             ;; In this simple example, we naively assume that there is a json object per line.
