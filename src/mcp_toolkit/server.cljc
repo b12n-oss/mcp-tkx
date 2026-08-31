@@ -48,13 +48,22 @@
      nil"
   [context level logger data]
   (let [{:keys [session]} context
-        logging-level (:logging-level @session)]
+        ;; 2026-07-28 replaced logging/setLevel with a per-request _meta field,
+        ;; and a server must not log for a request that omitted it.
+        ;; with-request-context always assocs :log-level, so the key's presence
+        ;; marks a request that came through the stateless path. Reading the
+        ;; session's :logging-level there instead would apply its "debug"
+        ;; default and emit everything, which is what used to happen.
+        threshold (if (contains? context :log-level)
+                    (:log-level context)
+                    (:logging-level @session))]
     ;; Both lookups carry a default. Only the first one did, so an unrecognised
     ;; stored level produced nil and blew up the comparison on the JVM, while
     ;; ClojureScript coerced it to 0 and emitted everything instead. Defaulting
     ;; an unknown threshold to "debug" errs toward sending rather than silence.
-    (when (>= (log-level->importance level -1)
-              (log-level->importance logging-level 0))
+    (when (and (some? threshold)
+               (>= (log-level->importance level -1)
+                   (log-level->importance threshold 0)))
       (json-rpc/send-message context (json-rpc/notification "message"
                                                             {:level level
                                                              :logger logger
@@ -994,8 +1003,27 @@
          logging-level "debug"
          on-initialized request-root-list
          on-client-root-list-changed request-root-list}}]
-  (let [stateless (protocol/stateless? protocol-version)
-        handshake-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]]
+  (let [handshake-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]
+        _ (when (some? protocol-version)
+            ;; stateless? is a set membership test, so anything outside it
+            ;; quietly built a handshake session instead. One mistyped digit
+            ;; produced a completely different server, with no server/discover
+            ;; in its table, and every stateless client got -32601 back.
+            (when-not (protocol/stateless? protocol-version)
+              (throw (ex-info (if (contains? (set handshake-versions) protocol-version)
+                                (str "A handshake revision cannot be pinned here. "
+                                     protocol-version
+                                     " is negotiated with the client at initialize, "
+                                     "so omit :protocol-version to serve the handshake era. "
+                                     "This option exists to opt into "
+                                     protocol/latest-protocol-version ", which has no handshake.")
+                                (str "Unknown :protocol-version " (pr-str protocol-version) ". "
+                                     "The only value this option accepts is "
+                                     protocol/latest-protocol-version "."))
+                              {:type :invalid-protocol-version
+                               :protocol-version protocol-version
+                               :accepted protocol/latest-protocol-version}))))
+        stateless (protocol/stateless? protocol-version)]
     {;; About the server
      ;; What this session can actually serve, which is not the same as what the
      ;; library implements. A session carries one era's dispatch table, so a

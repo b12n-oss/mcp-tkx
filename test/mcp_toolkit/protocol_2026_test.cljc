@@ -775,3 +775,69 @@
                   :method "ping"}])
          (p/then (fn [sent]
                    (is (= {} (-> sent first :result)))))))))
+
+(deftest notify-log-honours-the-per-request-optin-test
+  ;; 2026-07-28 replaced logging/setLevel with a per-request _meta field, and
+  ;; request-log-level's own docstring states that a server must not log for a
+  ;; request that omitted it. notify-log read :logging-level off the session
+  ;; instead, which create-session defaults to "debug", so every log passed on
+  ;; a stateless session no matter what the request asked for.
+  (testing "a stateless request that opted out of logs gets none"
+    (let [sent (atom [])
+          session (atom (server/create-session {:protocol-version "2026-07-28"
+                                                :on-initialized nil}))
+          ;; The shape with-request-context builds: the keys are always present,
+          ;; and :log-level is nil when the request did not ask for logs.
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)
+                   :protocol-version "2026-07-28"
+                   :client-capabilities {}
+                   :client-info nil
+                   :log-level nil}]
+      (server/notify-log context "error" "lg" "should not be sent")
+      (is (= [] @sent)
+          "a request with no _meta logLevel must produce no log notifications")))
+
+  (testing "a stateless request that opted in gets logs at or above its level"
+    (let [sent (atom [])
+          session (atom (server/create-session {:protocol-version "2026-07-28"
+                                                :on-initialized nil}))
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)
+                   :protocol-version "2026-07-28"
+                   :client-capabilities {}
+                   :client-info nil
+                   :log-level "warning"}]
+      (server/notify-log context "error" "lg" "above threshold")
+      (server/notify-log context "debug" "lg" "below threshold")
+      (is (= 1 (count @sent)) "only the message at or above the requested level")
+      (is (= "error" (-> @sent first :params :level)))))
+
+  (testing "a handshake session still uses its session-level setting"
+    (let [sent (atom [])
+          session (atom (server/create-session {:on-initialized nil}))
+          ;; No :log-level key at all, which is what a handshake context looks like.
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)}]
+      (server/notify-log context "error" "lg" "handshake path unchanged")
+      (is (= 1 (count @sent))
+          "the handshake era must keep working off :logging-level"))))
+
+(deftest create-session-validates-protocol-version-test
+  ;; stateless? is a set membership test, so anything outside it quietly built
+  ;; a handshake session. One mistyped digit produced a completely different
+  ;; server, with no server/discover in its table, and every stateless client
+  ;; got -32601 back with nothing to explain why.
+  (testing "a mistyped revision is refused rather than silently downgraded"
+    (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error)
+                 (server/create-session {:protocol-version "2026-07-29"}))))
+
+  (testing "a handshake revision is refused, since it cannot be pinned here"
+    ;; It is negotiated at initialize. Accepting it looked like a pin and was not.
+    (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error)
+                 (server/create-session {:protocol-version "2025-11-25"}))))
+
+  (testing "the stateless revision is accepted, and omitting it still works"
+    (is (some? (server/create-session {:protocol-version "2026-07-28"})))
+    (is (some? (server/create-session {})))
+    (is (false? (:dual-era? (server/create-session {}))))))
