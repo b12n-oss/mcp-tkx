@@ -12,6 +12,7 @@
    [mcp-toolkit.json-rpc :as json-rpc]
    [mcp-toolkit.protocol :as protocol]
    [mcp-toolkit.server :as server]
+   [mcp-toolkit.test.util :as util]
    [promesa.core :as p]))
 
 (defn- async-test
@@ -402,6 +403,18 @@
                {:session client-session
                 :send-message (fn [m] (json-rpc/handle-message @server-context m))})
        (client/send-first-handshake-message @client-context)
-       (p/let [_ (p/resolved true)]
+       ;; Wait on the handshake actually completing, not on a fixed number of
+       ;; microtask ticks. `send-first-handshake-message` returns nil rather
+       ;; than its promise, so there is nothing to await directly, and a bare
+       ;; (p/let [_ (p/resolved true)] ...) silently depended on the exact
+       ;; length of the server's response promise chain. Any correctness fix
+       ;; that added a link to that chain broke this test rather than the code.
+       (p/let [_ (util/assert-atom client-session
+                                   (fn [s] (true? (:initialized s)))
+                                   3000
+                                   "client handshake completes")]
          (server/notify-prompt-list-changed @server-context)
-         (is (= [:prompts] @fired)))))))
+         (util/assert-atom fired
+                           (fn [f] (= [:prompts] f))
+                           3000
+                           "the prompt list-changed notification reaches the client"))))))

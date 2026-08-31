@@ -25,6 +25,27 @@
            :message "Method not found"}
    :id id})
 
+(defn internal-error-response
+  "Creates a JSON-RPC error response for a handler that failed.
+
+   A handler that throws, or returns a rejected promise, has no reply of its
+   own to send. Without this the caller waits forever on a request the server
+   has already given up on, which is worse than an error.
+
+   Args:
+     id        - The request ID from the original method call
+     exception - The exception the handler failed with
+
+   Returns:
+     A JSON-RPC error response map with internal error (-32603)."
+  [id exception]
+  {:jsonrpc "2.0"
+   :error (cond-> {:code -32603
+                   :message "Internal error"}
+            (some? (ex-message exception))
+            (assoc :data {:message (ex-message exception)}))
+   :id id})
+
 ;; RPC call with invalid Request object:
 (def invalid-request-response
   {:jsonrpc "2.0"
@@ -195,7 +216,14 @@
 
                             ;; Pass through as if this p/handle was not there.
                             ;; We avoided using p/finally because it does not allow chaining further promises.
-                            (or error result))))))))
+                            (or error result)))
+                ;; A handler that failed still owes the client a reply.
+                ;; Without this the request goes unanswered and the caller
+                ;; waits on a response the server will never send. A cancelled
+                ;; request is the exception: it has already been answered.
+                (p/catch (fn [exception]
+                           (when-not @is-cancelled
+                             (internal-error-response id exception)))))))))
     ;; Method call response
     (if (and (contains? message :id)
              (or (contains? message :result)

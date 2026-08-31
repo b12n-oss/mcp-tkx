@@ -868,3 +868,45 @@
                                                :is-error true}
                                       :id 7}
                                      response))))))))
+
+(deftest failing-handler-still-answers-the-request-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "a handler that rejects gets an internal-error reply instead of silence"
+                        ;; prompt-fn is called without the p/do that wraps tool-fn, so a
+                        ;; rejection propagated all the way out of route-message and the
+                        ;; request was simply never answered. The caller waited forever.
+                        (let [rejecting-prompt {:name "boom_prompt"
+                                                :description "Always rejects"
+                                                :prompt-fn (fn [_ _] (p/rejected (ex-info "prompt exploded" {})))}
+                              outputs (atom [])
+                              context {:session (atom (server/create-session {:prompts [rejecting-prompt]
+                                                                              :on-initialized nil}))
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "test"
+                                                                                     :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 9
+                                                              :method "prompts/get"
+                                                              :params {:name "boom_prompt"
+                                                                       :arguments {}}})
+                            (util/assert-atom outputs
+                                              (fn [msgs] (some (fn [m] (= 9 (:id m))) msgs))
+                                              2000
+                                              "the failing request is answered at all")
+                            (let [response (first (filter (fn [m] (= 9 (:id m))) @outputs))]
+                              (is (some? response)
+                                  "a rejecting handler must still produce a response")
+                              (is (= -32603 (-> response :error :code))
+                                  "and it should be a JSON-RPC internal error")
+                              (is (= "prompt exploded" (-> response :error :data :message))
+                                  "carrying the reason, so the caller can act on it")))))))
