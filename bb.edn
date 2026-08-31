@@ -126,16 +126,19 @@
    :task (do
            (header "🚀 Starting Example Stdio Server (CLJ)")
            (info "MCP server communicating via stdin/stdout")
+           ;; -X, not -M -m. `main` takes an options map and is wired as the
+           ;; :mcp-server alias's :exec-fn, so `-m` cannot find a `-main`.
            (p/shell {:dir "example/cljc-server-stdio"}
-                    "clj" "-M" "-m" "example.my-server"))}
+                    "clojure" "-X:mcp-server"))}
 
   example:server:sse
   {:doc "Run example SSE MCP server"
    :task (do
            (header "🚀 Starting Example SSE Server")
            (info "MCP server with SSE transport")
+           ;; -X, not -M -m. Same reason as the stdio server above.
            (p/shell {:dir "example/clj-server-sse"}
-                    "clj" "-M" "-m" "example.my-server"))}
+                    "clojure" "-X:mcp-server"))}
 
   example:server:streamable-http
   {:doc "Run example Streamable HTTP MCP server (2025-03-26+)"
