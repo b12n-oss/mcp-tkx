@@ -1,16 +1,16 @@
 # Dynamic resources via `:read-fn`
 
-MCP resources are normally **static** — you register a resource with `:text` (or `:blob`) at session-creation time, and the toolkit serves that content verbatim on every `resources/read`. This fork adds a second mode: provide a `:read-fn` instead, and the toolkit calls it on each read to compute content on demand.
+MCP resources are normally **static**: you register a resource with `:text` (or `:blob`) at session-creation time, and the toolkit serves that content verbatim on every `resources/read`. This fork adds a second mode: provide a `:read-fn` instead, and the toolkit calls it on each read to compute content on demand.
 
 ## Why dynamic content
 
 Three real-world drivers:
 
-1. **System status / metrics** — uptime, queue depth, last-error, "what's the server doing right now?" data that is meaningless to snapshot at session-creation time.
-2. **External-system reflection** — current row count of a database table, list of active workspaces, current git branch / commit. The data lives in another system; you want to expose a view, not a copy.
-3. **Authenticated / per-user data** — content that depends on `:context` (which carries the request-time state), rather than the static data baked into the registration.
+1. **System status / metrics**: uptime, queue depth, last-error, "what's the server doing right now?" data that is meaningless to snapshot at session-creation time.
+2. **External-system reflection**: current row count of a database table, list of active workspaces, current git branch / commit. The data lives in another system; you want to expose a view, not a copy.
+3. **Authenticated / per-user data**: content that depends on `:context` (which carries the request-time state), rather than the static data baked into the registration.
 
-For everything else, static `:text` / `:blob` is simpler — pre-compute the content at session-creation time and let the toolkit serve it.
+For everything else, static `:text` / `:blob` is simpler, pre-compute the content at session-creation time and let the toolkit serve it.
 
 ## The contract
 
@@ -29,8 +29,8 @@ A dynamic resource looks like a static one with `:read-fn` instead of (or alongs
 
 The `:read-fn` receives:
 
-- `context` — the **full handler context**, including `:session`, `:message`, plus the standard `:send-message` / `:close-connection`. You can read or mutate the session if needed.
-- `uri` — the URI being read (the same URI the resource was registered with — useful when one `:read-fn` handles multiple URIs by closing over a registry).
+- `context`: the **full handler context**, including `:session`, `:message`, plus the standard `:send-message` / `:close-connection`. You can read or mutate the session if needed.
+- `uri`: the URI being read (the same URI the resource was registered with, useful when one `:read-fn` handles multiple URIs by closing over a registry).
 
 It returns one of:
 
@@ -38,7 +38,7 @@ It returns one of:
 |---|---|
 | `{:text "..."}` | Wraps as `{:contents [<resource-meta-merged-with-text>]}` and returns to client |
 | `{:blob "..."}` | Same, but with `:blob` (base64-encoded binary) |
-| `{:contents [{:uri ... :mime-type ... :text ...} ...]}` | Returned as-is — useful when one read produces multiple content parts |
+| `{:contents [{:uri ... :mime-type ... :text ...} ...]}` | Returned as-is, useful when one read produces multiple content parts |
 | `{:error {:code "..." :message "..."}}` | Returned as the result without wrapping. Client sees the error envelope. |
 | **A Promesa promise of any of the above** | Awaited; result handled per the cases above |
 
@@ -62,7 +62,7 @@ The handler implementation in [`src/mcp_toolkit/impl/server/handler.cljc`](../..
   {:contents [(select-keys resource [:uri :description :mime-type :text :blob])]})
 ```
 
-The auto-merge of `[:uri :description :mime-type]` from the registration onto the `:read-fn` return is convenient — you don't repeat metadata that's already on the resource.
+The auto-merge of `[:uri :description :mime-type]` from the registration onto the `:read-fn` return is convenient, because you don't repeat metadata that's already on the resource.
 
 ## Worked example: system status as JSON
 
@@ -108,7 +108,7 @@ Each `resources/read` call computes fresh values. The MIME type stays at `applic
                            :message (.getMessage e)}})))})
 ```
 
-The handler swallows the exception locally and returns an `{:error}` map. If you let the exception escape, the toolkit catches it and returns `{:error {:code "read-error" :message "<the exception's message>"}}` — same envelope shape, different code string.
+The handler swallows the exception locally and returns an `{:error}` map. If you let the exception escape, the toolkit catches it and returns `{:error {:code "read-error" :message "<the exception's message>"}}`, same envelope shape, different code string.
 
 ## Worked example: async fetch via Promesa
 
@@ -120,14 +120,14 @@ The handler swallows the exception locally and returns an `{:error}` map. If you
    :name "Remote config"
    :mime-type "application/json"
    :read-fn (fn [_context _uri]
-              ;; HTTP fetch returns a promise — toolkit awaits it
+              ;; HTTP fetch returns a promise, toolkit awaits it
               (-> (http/get "https://config.example.com/api/current"
                             {:as :json})
                   (p/then (fn [response]
                             {:text (json/write-str (:body response))}))))})
 ```
 
-The toolkit `(p/then)`-chains your return, so any Promesa promise (or anything that satisfies `p/promise?`) is awaited. If the chain rejects, the catch in `resource-read-handler` converts it to `{:error ...}` — your fn doesn't have to handle async errors itself.
+The toolkit `(p/then)`-chains your return, so any Promesa promise (or anything that satisfies `p/promise?`) is awaited. If the chain rejects, the catch in `resource-read-handler` converts it to `{:error ...}`, your fn doesn't have to handle async errors itself.
 
 ## Worked example: multiple URIs per `:read-fn`
 
@@ -158,7 +158,7 @@ If you anticipate adding / removing items at runtime, combine this with [the REP
 
 ## Worked example: returning `:contents` directly
 
-When one read produces multiple content parts (rare but possible — e.g. a "manifest" resource that bundles a JSON header and a binary body), bypass the auto-merge and provide `:contents` yourself:
+When one read produces multiple content parts (rare but possible, e.g. a "manifest" resource that bundles a JSON header and a binary body), bypass the auto-merge and provide `:contents` yourself:
 
 ```clojure
 (def bundle-resource
@@ -173,20 +173,20 @@ When one read produces multiple content parts (rare but possible — e.g. a "man
                            :blob "<base64>"}]})})
 ```
 
-Each `:contents` entry is returned verbatim — no merge, no metadata inheritance. Use this when you need precise control over `:uri` / `:mime-type` per part.
+Each `:contents` entry is returned verbatim, no merge, no metadata inheritance. Use this when you need precise control over `:uri` / `:mime-type` per part.
 
 ## When NOT to use `:read-fn`
 
-- **Content that doesn't change after session start** — register `:text` / `:blob` directly. The toolkit's static path skips the promise machinery.
-- **Content that changes rarely and on a known schedule** — register static `:text`, then use `(server/notify-resource-updated context resource)` from a REPL or a scheduled task to nudge subscribed clients to re-read. The next `resources/read` returns the (still-static) content; **but** before that you'd need to update the resource registration via `(swap! session ...)` or `(server/add-resource context updated-resource)` (which replaces by URI).
+- **Content that doesn't change after session start**: register `:text` / `:blob` directly. The toolkit's static path skips the promise machinery.
+- **Content that changes rarely and on a known schedule**: register static `:text`, then use `(server/notify-resource-updated context resource)` from a REPL or a scheduled task to nudge subscribed clients to re-read. The next `resources/read` returns the (still-static) content; **but** before that you'd need to update the resource registration via `(swap! session ...)` or `(server/add-resource context updated-resource)` (which replaces by URI).
 
-  This pattern works for "the README in this directory was just edited" — the change is event-driven, not on every read.
+  This pattern works for "the README in this directory was just edited": the change is event-driven, not on every read.
 
-- **Content where ANY read is expensive** — `:read-fn` runs synchronously (or async-via-promise) on every request. If your read is a 5-second remote call, every client that opens the resource pays the cost. Cache inside the `:read-fn` (e.g. with a memoize-with-ttl) to amortize.
+- **Content where ANY read is expensive**: `:read-fn` runs synchronously (or async-via-promise) on every request. If your read is a 5-second remote call, every client that opens the resource pays the cost. Cache inside the `:read-fn` (e.g. with a memoize-with-ttl) to amortize.
 
 ## See also
 
 - The handler that drives this: [`src/mcp_toolkit/impl/server/handler.cljc`](../../src/mcp_toolkit/impl/server/handler.cljc) `resource-read-handler`.
 - The README's "What this fork adds" table, "Dynamic resources" row, in the project root for the spec-level summary.
-- [REPL workflow](repl-workflow.md) — for the related pattern of mutating resource registrations from a REPL while the server is live.
-- [Extraction recipes](extraction-recipes.md) Recipe 3 — lifting this dynamic-resource pattern into another resource-based service.
+- [REPL workflow](repl-workflow.md): for the related pattern of mutating resource registrations from a REPL while the server is live.
+- [Extraction recipes](extraction-recipes.md) Recipe 3: lifting this dynamic-resource pattern into another resource-based service.

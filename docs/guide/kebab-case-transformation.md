@@ -7,7 +7,7 @@ This is the most distinctive ergonomic choice in this fork. Your handler code us
 The MCP spec and JSON-RPC use camelCase keys on the wire. Idiomatic Clojure uses kebab-case. The fork's stance is that handlers should look like Clojure, not like a JS port:
 
 ```clojure
-;; Handler code — kebab-case throughout
+;; Handler code, kebab-case throughout
 (def my-tool
   {:name "summarize"
    :description "Summarize text"
@@ -62,15 +62,15 @@ In the canonical wiring ([`example/cljc-server-stdio/src/example/my_server.cljc`
 
 The two `j/object-mapper` calls are doing all the work:
 
-- **Outbound** — `:encode-key-fn csk/->camelCaseString` runs on every keyword as Jackson serializes the result map. `:input-schema` becomes `"inputSchema"`. Strings already in camelCase pass through unchanged.
+- **Outbound**: `:encode-key-fn csk/->camelCaseString` runs on every keyword as Jackson serializes the result map. `:input-schema` becomes `"inputSchema"`. Strings already in camelCase pass through unchanged.
 
-- **Inbound** — `:decode-key-fn csk/->kebab-case-keyword` runs on every JSON object key as Jackson deserializes. `"inputSchema"` becomes `:input-schema`. Already-kebab strings pass through unchanged.
+- **Inbound**: `:decode-key-fn csk/->kebab-case-keyword` runs on every JSON object key as Jackson deserializes. `"inputSchema"` becomes `:input-schema`. Already-kebab strings pass through unchanged.
 
-The transformation is **shallow per JSON object** but **deep across the document** — Jackson recurses into nested objects automatically. You don't need to walk anything yourself.
+The transformation is **shallow per JSON object** but **deep across the document**, Jackson recurses into nested objects automatically. You don't need to walk anything yourself.
 
 ## Wire-to-Clojure key reference
 
-This is the table of every conversion that fires in the MCP protocol — pulled from the MIGRATION-2025-11-25 doc and verified against the schema:
+This is the table of every conversion that fires in the MCP protocol, pulled from the MIGRATION-2025-11-25 doc and verified against the schema:
 
 | Wire (camelCase) | Clojure (kebab-case) |
 |---|---|
@@ -122,7 +122,7 @@ When in doubt: write kebab-case. If the spec says camelCase, the conversion tabl
 
 `csk/->camelCaseString` is the inverse: `:url-message` → `"urlMessage"`. The first segment is always lowercase; subsequent segments capitalise the first letter.
 
-The one trap: **string keys that are already camelCase** survive intact through `csk/->camelCaseString` — `"inputSchema"` stays `"inputSchema"`. So if you happen to mix `:input-schema` and `"inputSchema"` in the same map, both serialize to the same wire key. Don't rely on that — pick one.
+The one trap: **string keys that are already camelCase** survive intact through `csk/->camelCaseString`, `"inputSchema"` stays `"inputSchema"`. So if you happen to mix `:input-schema` and `"inputSchema"` in the same map, both serialize to the same wire key. Don't rely on that, pick one.
 
 ## Setup for STDIO (JVM)
 
@@ -140,7 +140,7 @@ Wiring (full version in [`example/cljc-server-stdio/src/example/my_server.cljc`]
  [camel-snake-kebab.core :as csk]
  [jsonista.core :as j])
 
-;; Two mappers — one per direction
+;; Two mappers, one per direction
 (def out-mapper (j/object-mapper {:encode-key-fn csk/->camelCaseString}))
 (def in-mapper  (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword}))
 
@@ -188,7 +188,7 @@ The Node side uses the same `camel-snake-kebab` library plus `camel-snake-kebab.
 
 ## Setup for HTTP / SSE
 
-The same pattern applies in [`example/clj-server-sse/`](../../example/clj-server-sse/) — http-kit + reitit middleware reads the request body, applies the inbound mapper, hands the Clojure map to `json-rpc/handle-message`, and writes the response back via the outbound mapper. The transport changes; the kebab-case story doesn't.
+The same pattern applies in [`example/clj-server-sse/`](../../example/clj-server-sse/), http-kit + reitit middleware reads the request body, applies the inbound mapper, hands the Clojure map to `json-rpc/handle-message`, and writes the response back via the outbound mapper. The transport changes; the kebab-case story doesn't.
 
 ## When NOT to convert
 
@@ -202,12 +202,12 @@ The `:input-schema` and `:output-schema` values are **JSON Schema documents**, n
  :required [:text]}
 ```
 
-Whether to write these as kebab (`:min-length`, `:additional-properties`) and let the encoder convert them is a judgment call — if a downstream consumer of your tool registry reads the schema directly without going through the encoder, they'll see kebab-case where JSON Schema convention expects camelCase. The conservative choice is to write JSON Schema keys as camelCase strings or camelCase keywords from the start, accepting that one map in your code base mixes both casing styles.
+Whether to write these as kebab (`:min-length`, `:additional-properties`) and let the encoder convert them is a judgment call, if a downstream consumer of your tool registry reads the schema directly without going through the encoder, they'll see kebab-case where JSON Schema convention expects camelCase. The conservative choice is to write JSON Schema keys as camelCase strings or camelCase keywords from the start, accepting that one map in your code base mixes both casing styles.
 
-The 2025-11-25 spec settles this by adopting JSON Schema 2020-12 explicitly — see [2025-11-25 features](2025-11-25-features.md) §JSON Schema dialect.
+The 2025-11-25 spec settles this by adopting JSON Schema 2020-12 explicitly, see [2025-11-25 features](2025-11-25-features.md) §JSON Schema dialect.
 
 ## See also
 
-- [Architecture](architecture.md) — the message lifecycle that this conversion sits at the boundary of.
-- [Extraction recipes](extraction-recipes.md) — Recipe 1 lifts this kebab-case transport pattern out of the toolkit for use in other JSON-RPC services.
+- [Architecture](architecture.md): the message lifecycle that this conversion sits at the boundary of.
+- [Extraction recipes](extraction-recipes.md): Recipe 1 lifts this kebab-case transport pattern out of the toolkit for use in other JSON-RPC services.
 - The canonical wiring is in [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc).

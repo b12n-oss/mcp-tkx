@@ -120,7 +120,7 @@ After `(server/create-session opts)` returns, the atom value contains:
 | `:is-cancelled-by-request-id` | `{request-id → atom of bool}` for in-flight cancellable requests |
 | `:last-called-method-id` / `:handler-by-called-method-id` | tracking outbound calls awaiting a response |
 
-The session is mutated by the toolkit's handlers (e.g. `prompt-list-handler` reads from it; `add-tool` writes to it and notifies the client). You can also `(swap! session ...)` from your own code — that's the basis of the [REPL workflow](repl-workflow.md).
+The session is mutated by the toolkit's handlers (e.g. `prompt-list-handler` reads from it; `add-tool` writes to it and notifies the client). You can also `(swap! session ...)` from your own code, that's the basis of the [REPL workflow](repl-workflow.md).
 
 The client-side session has the symmetric shape: `:server-prompt-by-name` / `:server-resource-by-uri` / `:server-tool-by-name` etc.
 
@@ -131,8 +131,8 @@ The context is an immutable Clojure value that the toolkit threads through every
 | Key | What it holds |
 |---|---|
 | `:session` | the session atom (always present) |
-| `:send-message` | `(fn [message] ...)` — sends an outbound JSON-RPC message; **you provide this** |
-| `:close-connection` | optional `(fn [])` — called from `json-rpc/close-connection`; useful for graceful shutdown |
+| `:send-message` | `(fn [message] ...)`: sends an outbound JSON-RPC message; **you provide this** |
+| `:close-connection` | optional `(fn [])`, called from `json-rpc/close-connection`; useful for graceful shutdown |
 | `:message` | the current JSON-RPC message being processed (added by `route-message`) |
 | `:is-cancelled` | per-request atom (added when a cancellable method is in flight) |
 | `:completion-context` | when a `completion/complete` request includes 2025-06-18-spec context |
@@ -143,7 +143,7 @@ The context is an immutable Clojure value that the toolkit threads through every
 
 You construct the bare context once (with `:session` + `:send-message`); the toolkit decorates it per-message. The last four keys above come from `with-request-context`, and only for a 2026-07-28 request: capabilities and identity arrive per request now, and writing either one onto the shared session would let two concurrent requests race.
 
-The **session-vs-context** rule: anything that mutates per message goes in the session atom; anything you want to pass down to handlers as a one-shot value goes in the context. You can add your own keys to either — handlers receive the context as their one and only argument.
+The **session-vs-context** rule: anything that mutates per message goes in the session atom; anything you want to pass down to handlers as a one-shot value goes in the context. You can add your own keys to either, handlers receive the context as their one and only argument.
 
 ## Message lifecycle
 
@@ -187,21 +187,21 @@ flowchart TD
   out --> send --> encode --> wire2
 ```
 
-The toolkit does not know about transports. STDIO, HTTP/SSE, WebSocket — all the same: you decode bytes → Clojure map, hand to `handle-message`, and your `:send-message` fn writes the response back out. See [Kebab-case key transformation](kebab-case-transformation.md) for the JSON ↔ Clojure boundary.
+The toolkit does not know about transports. STDIO, HTTP/SSE, WebSocket, all the same: you decode bytes → Clojure map, hand to `handle-message`, and your `:send-message` fn writes the response back out. See [Kebab-case key transformation](kebab-case-transformation.md) for the JSON ↔ Clojure boundary.
 
 ## Initialization handshake
 
-The first two messages are special — they negotiate the protocol version and bootstrap the session:
+The first two messages are special: they negotiate the protocol version and bootstrap the session:
 
-1. **Client → server: `initialize`** — includes `:protocol-version` (the one the client wants), `:client-info`, `:capabilities`. Server's `initialize-handler` (in `impl/server/handler.cljc`):
+1. **Client → server: `initialize`**: includes `:protocol-version` (the one the client wants), `:client-info`, `:capabilities`. Server's `initialize-handler` (in `impl/server/handler.cljc`):
    - Picks `protocol-version` = the client's request if supported, else the **last** entry in `:server-supported-protocol-versions` (which is the highest the server knows).
    - Stores `:protocol-version`, `:client-info`, `:client-capabilities` in the session.
    - Returns `{:protocol-version ... :capabilities {...} :server-info {...} :instructions ...?}`.
 
-2. **Client → server: `notifications/initialized`** — the client is ready. Server's `initialized-notification-handler`:
+2. **Client → server: `notifications/initialized`**: the client is ready. Server's `initialized-notification-handler`:
    - Sets `:initialized true`.
    - Swaps `:handler-by-method` from the **pre-initialization** table (`ping` + `initialize` + `notifications/initialized` only) to the **post-initialization** table (the full method set: `prompts/list`, `resources/read`, `tools/call`, etc.).
-   - Invokes the `:on-initialized` callback (default: `request-root-list` — fetches the client's filesystem roots).
+   - Invokes the `:on-initialized` callback (default: `request-root-list`, fetches the client's filesystem roots).
 
 Before step 2 completes, calling any method other than `initialize` / `ping` returns `Method not found` (-32601). This is enforced by the dispatch table swap, not by ad-hoc checks.
 
@@ -209,17 +209,17 @@ See [Protocol versions](protocol-versions.md) for the version-negotiation algori
 
 ## Cancellation
 
-MCP supports `notifications/cancelled` — the client tells the server "stop request id `42`." The toolkit's pattern:
+MCP supports `notifications/cancelled`: the client tells the server "stop request id `42`." The toolkit's pattern:
 
 1. When `route-message` dispatches a method call with an `:id`, it creates a per-request atom `(atom false)` and registers it under `:is-cancelled-by-request-id` in the session, keyed by request id. The atom is also added to `context` as `:is-cancelled`.
 
-2. The handler (your `tool-fn`, `prompt-fn`, etc.) can read `(:is-cancelled context)` at any time. If `@is-cancelled` becomes true, the handler should bail out — typically by throwing or returning an error result. The toolkit's `route-message` checks `@is-cancelled` after the handler resolves; if the request was cancelled, the result is **not sent**.
+2. The handler (your `tool-fn`, `prompt-fn`, etc.) can read `(:is-cancelled context)` at any time. If `@is-cancelled` becomes true, the handler should bail out, typically by throwing or returning an error result. The toolkit's `route-message` checks `@is-cancelled` after the handler resolves; if the request was cancelled, the result is **not sent**.
 
 3. When the client sends `notifications/cancelled`, `cancelled-notification-handler` looks up the atom by `request-id` and `(reset! is-cancelled-atom true)`. The in-flight handler sees the change on its next deref.
 
 4. After the handler settles (success or error), `route-message` removes the entry from `:is-cancelled-by-request-id` to avoid leaking memory.
 
-The pattern is in [`example/common-mcp-content/src/example/server_content.cljc`](../../example/common-mcp-content/src/example/server_content.cljc) — the `parentify-tool` checks `@(:is-cancelled context)` between progress steps and throws if cancelled.
+The pattern is in [`example/common-mcp-content/src/example/server_content.cljc`](../../example/common-mcp-content/src/example/server_content.cljc), where the `parentify-tool` checks `@(:is-cancelled context)` between progress steps and throws if cancelled.
 
 ## Capability negotiation
 
@@ -302,7 +302,7 @@ This is the basis of [the REPL workflow](repl-workflow.md): you can add a tool, 
 
 ## See also
 
-- [`docs/reference/api-design.md`](../reference/api-design.md), [`docs/reference/session.md`](../reference/session.md), [`docs/reference/context.md`](../reference/context.md) — the upstream Metosin reference docs.
-- [Kebab-case key transformation](kebab-case-transformation.md) — the JSON ↔ Clojure boundary that this page treats as a black box.
-- [Protocol versions](protocol-versions.md) — the version-negotiation algorithm.
-- [REPL workflow](repl-workflow.md) — using the REPL-mutation fns above in practice.
+- [`docs/reference/api-design.md`](../reference/api-design.md), [`docs/reference/session.md`](../reference/session.md), [`docs/reference/context.md`](../reference/context.md): the upstream Metosin reference docs.
+- [Kebab-case key transformation](kebab-case-transformation.md): the JSON ↔ Clojure boundary that this page treats as a black box.
+- [Protocol versions](protocol-versions.md): the version-negotiation algorithm.
+- [REPL workflow](repl-workflow.md): using the REPL-mutation fns above in practice.

@@ -61,7 +61,7 @@ Those three rules hold for a plain session. A dual-era one complicates them:
 > three as the cost of serving both eras is an open decision. This page
 > describes the behaviour as it stands.
 
-The negotiated version is stored in `(:protocol-version @session)` and returned in the `initialize` response. Your handlers can branch on it if needed (rarely required — the toolkit's own handlers are already version-aware).
+The negotiated version is stored in `(:protocol-version @session)` and returned in the `initialize` response. Your handlers can branch on it if needed (rarely required, the toolkit's own handlers are already version-aware).
 
 The client side has the symmetric rule in `src/mcp_toolkit/impl/client/handler.cljc`.
 
@@ -103,19 +103,19 @@ differently and has its own feature set. See
 | Completion | ✅ | ✅ | ✅ | ✅ |
 | Logging | ✅ | ✅ | ✅ | ✅ |
 | HTTP/SSE transport (the older one) | ✅ | ✅ | ✅ | ✅ |
-| Title fields (prompts / resources / tools) | — | — | ✅ | ✅ |
-| Structured tool output (`:output-schema`) | — | — | ✅ | ✅ |
-| Resource links in tool results | — | — | ❌ Not implemented | ❌ Not implemented |
-| Completion context (`:completion-context`) | — | — | ✅ | ✅ |
-| `_meta` field support | — | — | ⚠️ Partial | ⚠️ Partial |
+| Title fields (prompts / resources / tools) | n/a | n/a | ✅ | ✅ |
+| Structured tool output (`:output-schema`) | n/a | n/a | ✅ | ✅ |
+| Resource links in tool results | n/a | n/a | ❌ Not implemented | ❌ Not implemented |
+| Completion context (`:completion-context`) | n/a | n/a | ✅ | ✅ |
+| `_meta` field support | n/a | n/a | ⚠️ Partial | ⚠️ Partial |
 | **JSON-RPC batching** | ❌ rejected | ❌ rejected | ❌ removed | ❌ removed |
-| Server description (`:server-info :description`) | — | — | — | ✅ |
-| Icons (`:icon`) | — | — | — | ⚠️ Partial |
-| Sampling with tools (`:tools` + `:tool-choice`) | — | — | — | ✅ |
-| Elicitation — form mode | — | — | — | ⚠️ Partial |
-| Elicitation — URL mode (OAuth) | — | — | — | ⚠️ Partial |
-| Tasks (experimental) | — | — | — | ⚠️ Partial |
-| JSON Schema 2020-12 dialect | — | — | — | ✅ |
+| Server description (`:server-info :description`) | n/a | n/a | n/a | ✅ |
+| Icons (`:icon`) | n/a | n/a | n/a | ⚠️ Partial |
+| Sampling with tools (`:tools` + `:tool-choice`) | n/a | n/a | n/a | ✅ |
+| Elicitation, form mode | n/a | n/a | n/a | ⚠️ Partial |
+| Elicitation, URL mode (OAuth) | n/a | n/a | n/a | ⚠️ Partial |
+| Tasks (experimental) | n/a | n/a | n/a | ⚠️ Partial |
+| JSON Schema 2020-12 dialect | n/a | n/a | n/a | ✅ |
 
 Rows marked `⚠️ Partial` are implemented far enough to be useful but do
 not fully match the spec. `README.md`'s capability table carries the
@@ -127,7 +127,7 @@ spec's array of objects.
 
 ## Breaking change: JSON-RPC batching removed in 2025-06-18
 
-Up to 2025-03-26, MCP allowed JSON-RPC batch requests — an array of method calls in a single message:
+Up to 2025-03-26, MCP allowed JSON-RPC batch requests, an array of method calls in a single message:
 
 ```json
 [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
@@ -159,7 +159,7 @@ Prompts, resources, and tools gained an optional `:title` for human-readable dis
 ```clojure
 (def my-tool
   {:name "calculate_sum"
-   :title "Calculator — Addition"            ; ← NEW
+   :title "Calculator, Addition"            ; ← NEW
    :description "Calculates the sum of two numbers"
    :input-schema {...}
    :tool-fn (fn [_context {:keys [a b]}] (str (+ a b)))})
@@ -192,7 +192,7 @@ Clients that support `:output-schema` can validate `:structured-content` and pre
 ### Resource links in tool results
 
 Not implemented. The spec's `resource_link` and embedded-resource
-content-block types don't exist in `schema.cljc` — a tool can return
+content-block types don't exist in `schema.cljc`, a tool can return
 `text`, `image`, `audio`, `tool_use` and `tool_result` content, but it
 has no spec-conforming way to hand back a resource reference alongside
 it.
@@ -235,7 +235,7 @@ Your `:complete-fn` (and `:resource-uri-complete-fn`) receive this as `:completi
                  ...))
 ```
 
-The wiring is in `completion-complete-handler` — it conditionally adds `:completion-context` to the handler context only when the request includes it.
+The wiring is in `completion-complete-handler`, it conditionally adds `:completion-context` to the handler context only when the request includes it.
 
 ### `_meta` field support
 
@@ -244,7 +244,7 @@ client / server-specific metadata, and inbound `:_meta` does reach your
 handler, with any `:_meta` you attach to a result travelling back out.
 But `prompt-list-handler`, `resource-list-handler` and `tool-list-handler`
 each `select-keys` their entries down to a fixed set of fields, and
-`:_meta` isn't one of them — so metadata you attach to a registration
+`:_meta` isn't one of them: so metadata you attach to a registration
 never appears in a `prompts/list` / `resources/list` / `tools/list`
 response. `impl/meta_support.cljc` exists but is required by no
 namespace under `src/`, only by a test; it does not handle merging for
@@ -252,21 +252,21 @@ you.
 
 ## What 2025-11-25 added
 
-This is the latest handshake revision; most production clients haven't negotiated up to it yet but Claude Desktop and Claude Code do. See [2025-11-25 features](2025-11-25-features.md) for the full walkthrough — the headline list:
+This is the latest handshake revision; most production clients haven't negotiated up to it yet but Claude Desktop and Claude Code do. See [2025-11-25 features](2025-11-25-features.md) for the full walkthrough, the headline list:
 
-- **Server description** — `:server-info :description` field for human-readable server intent.
-- **Icons** — Visual icons on prompts / resources / tools / templates (data:image/ URIs or https:// URLs).
-- **Sampling with tools** — LLMs can use tools during sampling requests (`:tools` + `:tool-choice` on `request-sampling`).
-- **Elicitation — form mode** — Server requests structured user input via JSON Schema-described forms.
-- **Elicitation — URL mode** — Server redirects user to an external URL for OAuth flows / sensitive data collection.
-- **Tasks (experimental)** — Long-running operation state machines with `tasks/get` / `tasks/result` / `tasks/cancel` / `tasks/list`.
-- **JSON Schema 2020-12 dialect** — `JSON_SCHEMA_DIALECT` constant + `with-schema-dialect` helper.
+- **Server description**: `:server-info :description` field for human-readable server intent.
+- **Icons**: Visual icons on prompts / resources / tools / templates (data:image/ URIs or https:// URLs).
+- **Sampling with tools**: LLMs can use tools during sampling requests (`:tools` + `:tool-choice` on `request-sampling`).
+- **Elicitation, form mode**: Server requests structured user input via JSON Schema-described forms.
+- **Elicitation, URL mode**: Server redirects user to an external URL for OAuth flows / sensitive data collection.
+- **Tasks (experimental)**: Long-running operation state machines with `tasks/get` / `tasks/result` / `tasks/cancel` / `tasks/list`.
+- **JSON Schema 2020-12 dialect**: `JSON_SCHEMA_DIALECT` constant + `with-schema-dialect` helper.
 
-All of these are gated by client capability — your server can declare support, but the toolkit's `request-*` fns return `nil` (don't send anything) when the client doesn't declare the matching capability.
+All of these are gated by client capability, your server can declare support, but the toolkit's `request-*` fns return `nil` (don't send anything) when the client doesn't declare the matching capability.
 
 ## Backward compatibility
 
-The library negotiates down silently. There's no warning, no opt-in. If your tool registers `:output-schema` (a 2025-06-18 feature) and a 2024-11-05 client connects, the field is sent in `tool-list` response anyway — the client either ignores it or fails depending on its strictness. The toolkit doesn't strip per-version fields based on negotiated version.
+The library negotiates down silently. There's no warning, no opt-in. If your tool registers `:output-schema` (a 2025-06-18 feature) and a 2024-11-05 client connects, the field is sent in `tool-list` response anyway, the client either ignores it or fails depending on its strictness. The toolkit doesn't strip per-version fields based on negotiated version.
 
 Two practical consequences:
 
@@ -276,9 +276,9 @@ Two practical consequences:
 
 ## See also
 
-- [Architecture](architecture.md) — the initialization handshake that negotiates the version.
-- [2025-11-25 features](2025-11-25-features.md) — every new feature in the latest handshake revision.
-- [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md) — the 2025-03-26 → 2025-06-18 migration writeup.
-- [`docs/reference/MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md) — the 2025-06-18 → 2025-11-25 migration writeup.
-- [Spec — 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
-- [Spec — 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
+- [Architecture](architecture.md): the initialization handshake that negotiates the version.
+- [2025-11-25 features](2025-11-25-features.md): every new feature in the latest handshake revision.
+- [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md): the 2025-03-26 → 2025-06-18 migration writeup.
+- [`docs/reference/MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md): the 2025-06-18 → 2025-11-25 migration writeup.
+- [Spec, 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
+- [Spec, 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)

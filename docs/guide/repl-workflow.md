@@ -27,12 +27,12 @@ The defaults in `deps.edn` for `:mcp-server`:
 
 So when Claude Desktop launches the server, an nREPL is listening on `127.0.0.1:7925`. Connect from your editor / `clj-nrepl-eval` and you're talking to the same JVM that Claude is talking to.
 
-The same pattern works for the cljs / shadow-cljs path — `npx shadow-cljs node-repl` boots a connected REPL into the running Node process.
+The same pattern works for the cljs / shadow-cljs path, `npx shadow-cljs node-repl` boots a connected REPL into the running Node process.
 
 ## Connecting
 
 ```sh
-# Discover ports — picks up any nREPL .nrepl-port file or env-var
+# Discover ports, picks up any nREPL .nrepl-port file or env-var
 clj-nrepl-eval --discover-ports
 
 # Direct connect
@@ -40,11 +40,11 @@ clj-nrepl-eval -p 7925 "(+ 1 2)"
 ;; => 3
 ```
 
-Or from your editor (Cursive, CIDER, Calva, Cider for Emacs, etc.) — connect to `127.0.0.1:7925` as a plain nREPL.
+Or from your editor (Cursive, CIDER, Calva, Cider for Emacs, etc.), connect to `127.0.0.1:7925` as a plain nREPL.
 
 ## Inspecting session state
 
-The session is `(deref session)` — a regular Clojure map you can `pprint`:
+The session is `(deref session)`, a regular Clojure map you can `pprint`:
 
 ```clojure
 (require '[example.my-server :refer [session context]])
@@ -101,10 +101,10 @@ If you re-`add` a tool that already exists, the new definition replaces the old 
 
 ## Updating a tool's implementation
 
-The tool's `:tool-fn` is a Clojure value; if you re-evaluate it (e.g. in your editor), then re-`add` the tool, the new fn replaces the old one immediately. No notification storm — `add-tool` only fires `tools/list_changed`, not "tool updated":
+The tool's `:tool-fn` is a Clojure value; if you re-evaluate it (e.g. in your editor), then re-`add` the tool, the new fn replaces the old one immediately. No notification storm, `add-tool` only fires `tools/list_changed`, not "tool updated":
 
 ```clojure
-;; In your editor — edit + re-eval
+;; In your editor, edit + re-eval
 (def parentify-tool
   {:name "parentify"
    :description "Now wraps in DOUBLE parens"
@@ -136,7 +136,7 @@ Static resource content can be mutated in the session and announced:
 
 `notify-resource-updated` only fires if the client is actually subscribed to that URI (`:client-subscribed-resource-uris` set in the session). MCP clients subscribe via `resources/subscribe`; Claude Desktop subscribes to resources the user has open in its UI.
 
-For dynamic content, subscribe + emit on every change is the wrong pattern — use a `:read-fn` ([Dynamic resources](dynamic-resources.md)) so each `resources/read` recomputes.
+For dynamic content, subscribe + emit on every change is the wrong pattern, use a `:read-fn` ([Dynamic resources](dynamic-resources.md)) so each `resources/read` recomputes.
 
 ## REPL-only tools (development helpers)
 
@@ -144,7 +144,7 @@ A common pattern: ship a `dev-tools` registry that's only added when running loc
 
 ```clojure
 (comment
-  ;; Register dev tools — only run from REPL, not on production launch
+  ;; Register dev tools, only run from REPL, not on production launch
 
   (def *call-log (atom []))
 
@@ -171,7 +171,7 @@ Or guard with an env var so production launches skip them:
 
 ## Inspecting in-flight messages
 
-The session can carry an arbitrary key — including a message log if you want one:
+The session can carry an arbitrary key, including a message log if you want one:
 
 ```clojure
 ;; Add to session at create-time, or via swap!
@@ -200,7 +200,7 @@ While developing, send log notifications to the connected client:
 (server/notify-log context "emergency" "datacenter" {:error "HCF"})
 ```
 
-The level threshold is `(:logging-level @session)` — set at session-creation time (default `"debug"`). To change at runtime:
+The level threshold is `(:logging-level @session)`, set at session-creation time (default `"debug"`). To change at runtime:
 
 ```clojure
 (swap! session assoc :logging-level "info")
@@ -220,9 +220,9 @@ tail -n 200 -F ~/Library/Logs/Claude/mcp-server-toolkit.log
 
 Useful patterns:
 
-- `grep '\[ERROR\]' file.log` — only errors.
-- `grep -i 'tool' file.log` — tool-related events.
-- The log captures stderr — anything you `println` to `*err*` shows up here.
+- `grep '\[ERROR\]' file.log`: only errors.
+- `grep -i 'tool' file.log`: tool-related events.
+- The log captures stderr, anything you `println` to `*err*` shows up here.
 
 ## The `(comment ...)` block at the bottom of `my_server.cljc`
 
@@ -271,12 +271,12 @@ The example server has a rich-comment block with copy-pasteable REPL forms. Wort
   *e)
 ```
 
-Most of these are useful in your own server too — copy the pattern. The `*e` at the end is the convention for "show me the most recent exception" if anything threw.
+Most of these are useful in your own server too, copy the pattern. The `*e` at the end is the convention for "show me the most recent exception" if anything threw.
 
 ## See also
 
-- [Architecture](architecture.md) §"REPL-time mutations" — the toolkit fns that are designed for REPL use.
-- [Getting started](getting-started.md) — the canonical wiring.
-- [Dynamic resources](dynamic-resources.md) — when REPL-mutating a resource, you might prefer a `:read-fn` instead.
-- [`docs/reference/repl-story.md`](../reference/repl-story.md) — the upstream Metosin take on the REPL workflow.
-- [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc) — the rich-comment block at the bottom.
+- [Architecture](architecture.md) §"REPL-time mutations": the toolkit fns that are designed for REPL use.
+- [Getting started](getting-started.md): the canonical wiring.
+- [Dynamic resources](dynamic-resources.md): when REPL-mutating a resource, you might prefer a `:read-fn` instead.
+- [`docs/reference/repl-story.md`](../reference/repl-story.md): the upstream Metosin take on the REPL workflow.
+- [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc): the rich-comment block at the bottom.

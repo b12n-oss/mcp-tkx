@@ -207,7 +207,7 @@ New Malli-based schema validation in `mcp-toolkit.schema`:
 (schema/explain schema/Icon "http://bad.com/icon.png")
 ;; => ["Icon must be a data:image/ URI or https:// URL"]
 
-;; Result map — {:valid? true} or {:valid? false :errors [...]}
+;; Result map, {:valid? true} or {:valid? false :errors [...]}
 (schema/validate schema/Icon "https://example.com/icon.png")
 ;; => {:valid? true}
 (schema/validate schema/Icon "bad")

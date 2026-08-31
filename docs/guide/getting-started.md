@@ -57,10 +57,10 @@ clojure -X:mcp-server   # with cwd = example/cljc-server-stdio
 
 This boots a server with one prompt (`pirate_mode_prompt`), two resources (`hello.md`, `world.md`), one tool (`parentify`), and one resource template (`file:///doc/{path}`).
 
-The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc) — the four moving parts are:
+The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc), the four moving parts are:
 
 ```clojure
-;; 1. State — a session atom
+;; 1. State, a session atom
 (def session
   (atom
    (server/create-session {:prompts            [content/talk-like-pirate-prompt]
@@ -70,7 +70,7 @@ The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc
                            :resource-templates content/my-resource-templates
                            :resource-uri-complete-fn content/my-resource-uri-complete-fn})))
 
-;; 2. Context — wires the send-message fn (transport-specific)
+;; 2. Context, wires the send-message fn (transport-specific)
 (def context
   {:session session
    :send-message (let [^OutputStreamWriter writer *out*
@@ -80,7 +80,7 @@ The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc
                      (.write writer "\n")
                      (.flush writer)))})
 
-;; 3. Inbound — read JSON-RPC lines, decode, hand to the toolkit
+;; 3. Inbound, read JSON-RPC lines, decode, hand to the toolkit
 (defn listen-messages [context reader]
   (let [{:keys [send-message]} context
         json-mapper (j/object-mapper {:decode-key-fn csk/->kebab-case-keyword})]
@@ -94,14 +94,14 @@ The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc
             (json-rpc/handle-message context message))
           (recur))))))
 
-;; 4. Wire it together — STDIO + an embedded nREPL for live development
+;; 4. Wire it together, STDIO + an embedded nREPL for live development
 (defn main [{:keys [bind port]}]
   (let [server (nrepl/start-server {:bind bind :port port})]
     (try (listen-messages context *in*)
          (finally (nrepl/stop-server server)))))
 ```
 
-The same file has a `#?(:cljs ...)` branch with the equivalent shadow-cljs / Node.js wiring — same `session`, same `context` shape, different transport plumbing.
+The same file has a `#?(:cljs ...)` branch with the equivalent shadow-cljs / Node.js wiring, same `session`, same `context` shape, different transport plumbing.
 
 The shared content (prompts / resources / tools) lives in [`example/common-mcp-content/src/example/server_content.cljc`](../../example/common-mcp-content/src/example/server_content.cljc) and works on both JVM and Node without changes.
 
@@ -125,7 +125,7 @@ A minimal tool definition:
 
 Notice:
 
-- Keys use **kebab-case** internally (`:input-schema`, `:is-error`). The toolkit converts to `inputSchema` / `isError` at the wire layer — see [Kebab-case key transformation](kebab-case-transformation.md).
+- Keys use **kebab-case** internally (`:input-schema`, `:is-error`). The toolkit converts to `inputSchema` / `isError` at the wire layer, see [Kebab-case key transformation](kebab-case-transformation.md).
 - `:tool-fn` takes `(context, arguments)` and returns either a value (sent as the JSON-RPC `result`) or a Promesa promise that resolves to one.
 - The return shape `{:content [...] :is-error false}` is the MCP `tools/call` result. A simple string is also accepted; the handler wraps it.
 
@@ -149,9 +149,9 @@ For a richer example with cancellation and progress notifications, see `parentif
                   :is-error true}))))
 ```
 
-The `(:is-cancelled context)` atom is wired by the toolkit; deref it inside long-running work to honour client `notifications/cancelled` messages — see [Architecture](architecture.md) §cancellation.
+The `(:is-cancelled context)` atom is wired by the toolkit; deref it inside long-running work to honour client `notifications/cancelled` messages, see [Architecture](architecture.md) §cancellation.
 
-## Smoke test 1 — MCP Inspector
+## Smoke test 1, MCP Inspector
 
 The fastest way to drive your server in dev:
 
@@ -169,7 +169,7 @@ Open the printed URL in your browser. You should see:
 
 Click **Connect**, then **Tools → parentify**, type `hello world` into the `text` input, and press **Run Tool**. You should see `(hello world)` come back, with two progress events along the way.
 
-## Smoke test 2 — Claude Desktop
+## Smoke test 2, Claude Desktop
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
@@ -197,7 +197,7 @@ For Claude Code (CLI) and the SSE transport, see [Claude Desktop / Claude Code s
 
 ## What to read next
 
-- [Architecture](architecture.md) — the session-atom + context-hashmap split, the message lifecycle, the namespace map.
-- [Kebab-case key transformation](kebab-case-transformation.md) — what's actually happening at the JSON boundary, and why your code uses kebab-case.
-- [REPL workflow](repl-workflow.md) — `add-tool` / `remove-tool` / `notify-resource-updated` while a client is connected, log-tailing, the rich-comment patterns at the bottom of `my_server.cljc`.
-- [2025-11-25 features](2025-11-25-features.md) — Elicitation, Tasks, Sampling with Tools, Icons, Server Description, JSON Schema 2020-12.
+- [Architecture](architecture.md): the session-atom + context-hashmap split, the message lifecycle, the namespace map.
+- [Kebab-case key transformation](kebab-case-transformation.md): what's actually happening at the JSON boundary, and why your code uses kebab-case.
+- [REPL workflow](repl-workflow.md): `add-tool` / `remove-tool` / `notify-resource-updated` while a client is connected, log-tailing, the rich-comment patterns at the bottom of `my_server.cljc`.
+- [2025-11-25 features](2025-11-25-features.md): Elicitation, Tasks, Sampling with Tools, Icons, Server Description, JSON Schema 2020-12.

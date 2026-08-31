@@ -7,7 +7,7 @@ Like everything else in `mcp-toolkit`, the transport is just an adapter over the
 ## Why Streamable HTTP over HTTP+SSE
 
 - **It's the current spec.** HTTP+SSE (`2024-11-05`) is deprecated; modern remote MCP clients expect Streamable HTTP.
-- **Single endpoint.** One `/mcp` URL handles everything — friendlier to proxies, API gateways, and load balancers than a long-lived SSE `GET` connection.
+- **Single endpoint.** One `/mcp` URL handles everything: friendlier to proxies, API gateways, and load balancers than a long-lived SSE `GET` connection.
 - **Stateless-capable.** A simple request/response call returns plain JSON with no sticky connection, so servers can scale horizontally.
 - **Resumable.** A dropped stream can resume via `Last-Event-Id` without losing messages.
 
@@ -29,19 +29,19 @@ A single path, `/mcp`:
 |---|---|---|
 | `POST /mcp` | a JSON-RPC **request** | `200 application/json` (a simple call) **or** `200 text/event-stream` (when the handler emits progress/sampling/elicitation), then close |
 | `POST /mcp` | a JSON-RPC **notification / response** | `202 Accepted` |
-| `GET /mcp` | — | `200 text/event-stream` — the server→client stream (`405` if one is already open) |
-| `DELETE /mcp` | — | `204` — terminate the session (`404` if unknown) |
+| `GET /mcp` | n/a | `200 text/event-stream`: the server→client stream (`405` if one is already open) |
+| `DELETE /mcp` | n/a | `204`: terminate the session (`404` if unknown) |
 
 ## Sessions
 
-The server assigns a session id in the **`Mcp-Session-Id` response header** of the `initialize` call. The client echoes that header on every subsequent request. Unknown/expired ids get `404` (the client must re-`initialize`). Sessions are held in an in-memory pool — one `mcp-toolkit` session per id.
+The server assigns a session id in the **`Mcp-Session-Id` response header** of the `initialize` call. The client echoes that header on every subsequent request. Unknown/expired ids get `404` (the client must re-`initialize`). Sessions are held in an in-memory pool, one `mcp-toolkit` session per id.
 
 ## JSON vs. SSE responses (the "flip")
 
 A `POST` of a request does **not** commit to a response type up front. The per-request `:send-message`:
 
 - buffers the message and returns **plain JSON** if it is simply *the response* to the request, but
-- **flips to an SSE stream** the moment the handler emits anything else first — a `notifications/progress`, or a server→client request like `sampling/createMessage`. Once streaming, every subsequent message (including the final response) is an SSE frame, then the stream closes.
+- **flips to an SSE stream** the moment the handler emits anything else first: a `notifications/progress`, or a server→client request like `sampling/createMessage`. Once streaming, every subsequent message (including the final response) is an SSE frame, then the stream closes.
 
 This is what lets `tools/call` stream progress and still return a normal JSON-RPC result on the same connection.
 
@@ -49,7 +49,7 @@ This is what lets `tools/call` stream progress and still return a normal JSON-RP
 
 ## Resumability (`Last-Event-Id`)
 
-Every server→client SSE frame carries a monotonic `id:` and is buffered in a bounded per-session ring (capped by count and age; eviction is logged). If a stream drops, the client reconnects with a `Last-Event-Id: <n>` header and the server replays buffered frames with `id > n` before resuming live delivery. The ring is bounded, so a long-disconnected client whose events have been evicted gets a fresh stream (the resume is silently lossy — acceptable for a reference example; a production server would track the oldest-retained id and signal the gap).
+Every server→client SSE frame carries a monotonic `id:` and is buffered in a bounded per-session ring (capped by count and age; eviction is logged). If a stream drops, the client reconnects with a `Last-Event-Id: <n>` header and the server replays buffered frames with `id > n` before resuming live delivery. The ring is bounded, so a long-disconnected client whose events have been evicted gets a fresh stream (the resume is silently lossy, acceptable for a reference example; a production server would track the oldest-retained id and signal the gap).
 
 ## 2026-07-28 (stateless)
 
@@ -72,7 +72,7 @@ Run it with `bb example:server:streamable-http:2026`; the example's [README](../
 
 The transport applies DNS-rebinding protection on every verb, lifted from the SSE example and hardened:
 
-- **`Host`** must match `:allowed-hosts` (default `#{"127.0.0.1:*"}`) — the port wildcard accepts only a numeric port, so `127.0.0.1:80@evil.com` is rejected. Invalid host → `421`.
+- **`Host`** must match `:allowed-hosts` (default `#{"127.0.0.1:*"}`): the port wildcard accepts only a numeric port, so `127.0.0.1:80@evil.com` is rejected. Invalid host → `421`.
 - **`Origin`**, when present, must match `:allowed-origins`; a blank origin (non-browser client) is allowed. Invalid origin → `400`.
 - **`MCP-Protocol-Version`** header is required on non-`initialize` requests once the negotiated session version is ≥ `2025-06-18`. Missing/unsupported → `400`.
 
@@ -93,7 +93,7 @@ npx @modelcontextprotocol/inspector
 claude mcp add toolkit-http --transport http http://127.0.0.1:7926/mcp
 ```
 
-## Streamable HTTP vs. HTTP+SSE — quick comparison
+## Streamable HTTP vs. HTTP+SSE, quick comparison
 
 | | HTTP+SSE (`clj-server-sse`) | Streamable HTTP (`clj-server-streamable-http`) |
 |---|---|---|
@@ -101,14 +101,14 @@ claude mcp add toolkit-http --transport http http://127.0.0.1:7926/mcp
 | Endpoints | `GET /sse` + `POST /messages/:id` | single `/mcp` (POST/GET/DELETE) |
 | Session id | SSE `endpoint` event URL path | `Mcp-Session-Id` header |
 | Simple call | always over the SSE stream | plain `application/json` (stateless-friendly) |
-| Resumability | — | `Last-Event-Id` replay |
+| Resumability | n/a | `Last-Event-Id` replay |
 | Default port | `7925` | `7926` |
 
 ## See also
 
-- [`example/clj-server-streamable-http/README.md`](../../example/clj-server-streamable-http/README.md) — full `curl` walkthrough + Inspector setup.
+- [`example/clj-server-streamable-http/README.md`](../../example/clj-server-streamable-http/README.md): full `curl` walkthrough + Inspector setup.
 - [2026-07-28: the stateless revision](2026-07-28-stateless.md). Covers the protocol this fork's stateless transport implements: discovery, capabilities, Multi Round-Trip Requests, and subscriptions.
-- [Architecture](architecture.md) — the transport-agnostic `handle-message` / `:send-message` contract.
-- [Kebab-case key transformation](kebab-case-transformation.md) — the JSON ↔ Clojure boundary (note: `_meta` keeps its leading underscore — `:_meta`).
-- [Protocol versions](protocol-versions.md) — what `2025-03-26` / `2025-06-18` add and the negotiation algorithm.
-- [Claude Desktop / Claude Code setup](claude-desktop-setup.md) — registering servers with Claude.
+- [Architecture](architecture.md): the transport-agnostic `handle-message` / `:send-message` contract.
+- [Kebab-case key transformation](kebab-case-transformation.md): the JSON ↔ Clojure boundary (note: `_meta` keeps its leading underscore, `:_meta`).
+- [Protocol versions](protocol-versions.md): what `2025-03-26` / `2025-06-18` add and the negotiation algorithm.
+- [Claude Desktop / Claude Code setup](claude-desktop-setup.md): registering servers with Claude.

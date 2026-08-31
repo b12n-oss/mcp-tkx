@@ -6,29 +6,29 @@
 
 The fork picks Malli for three reasons that are visible in the codebase:
 
-1. **Inline `:fn` predicates with `:error/message`** — the `Icon` schema is `[:and :string [:fn {:error/message "..."} (fn [s] ...)]]`. Custom validation lives next to the schema, with a human-readable error.
-2. **`malli.error/humanize`** — `(explain schema value)` returns a tree of strings that maps to the input shape. No extra wiring.
-3. **No instrumentation overhead at runtime** — schemas are values you call `validate` / `valid?` / `explain` on at the boundary; no global registry; no macro-time gen.
+1. **Inline `:fn` predicates with `:error/message`**: the `Icon` schema is `[:and :string [:fn {:error/message "..."} (fn [s] ...)]]`. Custom validation lives next to the schema, with a human-readable error.
+2. **`malli.error/humanize`**: `(explain schema value)` returns a tree of strings that maps to the input shape. No extra wiring.
+3. **No instrumentation overhead at runtime**: schemas are values you call `validate` / `valid?` / `explain` on at the boundary; no global registry; no macro-time gen.
 
-`mcp-toolkit.schema` is independent of `mcp-toolkit.server` / `mcp-toolkit.client` — you can require it standalone to validate request shapes outside the toolkit.
+`mcp-toolkit.schema` is independent of `mcp-toolkit.server` / `mcp-toolkit.client`: you can require it standalone to validate request shapes outside the toolkit.
 
 ## The three validation entry points
 
 ```clojure
 (require '[mcp-toolkit.schema :as schema])
 
-;; Predicate — true / false
+;; Predicate, true / false
 (schema/valid? schema/Icon "https://example.com/icon.png")
 ;; => true
 
 (schema/valid? schema/Icon "ftp://bad.com/icon.png")
 ;; => false
 
-;; Humanized errors — nil if valid, otherwise a tree of strings
+;; Humanized errors, nil if valid, otherwise a tree of strings
 (schema/explain schema/Icon "ftp://bad.com/icon.png")
 ;; => ["Icon must be a data:image/ URI or https:// URL"]
 
-;; Result map — {:valid? true} or {:valid? false :errors [...]}
+;; Result map, {:valid? true} or {:valid? false :errors [...]}
 (schema/validate schema/Icon "https://example.com/icon.png")
 ;; => {:valid? true}
 
@@ -81,7 +81,7 @@ http:// (insecure) and bare paths are rejected. data: URIs other than image/ (e.
 ;;     :enum-titles ["Low priority" "Medium priority" "High priority"]
 ;;     :default "medium"}
 
-;; Throwing version — validates and throws on shape mismatch
+;; Throwing version, validates and throws on shape mismatch
 (schema/enum-schema! {:values ["a" "b"] :titles ["A"]})
 ;; => throws ex-info: "Invalid enum schema" with :errors and :schema
 ```
@@ -116,7 +116,7 @@ schema/ToolResultContent ; {:type "tool_result" :tool-use-id :content :is-error?
 
 ### Tool result messages
 
-The MCP spec is strict: a user message containing tool results MUST contain ONLY tool results — no mixed text+tool-result content. The toolkit ships a schema and a constructor that enforces it:
+The MCP spec is strict: a user message containing tool results MUST contain ONLY tool results, no mixed text+tool-result content. The toolkit ships a schema and a constructor that enforces it:
 
 ```clojure
 schema/ToolResultMessage
@@ -150,7 +150,7 @@ schema/ElicitationResponse
 schema/ElicitationCompleteNotification
 schema/UrlElicitationRequiredErrorData
 
-;; Constructors — both have ! variants
+;; Constructors, both have ! variants
 (schema/url-elicitation
   {:elicitation-id "550e8400-..."
    :url "https://api.example.com/oauth/authorize"
@@ -163,7 +163,7 @@ schema/UrlElicitationRequiredErrorData
 ;; => {:mode "form" :message "..." :requested-schema {...}}
 ```
 
-The URL schema validates that `:url` starts with `https://` (or `http://localhost` for development). The form schema doesn't validate the JSON Schema in `:requested-schema` — that's the client's job.
+The URL schema validates that `:url` starts with `https://` (or `http://localhost` for development). The form schema doesn't validate the JSON Schema in `:requested-schema`, that's the client's job.
 
 ### Tasks (2025-11-25 experimental)
 
@@ -177,10 +177,10 @@ Use `terminal-status?` to check whether a task has reached a status from which i
 
 ## Pattern: validate at the boundary
 
-The schema namespace is designed for use at boundaries — when receiving an LLM-generated request, when registering a user-provided tool, when constructing a request to a remote MCP client. Internal handler code typically doesn't validate (the toolkit's own dispatch already trusts the inbound shape after JSON parsing).
+The schema namespace is designed for use at boundaries, when receiving an LLM-generated request, when registering a user-provided tool, when constructing a request to a remote MCP client. Internal handler code typically doesn't validate (the toolkit's own dispatch already trusts the inbound shape after JSON parsing).
 
 ```clojure
-;; At a boundary — incoming request from a flaky upstream
+;; At a boundary, incoming request from a flaky upstream
 (defn handle-tool-registration [tool-shape]
   (if (schema/valid? schema/SamplingTool tool-shape)
     (server/add-tool context tool-shape)
@@ -188,7 +188,7 @@ The schema namespace is designed for use at boundaries — when receiving an LLM
                     {:errors (schema/explain schema/SamplingTool tool-shape)
                      :tool-shape tool-shape}))))
 
-;; Or — use the !-suffixed constructor which is itself a boundary check
+;; Or, use the !-suffixed constructor which is itself a boundary check
 (let [request (schema/url-elicitation!  ; throws on invalid
                 {:elicitation-id (str (random-uuid))
                  :url "https://auth.example.com/oauth"
@@ -196,7 +196,7 @@ The schema namespace is designed for use at boundaries — when receiving an LLM
   (server/request-elicitation context request))
 ```
 
-The throw shape is `(ex-info <msg> {:errors [...] :request <input> | :schema <schema>})` — `:errors` is the humanized error tree, `:request` / `:schema` is the input that failed.
+The throw shape is `(ex-info <msg> {:errors [...] :request <input> | :schema <schema>})`, `:errors` is the humanized error tree, `:request` / `:schema` is the input that failed.
 
 ## When to use `!`-suffixed vs. plain constructors
 
@@ -205,7 +205,7 @@ The throw shape is `(ex-info <msg> {:errors [...] :request <input> | :schema <sc
 | `tool-choice` / `sampling-tool` / `tool-result` / `tool-result-message` / `enum-schema` / `url-elicitation` / `form-elicitation` | Constructing a known-good shape from internal data. No validation cost. |
 | `tool-result-message!` / `enum-schema!` / `url-elicitation!` / `form-elicitation!` | Constructing from external data (user input, file, deserialized JSON). Throws on shape mismatch with a humanized error. |
 
-There's no `tool-choice!` / `sampling-tool!` / `tool-result!` — those constructors are simple enough that a malformed input would be obvious at the call site.
+There's no `tool-choice!` / `sampling-tool!` / `tool-result!`, those constructors are simple enough that a malformed input would be obvious at the call site.
 
 ## Pattern: extending with your own schemas
 
@@ -230,7 +230,7 @@ The convention in this fork is to put domain schemas in their own namespace (e.g
 
 ## See also
 
-- The full schema source: [`src/mcp_toolkit/schema.cljc`](../../src/mcp_toolkit/schema.cljc) — ~791 lines, all referenced types are there.
-- [Malli](https://github.com/metosin/malli) — the underlying schema library.
-- [2025-11-25 features](2025-11-25-features.md) — uses these schemas in worked examples.
-- [Extraction recipes](extraction-recipes.md) Recipe 2 — lift the Malli protocol-schema-registry pattern into another project.
+- The full schema source: [`src/mcp_toolkit/schema.cljc`](../../src/mcp_toolkit/schema.cljc), ~791 lines, all referenced types are there.
+- [Malli](https://github.com/metosin/malli): the underlying schema library.
+- [2025-11-25 features](2025-11-25-features.md): uses these schemas in worked examples.
+- [Extraction recipes](extraction-recipes.md) Recipe 2: lift the Malli protocol-schema-registry pattern into another project.
