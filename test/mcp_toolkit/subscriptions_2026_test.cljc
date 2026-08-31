@@ -418,3 +418,42 @@
                            (fn [f] (= [:prompts] f))
                            3000
                            "the prompt list-changed notification reaches the client"))))))
+
+(deftest subscribing-before-registration-still-delivers-test
+  ;; The stored filter used to be narrowed to what the server could serve at
+  ;; subscribe time, and capability is derived from the very registries
+  ;; add-tool / add-prompt / add-resource exist to mutate. A client that
+  ;; subscribed before those ran held a permanently dead stream: the key was
+  ;; already dropped and nothing later could put it back. Plausible whenever a
+  ;; server registers after auth or a DB connect, or registers in
+  ;; :on-initialized.
+  (testing "a tool registered after the subscription still reaches the subscriber"
+    (async-test
+     5000
+     (let [sent (atom [])
+           session (atom (server/create-session {:protocol-version "2026-07-28"
+                                                 :on-initialized nil}))
+           context {:session session
+                    :send-message (fn [m] (swap! sent conj m) nil)}]
+       ;; Subscribe first, while the server has no tools at all.
+       (json-rpc/handle-message context
+                                {:jsonrpc "2.0"
+                                 :id 1
+                                 :method "subscriptions/listen"
+                                 :params {:notifications {:tools-list-changed true}
+                                          :_meta {protocol/meta-protocol-version "2026-07-28"}}})
+       (p/let [_ (util/assert-atom sent
+                                   (fn [msgs] (seq msgs))
+                                   2000
+                                   "the subscription is acknowledged")]
+         (reset! sent [])
+         ;; Now register a tool and announce it.
+         (server/add-tool context {:name "late"
+                                   :description "registered after the subscribe"
+                                   :input-schema {:type "object"}
+                                   :tool-fn (fn [_ _] {:content []})})
+         (util/assert-atom sent
+                           (fn [msgs]
+                             (some (fn [m] (= "notifications/tools/list_changed" (:method m))) msgs))
+                           2000
+                           "a tool registered later still notifies the subscriber"))))))

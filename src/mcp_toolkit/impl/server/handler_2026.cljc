@@ -215,7 +215,13 @@
        subscription-id
        (str "Subscription id already in use on this session: " (pr-str subscription-id)))
       (do
-        (swap! session assoc-in [:subscription-by-id subscription-id] honoured)
+        ;; The REQUESTED filter is stored, not the honoured one. See
+        ;; subscriptions/requested-filter: honoured is a snapshot of what the
+        ;; server can serve at this instant, and storing it froze out anything
+        ;; registered afterwards. The acknowledgement below still reports the
+        ;; snapshot, which is the honest answer to "what can you serve now".
+        (swap! session assoc-in [:subscription-by-id subscription-id]
+               (subscriptions/requested-filter requested))
         (json-rpc/send-message
          context
          (subscriptions/tag {:jsonrpc "2.0"

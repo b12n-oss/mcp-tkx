@@ -63,6 +63,28 @@
            (supported? :resource-subscriptions))
       (assoc :resource-subscriptions (vec (:resource-subscriptions requested))))))
 
+(defn requested-filter
+  "Normalises the filter a client asked for, without narrowing it to what the
+   server can serve right now.
+
+   This is what gets STORED, while `honoured-filter` is what gets
+   acknowledged. The two differ deliberately. Capability is derived from the
+   registries `add-tool`, `add-prompt` and `add-resource` exist to mutate, so
+   narrowing at subscribe time meant a client that subscribed before those ran
+   held a permanently dead stream: the filter had already dropped the key and
+   nothing later could put it back.
+
+   Storing the request is safe because a notification only ever originates
+   when the server actually has the thing to report. The subscribe-time check
+   was redundant for delivery and destructive for anything registered later."
+  [requested]
+  (cond-> {}
+    (:tools-list-changed requested)     (assoc :tools-list-changed true)
+    (:prompts-list-changed requested)   (assoc :prompts-list-changed true)
+    (:resources-list-changed requested) (assoc :resources-list-changed true)
+    (seq (:resource-subscriptions requested))
+    (assoc :resource-subscriptions (vec (:resource-subscriptions requested)))))
+
 (defn uri-covered-by?
   "True when a subscription to `subscribed` should receive an update about
    `uri`.
