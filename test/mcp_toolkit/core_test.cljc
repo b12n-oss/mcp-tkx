@@ -918,6 +918,90 @@
                               (is (= "prompt exploded" (-> response :error :data :message))
                                   "carrying the reason, so the caller can act on it")))))))
 
+(deftest read-fn-returned-error-is-a-json-rpc-error-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "a :read-fn that RETURNS an error map, rather than throwing"
+                        ;; The sibling test covers the thrown path. This is the one
+                        ;; docs/guide/dynamic-resources.md actually demonstrates: catch
+                        ;; the exception yourself and return {:error ...}. It used to be
+                        ;; nested under :result as a success, exactly like the thrown
+                        ;; path, and was fixed in the same commit but never covered.
+                        (let [returning-resource {:uri "test://returns-error"
+                                                  :name "Returns"
+                                                  :read-fn (fn [_ _]
+                                                             {:error {:code -32002
+                                                                      :message "gone from disk"}})}
+                              outputs (atom [])
+                              session (atom (server/create-session {:resources [returning-resource]
+                                                                    :on-initialized nil}))
+                              context {:session session
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "t" :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 21
+                                                              :method "resources/read"
+                                                              :params {:uri "test://returns-error"}})
+                            (util/assert-atom outputs
+                                              (fn [msgs] (some (fn [m] (= 21 (:id m))) msgs))
+                                              2000
+                                              "the read is answered")
+                            (let [response (first (filter (fn [m] (= 21 (:id m))) @outputs))]
+                              (is (not (contains? response :result))
+                                  "a returned error must not be reported as a success")
+                              (is (= -32002 (-> response :error :code))
+                                  "an integer code the caller chose is kept")
+                              (is (= "gone from disk" (-> response :error :message)))))))))
+
+(deftest read-fn-string-code-falls-back-test
+  (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
+
+  (promesa-async-test 3000
+                      (testing "a string :code is replaced, since JSON-RPC requires an integer"
+                        ;; The shape the old docs taught. Keeping it would put a string
+                        ;; where the protocol requires a number, so it falls back.
+                        (let [string-code-resource {:uri "test://string-code"
+                                                    :name "StringCode"
+                                                    :read-fn (fn [_ _]
+                                                               {:error {:code "read-failed"
+                                                                        :message "old shape"}})}
+                              outputs (atom [])
+                              session (atom (server/create-session {:resources [string-code-resource]
+                                                                    :on-initialized nil}))
+                              context {:session session
+                                       :send-message (fn [message] (swap! outputs conj message))}]
+                          (p/do
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 0
+                                                              :method "initialize"
+                                                              :params {:protocol-version "2025-06-18"
+                                                                       :capabilities {}
+                                                                       :client-info {:name "t" :version "0"}}})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :method "notifications/initialized"})
+                            (json-rpc/handle-message context {:jsonrpc "2.0"
+                                                              :id 22
+                                                              :method "resources/read"
+                                                              :params {:uri "test://string-code"}})
+                            (util/assert-atom outputs
+                                              (fn [msgs] (some (fn [m] (= 22 (:id m))) msgs))
+                                              2000
+                                              "the read is answered")
+                            (let [response (first (filter (fn [m] (= 22 (:id m))) @outputs))]
+                              (is (= -32603 (-> response :error :code))
+                                  "a string code is replaced by the internal-error code")
+                              (is (= "old shape" (-> response :error :message))
+                                  "but the caller's message survives")))))))
+
 (deftest handler-sync-throw-does-not-escape-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 

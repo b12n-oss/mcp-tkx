@@ -381,4 +381,46 @@
         (is (= "2026-07-28" (-> message :params :_meta (get protocol/meta-protocol-version)))
             "the protocol version must be present or a dual-era server mis-routes it")
         (is (true? (handler-dual/modern-request? message))
-            "and the dual dispatch must agree it is a stateless request")))))
+            "and the dual dispatch must agree it is a stateless request"))))
+
+  (testing "end to end: the cancel actually ends the subscription on a dual session"
+    ;; The blocks above check modern-request? in isolation, and that predicate
+    ;; is not what the fix changed. This drives the client's own message
+    ;; through the real dual dispatch table and asserts the subscription is
+    ;; gone, which is the behaviour that was broken.
+    ;; The message shape the block above proved the client produces. Built
+    ;; here rather than driven through the client, so this asserts the dispatch
+    ;; routing and nothing else.
+    ;; Awaited. The 2026 table's entries go through wrap-handler, which returns
+    ;; a promise, so the swap! lands on a later tick. ClojureScript defers where
+    ;; the JVM happened not to, and a synchronous assertion passed on one host
+    ;; and failed on the other.
+    (async-test
+     5000
+     (let [server-session (dual-session {})
+           handler (get handler-dual/handler-by-method "notifications/cancelled")]
+       (swap! server-session assoc :subscription-by-id {7 {:tools-list-changed true}})
+       (p/let [_ (handler {:session server-session
+                           :send-message (fn [_] nil)
+                           :message {:jsonrpc "2.0"
+                                     :method "notifications/cancelled"
+                                     :params {:request-id 7
+                                              :_meta modern-meta}}})]
+         (is (= {} (:subscription-by-id @server-session))
+             "the subscription is gone, which is what routing to the modern table does")))))
+
+  (testing "end to end: the same message without _meta leaves it in place"
+    ;; The failure this fix addressed. A cancel with no _meta is read as a
+    ;; handshake message, routed to the legacy table, and cancels nothing.
+    (async-test
+     5000
+     (let [server-session (dual-session {})
+           handler (get handler-dual/handler-by-method "notifications/cancelled")]
+       (swap! server-session assoc :subscription-by-id {7 {:tools-list-changed true}})
+       (p/let [_ (handler {:session server-session
+                           :message {:jsonrpc "2.0"
+                                     :method "notifications/cancelled"
+                                     :params {:request-id 7}}
+                           :send-message (fn [_] nil)})]
+         (is (= {7 {:tools-list-changed true}} (:subscription-by-id @server-session))
+             "the legacy table does not touch subscriptions, so it survives"))))))

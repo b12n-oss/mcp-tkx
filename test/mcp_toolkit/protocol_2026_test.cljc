@@ -782,21 +782,61 @@
   ;; request that omitted it. notify-log read :logging-level off the session
   ;; instead, which create-session defaults to "debug", so every log passed on
   ;; a stateless session no matter what the request asked for.
+  ;; These drive a real handler through the dispatch table rather than
+  ;; hand-building a context. The whole mechanism rests on with-request-context
+  ;; putting :log-level on the context, and hand-building it assumes exactly
+  ;; the thing under test.
   (testing "a stateless request that opted out of logs gets none"
-    (let [sent (atom [])
-          session (atom (server/create-session {:protocol-version "2026-07-28"
-                                                :on-initialized nil}))
-          ;; The shape with-request-context builds: the keys are always present,
-          ;; and :log-level is nil when the request did not ask for logs.
-          context {:session session
-                   :send-message (fn [m] (swap! sent conj m) nil)
-                   :protocol-version "2026-07-28"
-                   :client-capabilities {}
-                   :client-info nil
-                   :log-level nil}]
-      (server/notify-log context "error" "lg" "should not be sent")
-      (is (= [] @sent)
-          "a request with no _meta logLevel must produce no log notifications")))
+    (async-test
+     5000
+     (let [sent (atom [])
+           logging-tool {:name "logger"
+                         :description "Logs, if the request asked for logs"
+                         :input-schema {:type "object"}
+                         :tool-fn (fn [context _args]
+                                    (server/notify-log context "error" "lg" "from the tool")
+                                    {:content [{:type "text" :text "done"}]})}
+           session (session-2026 {:tools [logging-tool] :on-initialized nil})
+           context {:session session
+                    :send-message (fn [m] (swap! sent conj m) nil)}]
+       (p/let [_ (json-rpc/handle-message
+                  context
+                  {:jsonrpc "2.0"
+                   :id 1
+                   :method "tools/call"
+                   ;; _meta with no logLevel: this request wants no logs.
+                   :params {:name "logger"
+                            :arguments {}
+                            :_meta {protocol/meta-protocol-version "2026-07-28"}}})]
+         (is (empty? (filter (fn [m] (= "notifications/message" (:method m))) @sent))
+             "a request with no _meta logLevel must produce no log notifications")
+         (is (some (fn [m] (= 1 (:id m))) @sent)
+             "and the call itself still answers")))))
+
+  (testing "a stateless request that opted in through _meta gets them"
+    (async-test
+     5000
+     (let [sent (atom [])
+           logging-tool {:name "logger"
+                         :description "Logs, if the request asked for logs"
+                         :input-schema {:type "object"}
+                         :tool-fn (fn [context _args]
+                                    (server/notify-log context "error" "lg" "from the tool")
+                                    {:content [{:type "text" :text "done"}]})}
+           session (session-2026 {:tools [logging-tool] :on-initialized nil})
+           context {:session session
+                    :send-message (fn [m] (swap! sent conj m) nil)}]
+       (p/let [_ (json-rpc/handle-message
+                  context
+                  {:jsonrpc "2.0"
+                   :id 2
+                   :method "tools/call"
+                   :params {:name "logger"
+                            :arguments {}
+                            :_meta {protocol/meta-protocol-version "2026-07-28"
+                                    protocol/meta-log-level "warning"}}})]
+         (is (seq (filter (fn [m] (= "notifications/message" (:method m))) @sent))
+             "an error log clears a warning threshold and is delivered")))))
 
   (testing "a stateless request that opted in gets logs at or above its level"
     (let [sent (atom [])

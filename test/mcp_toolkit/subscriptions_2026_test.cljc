@@ -166,8 +166,26 @@
              (subscriptions/subscriber-ids session-value "tools/list_changed" nil))))
 
     (testing "the order is deterministic, with numbers before strings"
-      (is (= (subscriptions/subscriber-ids session-value "tools/list_changed" nil)
-             (subscriptions/subscriber-ids session-value "tools/list_changed" nil))))
+      ;; Comparing the function to itself proved nothing: it passed with the
+      ;; comparator deleted, and with the sort deleted entirely. The order has
+      ;; to be asserted against a literal, and it has to be an order an
+      ;; unordered map could not produce by luck, so this uses ids whose
+      ;; insertion order differs from their sorted order.
+      (let [shuffled {"zed" {:tools-list-changed true}
+                      10    {:tools-list-changed true}
+                      "abc" {:tools-list-changed true}
+                      2     {:tools-list-changed true}}]
+        (is (= [2 10 "abc" "zed"]
+               (subscriptions/subscriber-ids {:subscription-by-id shuffled}
+                                             "tools/list_changed" nil))
+            "numbers ascending first, then strings ascending")
+
+        ;; Numeric order, not the lexicographic order a naive string sort
+        ;; would give, where 10 sorts before 2.
+        (is (= [2 10]
+               (subscriptions/subscriber-ids
+                {:subscription-by-id (select-keys shuffled [2 10])}
+                "tools/list_changed" nil)))))
 
     (testing "an all-string subscriber set still works"
       (is (= ["zzz"]
@@ -457,6 +475,70 @@
                              (some (fn [m] (= "notifications/tools/list_changed" (:method m))) msgs))
                            2000
                            "a tool registered later still notifies the subscriber"))))))
+
+(deftest stored-filter-diverges-from-the-acknowledgement-test
+  ;; The divergence the subscribe-before-registration fix introduced, and which
+  ;; nothing asserted. The acknowledgement reports what the server could serve
+  ;; at subscribe time; the subscription stores what was asked for. A test that
+  ;; only checks a notification arrives cannot tell the two apart.
+  (testing "the acknowledgement narrows, and the stored filter does not"
+    (async-test
+     5000
+     (let [sent (atom [])
+           ;; No resources and no tools, so neither can be honoured yet.
+           session (atom (server/create-session {:protocol-version "2026-07-28"
+                                                 :on-initialized nil}))
+           context {:session session
+                    :send-message (fn [m] (swap! sent conj m) nil)}]
+       (p/let [_ (json-rpc/handle-message
+                  context
+                  {:jsonrpc "2.0"
+                   :id 1
+                   :method "subscriptions/listen"
+                   :params {:notifications {:tools-list-changed true
+                                            :resource-subscriptions ["file:///p/"]}
+                            :_meta {protocol/meta-protocol-version "2026-07-28"}}})]
+         (let [ack (first (filter (fn [m] (= "notifications/subscriptions/acknowledged"
+                                             (:method m)))
+                                  @sent))]
+           (is (= {} (-> ack :params :notifications))
+               "nothing is honoured yet, and the acknowledgement says so")
+           (is (= {:tools-list-changed true
+                   :resource-subscriptions ["file:///p/"]}
+                  (get (:subscription-by-id @session) 1))
+               "but the full request is what gets stored")))))))
+
+(deftest resource-subscriptions-survive-late-registration-test
+  ;; The sibling of the tools case, and the one the fix's own test skipped.
+  ;; :resource-subscriptions takes a different branch through honoured-filter
+  ;; and requested-filter, carrying a vector of URIs rather than a boolean.
+  (testing "a resource registered after the subscription still reaches it"
+    (async-test
+     5000
+     (let [sent (atom [])
+           session (atom (server/create-session {:protocol-version "2026-07-28"
+                                                 :on-initialized nil}))
+           context {:session session
+                    :send-message (fn [m] (swap! sent conj m) nil)}]
+       (p/let [_ (json-rpc/handle-message
+                  context
+                  {:jsonrpc "2.0"
+                   :id 1
+                   :method "subscriptions/listen"
+                   :params {:notifications {:resource-subscriptions ["file:///p/"]}
+                            :_meta {protocol/meta-protocol-version "2026-07-28"}}})
+               _ (util/assert-atom sent (fn [m] (seq m)) 2000 "acknowledged")]
+         (reset! sent [])
+         (server/add-resource context {:uri "file:///p/a.json"
+                                       :name "a"
+                                       :text "A"})
+         (server/notify-resource-updated context {:uri "file:///p/a.json"})
+         (util/assert-atom sent
+                           (fn [msgs]
+                             (some (fn [m] (= "notifications/resources/updated" (:method m)))
+                                   msgs))
+                           2000
+                           "a resource registered later still notifies the subscriber"))))))
 
 (deftest close-all-subscriptions-handles-mixed-id-types-test
   ;; The sibling of subscriber-ids, and it kept the bare sort when that one was
