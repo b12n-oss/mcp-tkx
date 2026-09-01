@@ -1042,31 +1042,48 @@
                               (is (= "disk on fire" (-> response :error :message))
                                   "carrying the reason")))))))
 
-(deftest close-connection-settles-pending-calls-test
+(deftest close-connection-leaves-shared-session-alone-test
   (is true "yes") ;; <-- this resolves a warning for a missing `(is ,,,)` in CLJ
 
   (promesa-async-test 3000
-                      (testing "an in-flight remote call is rejected when the connection closes"
-                        ;; call-remote-method has no timeout and settles only on a matching
-                        ;; response. close-connection touched neither the pending registry
-                        ;; nor the subscriptions, so every outstanding request-sampling or
-                        ;; request-elicitation stayed pending forever and leaked its entry.
+                      (testing "closing one connection does not disturb the others"
+                        ;; A session is not always one connection. The stateless revision
+                        ;; shares one across every client. An earlier attempt to clean up
+                        ;; leaked state here cleared :subscription-by-id and settled every
+                        ;; pending call on the session, so one client disconnecting took
+                        ;; out everyone else's subscriptions and in-flight requests.
                         (let [session (atom (server/create-session {:on-initialized nil}))
                               closed (atom false)
-                              context {:session session
-                                       :send-message (fn [_] nil)
-                                       :close-connection (fn [] (reset! closed true))}
-                              ;; Never answered, exactly like a peer that vanished.
-                              pending (json-rpc/call-remote-method context {:method "roots/list"})]
-                          (is (= 1 (count (:handler-by-called-method-id @session)))
-                              "the call is registered while in flight")
-                          (json-rpc/close-connection context)
-                          (is @closed "the transport's own close fn still runs")
-                          (is (= {} (:handler-by-called-method-id @session))
-                              "and the pending registry is emptied rather than leaked")
-                          (-> pending
-                              (p/then (fn [_]
-                                        (is false "a call cut off by a close must not resolve")))
-                              (p/catch (fn [ex]
-                                         (is (= "Connection closed" (:message (ex-data ex)))
-                                             "it rejects with the reason instead of hanging"))))))))
+                              ;; Two connections, one shared session.
+                              conn-a {:session session
+                                      :send-message (fn [_] nil)
+                                      :close-connection (fn [] (reset! closed true))}
+                              conn-b {:session session
+                                      :send-message (fn [_] nil)}]
+                          (swap! session assoc :subscription-by-id
+                                 {1 {:tools-list-changed true}
+                                  2 {:tools-list-changed true}})
+                          ;; B puts a request in flight. call-remote-method registers its
+                          ;; handler asynchronously under ClojureScript, so wait for the
+                          ;; registration rather than reading the registry straight after.
+                          (let [b-pending (json-rpc/call-remote-method conn-b {:method "roots/list"})]
+                            (p/let [_ (util/assert-atom session
+                                                        (fn [s] (= 1 (count (:handler-by-called-method-id s))))
+                                                        2000
+                                                        "B's call is registered")]
+                              (json-rpc/close-connection conn-a)
+                              (is @closed
+                                  "A's own transport close still runs")
+                              (is (= #{1 2} (set (keys (:subscription-by-id @session))))
+                                  "B's subscriptions must survive A closing")
+                              (is (= 1 (count (:handler-by-called-method-id @session)))
+                                  "and B's in-flight call must still be pending, not settled")
+                              ;; Prove it is genuinely still live by answering it.
+                              (let [called-id (first (keys (:handler-by-called-method-id @session)))]
+                                (json-rpc/handle-message conn-b {:jsonrpc "2.0"
+                                                                 :id called-id
+                                                                 :result {:roots []}})
+                                (p/then b-pending
+                                        (fn [result]
+                                          (is (= {:roots []} result)
+                                              "B's call still resolves normally afterwards"))))))))))

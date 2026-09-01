@@ -421,7 +421,11 @@
   {:doc "Full CI pipeline (clean + compile + lint + test)"
    :task (do
            (step 1 "Cleaning...")
-           (doseq [dir ["target" ".cpcache" "classes"]]
+           ;; .cljs_node_repl holds kaocha-cljs's compiled output. Leaving it
+           ;; means the cljs suite can run against a stale build of src/ and
+           ;; report failures, or passes, that the current tree does not
+           ;; produce. It cost several confusing runs before it was spotted.
+           (doseq [dir ["target" ".cpcache" "classes" "out" ".cljs_node_repl"]]
              (fs/delete-tree dir))
            (println)
            (step 2 "Compiling...")
@@ -541,7 +545,9 @@ echo \"✅ All pre-commit checks passed!\"
   {:doc "Clean build artifacts"
    :task (do
            (header "🧹 Cleaning Build Artifacts")
-           (doseq [dir ["target" ".cpcache" "classes" "out"]]
+           ;; .cljs_node_repl is kaocha-cljs's compiled output. Without it a
+           ;; "clean" leaves the cljs suite testing a stale build of src/.
+           (doseq [dir ["target" ".cpcache" "classes" "out" ".cljs_node_repl"]]
              (fs/delete-tree dir))
            (success "Cleaned"))}
 

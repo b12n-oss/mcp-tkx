@@ -173,28 +173,36 @@
 (defn close-connection
   "Closes the connection if a close-connection function is available in the context.
 
+   Deliberately touches no session state.
+
+   A session is not always one connection. The stateless revision shares a
+   single session across every client, which the 2026-07-28 transport example
+   says outright, and `mcp-toolkit.impl.server.handler-dual` says the same of
+   stateless requests on a dual-era session. So clearing
+   `:handler-by-called-method-id` or `:subscription-by-id` here would settle
+   and discard work belonging to clients that are still connected.
+
+   That leaves two real leaks on a mid-stream disconnect, both known:
+
+   - A pending `call-remote-method` promise never settles, because it resolves
+     only on a matching response and has no timeout. Every outstanding
+     `request-sampling`, `request-elicitation` and `request-root-list` stays
+     pending and keeps its registry entry.
+   - The disconnecting client's `:subscription-by-id` entries stay behind.
+
+   Cleaning either one correctly needs a per-connection scope that this library
+   does not have, so it belongs to the transport, which does know which client
+   went away. `example/clj-server-streamable-http`'s 2026 transport shows the
+   shape: its own `:on-close` dissociates the one subscription id it owns.
+   Note it does not call `close-subscription!` there, since that writes a
+   closing response down a channel that has already gone.
+
    Args:
      context - The session context that may contain a close-connection function
 
    Returns:
      The result of calling close-connection, or nil if not available."
   [context]
-  (when-some [session (:session context)]
-    ;; Settle every in-flight remote call before the transport goes away.
-    ;; call-remote-method returns a promise that resolves only when a matching
-    ;; response arrives, and there is no timeout, so without this every
-    ;; request-sampling, request-elicitation and request-root-list outstanding
-    ;; at disconnect stayed pending forever and leaked its registry entry.
-    ;; The snapshot is taken first because each handler removes its own entry.
-    (let [pending (:handler-by-called-method-id @session)]
-      (doseq [[_ response-handler] pending]
-        (response-handler (assoc context
-                                 :message {:error {:code -32603
-                                                   :message "Connection closed"}})))
-      (swap! session assoc :handler-by-called-method-id {}))
-    ;; Subscriptions go too. close-subscription! is deliberately not used here:
-    ;; it writes a closing response down a channel that is already gone.
-    (swap! session assoc :subscription-by-id {}))
   (when-some [close-connection (:close-connection context)]
     (close-connection)))
 
