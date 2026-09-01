@@ -248,6 +248,24 @@ bb site:serve # build and preview the documentation site locally
 bb info      # categorised cheat-sheet of every task
 ```
 
+`bb check` and `bb ci` shell out to `clj-kondo`, and the ClojureScript
+half of `bb test` needs the `ws` package `package.json` declares, so run
+`npm install` once at the repo root. That second one only bites on Node
+20 and older: Node 22 has a built-in WebSocket and never reaches for it,
+which is exactly why it is easy to ship broken.
+
+```sh
+bb docker:verify   # run the whole gate in a clean container
+```
+
+`bb docker:verify` builds from a copy that obeys `.dockerignore`, which
+mirrors `.gitignore`, so the container sees what a fresh clone sees and
+none of your own caches or untracked files. It is the answer to "works
+on my machine", and it has already earned its keep: `.clj-kondo` was
+ignored wholesale, so a clone had none of the linter configs libraries
+export and `bb check` failed on code that was fine. Every existing
+checkout had a warm cache and could not see it.
+
 `bb coverage` runs [cloverage](https://github.com/cloverage/cloverage)
 and writes an HTML report to `target/coverage/index.html`. It measures
 only the JVM run, because cloverage does not support ClojureScript. That

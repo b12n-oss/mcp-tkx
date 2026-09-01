@@ -15,6 +15,8 @@
 | **Clojure CLI 1.11+** | `clj` / `clojure` commands | `brew install clojure/tools/clojure` |
 | **Babashka 1.3.0+** *(recommended)* | The `bb example:*` shortcuts | `brew install borkdude/brew/babashka` |
 | **Node.js 20+** *(only if you want the cljs path)* | `shadow-cljs compile` + `node out/...js` | `brew install node` |
+| **clj-kondo** *(to run the gate)* | `bb check` and `bb ci` shell out to it by name | `brew install borkdude/brew/clj-kondo` |
+| **`npm install`** *(to run the full test suite)* | The ClojureScript suite needs the `ws` package that `package.json` declares. Only bites on Node 20, since Node 22 has a built-in WebSocket and never reaches for it | run it once at the repo root |
 | **`@modelcontextprotocol/inspector`** *(for smoke testing)* | Browser-based MCP client to drive your server in dev | `npx @modelcontextprotocol/inspector ...` (no install needed) |
 
 ## Install

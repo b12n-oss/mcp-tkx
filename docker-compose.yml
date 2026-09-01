@@ -1,4 +1,8 @@
 services:
+  # Development convenience: the stdio example plus its embedded nREPL.
+  # Driven by `docker-compose run --service-ports --rm mcp-server ...`, which
+  # is what the Claude Desktop config in docs/guide/claude-desktop-setup.md
+  # points at. The command is supplied at run time, so there is none here.
   mcp-server:
     build: .
     volumes:
@@ -6,3 +10,41 @@ services:
     working_dir: /app/example/cljc-server-stdio
     ports:
       - "7925:7925"
+
+  # Clean-room gate. Runs the project's own `bb ci` over a COPY of the tree
+  # that obeys .dockerignore, so the container sees what a fresh clone sees
+  # and none of the maintainer's caches or untracked files.
+  #
+  #   docker compose run --rm verify
+  #
+  # ~/.m2 is mounted read-only so dependency resolution uses an existing
+  # local cache. Without it the JVM has to reach Maven Central, which fails on
+  # any network that intercepts TLS. Read-only because the container has no
+  # business writing to the host's cache.
+  verify:
+    build:
+      context: .
+      dockerfile: Dockerfile.verify
+    volumes:
+      - ${HOME}/.m2:/root/.m2:ro
+    command: ["bb", "ci"]
+
+  # The 2026-07-28 stateless server, for driving from outside the container.
+  # Separate from mcp-server above because it speaks a different protocol era
+  # over HTTP rather than stdio.
+  #
+  #   docker compose up -d mcp-2026
+  #   curl -s localhost:7927/mcp -H 'content-type: application/json' -d '...'
+  mcp-2026:
+    build:
+      context: .
+      dockerfile: Dockerfile.verify
+    volumes:
+      - ${HOME}/.m2:/root/.m2:ro
+    working_dir: /app/example/clj-server-streamable-http
+    # 0.0.0.0, not the alias default. -main and the alias both bind loopback,
+    # which is right locally and useless in a container: the published port
+    # would have nothing listening on the interface it forwards to.
+    command: ["clojure", "-X:mcp-server-2026", ":bind", '"0.0.0.0"']
+    ports:
+      - "7927:7927"

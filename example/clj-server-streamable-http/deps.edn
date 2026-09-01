@@ -17,6 +17,13 @@
   :mcp-server {:exec-fn   example.my-server/main
                :exec-args {:bind "127.0.0.1"
                            :port 7926}}
+  ;; The 2026-07-28 server, configurable the same way. -main hardcodes
+  ;; 127.0.0.1, which is right for a local run and wrong in a container, where
+  ;; binding to loopback makes the published port unreachable. This alias is
+  ;; how docker-compose asks for 0.0.0.0.
+  :mcp-server-2026 {:exec-fn   example.my-server-2026/serve
+                    :exec-args {:bind "127.0.0.1"
+                                :port 7927}}
   :test       {:extra-paths ["test"]
                :extra-deps  {io.github.cognitect-labs/test-runner
                              {:git/tag "v0.5.1" :git/sha "dfb30dd"}}

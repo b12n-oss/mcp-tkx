@@ -75,8 +75,21 @@
 
 (defonce system (atom nil))
 
-(defn -main [& _args]
-  (reset! system (start {:bind "127.0.0.1"
-                         :port 7927}))
-  (println "2026-07-28 MCP server on http://127.0.0.1:7927/mcp")
+(defn serve
+  "Starts the server and blocks, which is what a container needs.
+
+   `start` returns its context so a REPL or a test can hold on to it and stop
+   it later. Under `clojure -X` that means the process would exit the moment
+   the server came up, so this is the entry point the :mcp-server-2026 alias
+   uses.
+
+   Opts are :bind and :port. The default binds loopback, which is right for a
+   local run and wrong inside a container, where a published port forwards to
+   an interface nothing is listening on. docker-compose passes 0.0.0.0."
+  [{:keys [bind port] :or {bind "127.0.0.1" port 7927}}]
+  (reset! system (start {:bind bind :port port}))
+  (println (str "2026-07-28 MCP server on http://" bind ":" port "/mcp"))
   @(promise))
+
+(defn -main [& _args]
+  (serve {:bind "127.0.0.1" :port 7927}))

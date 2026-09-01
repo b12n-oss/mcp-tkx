@@ -1,0 +1,32 @@
+# Mirrors .gitignore, and that is the whole point.
+#
+# The verification image builds from a COPY of this directory, so anything
+# excluded here is absent from the container exactly as it would be absent
+# from a fresh clone. That is what makes `docker compose run verify` a
+# clean-room check rather than a rerun of the maintainer's own tree.
+#
+# Keep this in step with .gitignore. If the two drift, the container stops
+# being a faithful stand-in for a clone and the check quietly loses its value.
+# `bb docker:verify` compares them and fails if they disagree.
+
+.idea
+*.iml
+.cpcache
+.nrepl-port
+.claude
+.cljs_node_repl
+node_modules/
+out/
+**/.clj-kondo/.cache
+example/*/.clj-kondo
+.lsp
+.clojure-mcp/
+mcp-toolkit.jar
+target/
+_site/
+
+# Not in .gitignore, because git handles these itself.
+.git
+.superpowers
+.review
+.review2

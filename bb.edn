@@ -219,6 +219,37 @@
   ;; Documentation site (b12n-oss/docs-engine)
   ;; =============================================================================
 
+  docker:verify
+  {:doc "Run bb ci in a clean container, as a fresh clone would see it"
+   :task (do
+           (header "🐳 Clean-room verification")
+           (info "Builds from a COPY that obeys .dockerignore, so the container")
+           (info "sees what a clone sees and none of this machine's state.")
+           (println)
+           ;; .dockerignore standing in for .gitignore is the whole mechanism.
+           ;; If the two drift, the container stops being a faithful clone and
+           ;; the check quietly loses its value, so this refuses to run.
+           (let [lines (fn [f]
+                         (->> (str/split-lines (slurp f))
+                              (map str/trim)
+                              (remove str/blank?)
+                              (remove (fn [l] (str/starts-with? l "#")))
+                              set))
+                 git (lines ".gitignore")
+                 dock (lines ".dockerignore")
+                 missing (sort (remove dock git))]
+             (when (seq missing)
+               (error-msg "These .gitignore entries are missing from .dockerignore:")
+               (doseq [m missing] (println (str "  " m)))
+               (println)
+               (error-msg "The container would keep files a fresh clone does not have.")
+               (System/exit 1))
+             (success "ignore files agree"))
+           (println)
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "docker" "compose" "run" "--rm" "verify")]
+             (System/exit exit)))}
+
   docs:links
   {:doc "Check every markdown link resolves, in the repo and on the built site"
    :task (do

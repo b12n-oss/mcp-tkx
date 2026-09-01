@@ -1,0 +1,64 @@
+# Clean-room verification image.
+#
+# The point is to run the project's own gate somewhere that has none of the
+# maintainer's state. A working tree accumulates caches, generated configs and
+# untracked files, and any of them can make a broken build look green. One
+# already did: .clj-kondo was ignored wholesale, so a fresh clone had none of
+# the linter configs libraries export and `bb check` failed with five bogus
+# "Unresolved symbol" errors. Every existing checkout had a warm cache and
+# could not see it.
+#
+# COPY here obeys .dockerignore, which mirrors .gitignore, so the container
+# gets what a clone gets and nothing else.
+
+FROM clojure:temurin-21-tools-deps
+
+# Node is not optional. The test suite runs two kaocha suites, and the
+# ClojureScript one executes on Node, so a JVM-only image would silently
+# verify half of what the project claims to cover.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates gnupg unzip \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Babashka runs every task in bb.edn, including the gate itself.
+RUN curl -fsSL https://raw.githubusercontent.com/babashka/babashka/master/install \
+    | bash -s -- --dir /usr/local/bin
+
+# clj-kondo, because `bb ci` shells out to it by name. That it is a hard
+# prerequisite of the gate was not written down anywhere until this image went
+# looking for it and the run died with
+# "Cannot run program clj-kondo: No such file or directory".
+RUN curl -fsSL https://raw.githubusercontent.com/clj-kondo/clj-kondo/master/script/install-clj-kondo \
+    | bash -s -- --dir /usr/local/bin
+
+WORKDIR /app
+
+COPY . .
+
+# The ClojureScript suite needs the `ws` package that package.json declares.
+# node_modules is gitignored, so a fresh clone has to install it, and that
+# step was documented nowhere. It is easy to miss because it depends on the
+# Node version: from Node 22 there is a built-in WebSocket and kaocha-cljs
+# never reaches for `ws`, so a maintainer on a current Node sees the suite
+# pass while a clone on Node 20 fails with
+# "require('ws') failed, make sure to 'npm install ws'".
+RUN npm install --no-audit --no-fund
+
+# Dependencies are NOT prefetched in a build layer. Resolving them here fails
+# on any network that intercepts TLS, because the JVM will not trust the
+# intercepting CA and Maven Central comes back as
+# "unable to find valid certification path". That is this machine, and it is
+# common on corporate networks.
+#
+# The compose service mounts the host's ~/.m2 read-only instead, so the
+# container resolves against an existing local cache. That keeps the check
+# clean where it matters, which is the source tree, without making it depend
+# on the container's own view of the internet. A cold resolve still works on
+# an unrestricted network: drop the mount and the first run downloads.
+
+# No CMD that hides the result. The compose service names the command, so a
+# failure is a non-zero exit from the thing you asked for rather than from a
+# wrapper.
+CMD ["bb", "ci"]
