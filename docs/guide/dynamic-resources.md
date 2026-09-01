@@ -42,7 +42,7 @@ It returns one of:
 | `{:error {:code 123 :message "..."}}` | Sent as a JSON-RPC **error** response. `:code` is used when it is an integer, and falls back to `-32603` otherwise, since the spec requires an integer. |
 | **A Promesa promise of any of the above** | Awaited; result handled per the cases above |
 
-The handler implementation in [`src/mcp_toolkit/impl/server/handler.cljc`](../../src/mcp_toolkit/impl/server/handler.cljc) (`resource-read-handler`) does exactly this:
+The handler implementation in [`src/mcp_toolkit/impl/server/handler.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/src/mcp_toolkit/impl/server/handler.cljc) (`resource-read-handler`) does exactly this:
 
 ```clojure
 (if-some [read-fn (:read-fn resource)]
@@ -186,7 +186,7 @@ Each `:contents` entry is returned verbatim, no merge, no metadata inheritance. 
 
 ## See also
 
-- The handler that drives this: [`src/mcp_toolkit/impl/server/handler.cljc`](../../src/mcp_toolkit/impl/server/handler.cljc) `resource-read-handler`.
+- The handler that drives this: [`src/mcp_toolkit/impl/server/handler.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/src/mcp_toolkit/impl/server/handler.cljc) `resource-read-handler`.
 - The README's "What this fork adds" table, "Dynamic resources" row, in the project root for the spec-level summary.
 - [REPL workflow](repl-workflow.md): for the related pattern of mutating resource registrations from a REPL while the server is live.
 - [Extraction recipes](extraction-recipes.md) Recipe 3: lifting this dynamic-resource pattern into another resource-based service.

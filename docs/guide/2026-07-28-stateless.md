@@ -470,7 +470,7 @@ On stdio this needs nothing from the transport: one process is one
 connection. On HTTP it does, because the untagged copy has to reach the
 handshake client's own connection, and the stateless transport in
 `example/` drops anything it cannot route to a subscription. See
-[ROADMAP.md](../../ROADMAP.md).
+[ROADMAP.md](https://github.com/b12n-oss/mcp-tkx/blob/main/ROADMAP.md).
 
 ## What is not implemented yet
 
@@ -478,4 +478,4 @@ handshake client's own connection, and the stateless transport in
 - The required Streamable HTTP headers, `Mcp-Method` and `Mcp-Name`, and
   `x-mcp-header` support.
 
-See [ROADMAP.md](../../ROADMAP.md) for where these sit.
+See [ROADMAP.md](https://github.com/b12n-oss/mcp-tkx/blob/main/ROADMAP.md) for where these sit.

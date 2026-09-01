@@ -79,6 +79,24 @@
                    (and (seq t)
                         (str/starts-with? t "..")))))))
 
+(def ^:private self-url-prefix
+  (re-pattern "^https://github\\.com/b12n-oss/mcp-tkx/(?:blob|tree)/main/"))
+
+(defn- self-link-broken
+  "Links into this repo's own GitHub URL that name a path which is not there.
+
+   Guide pages link to source and to files the site does not host, so those
+   are absolute URLs rather than relative paths. That makes them resolve for a
+   site reader, and it also puts them out of reach of the relative-path check,
+   which is how a renamed file would rot one unnoticed."
+  [root links]
+  (->> links
+       (filter (fn [{:keys [target]}] (re-find self-url-prefix target)))
+       (remove (fn [{:keys [target]}]
+                 (let [path (-> (strip-anchor target)
+                                (str/replace self-url-prefix ""))]
+                   (fs/exists? (fs/path root path)))))))
+
 (defn- report [label broken]
   (if (seq broken)
     (do
@@ -95,7 +113,9 @@
     (println (str "Checked " (count links) " links across " (count files) " files."))
     (println)
     (println "REPO, do they resolve on disk:")
-    (let [repo-ok (report "broken in the repo" (repo-broken root links))]
+    (let [repo-ok (and (report "broken in the repo" (repo-broken root links))
+                       (report "self-links naming a path that is gone"
+                               (self-link-broken root links)))]
       (println)
       (println "SITE, do they resolve on the built site:")
       (let [site-ok (report "unresolvable on the site" (site-broken links))]

@@ -40,7 +40,7 @@ The fork picks Malli for three reasons that are visible in the codebase:
 
 ## Schema catalog
 
-The full list is in [`src/mcp_toolkit/schema.cljc`](../../src/mcp_toolkit/schema.cljc). The categories:
+The full list is in [`src/mcp_toolkit/schema.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/src/mcp_toolkit/schema.cljc). The categories:
 
 ### Top-level constants
 
@@ -251,7 +251,7 @@ The convention in this fork is to put domain schemas in their own namespace (e.g
 
 ## See also
 
-- The full schema source: [`src/mcp_toolkit/schema.cljc`](../../src/mcp_toolkit/schema.cljc), ~791 lines, all referenced types are there.
+- The full schema source: [`src/mcp_toolkit/schema.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/src/mcp_toolkit/schema.cljc), ~791 lines, all referenced types are there.
 - [Malli](https://github.com/metosin/malli): the underlying schema library.
 - [2025-11-25 features](2025-11-25-features.md): uses these schemas in worked examples.
 - [Extraction recipes](extraction-recipes.md) Recipe 2: lift the Malli protocol-schema-registry pattern into another project.

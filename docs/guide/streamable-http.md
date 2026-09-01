@@ -1,6 +1,6 @@
 # Streamable HTTP transport
 
-The **Streamable HTTP** transport (MCP `2025-03-26`, refined `2025-06-18`) is the current transport for remote MCP servers. It supersedes the older HTTP+SSE transport (`2024-11-05`) used by the [`clj-server-sse`](../../example/clj-server-sse/) example. This fork ships a complete reference implementation at [`example/clj-server-streamable-http/`](../../example/clj-server-streamable-http/).
+The **Streamable HTTP** transport (MCP `2025-03-26`, refined `2025-06-18`) is the current transport for remote MCP servers. It supersedes the older HTTP+SSE transport (`2024-11-05`) used by the [`clj-server-sse`](https://github.com/b12n-oss/mcp-tkx/tree/main/example/clj-server-sse) example. This fork ships a complete reference implementation at [`example/clj-server-streamable-http/`](https://github.com/b12n-oss/mcp-tkx/tree/main/example/clj-server-streamable-http).
 
 Like everything else in `mcp-toolkit`, the transport is just an adapter over the I/O-agnostic core: it decodes wire JSON to kebab-case, hands each message to `json-rpc/handle-message`, and supplies a `:send-message` fn. See [Architecture](architecture.md) for that contract and [Kebab-case key transformation](kebab-case-transformation.md) for the JSON boundary.
 
@@ -19,7 +19,7 @@ bb example:server:streamable-http        # from the repo root
 cd example/clj-server-streamable-http && clojure -X:mcp-server   # 127.0.0.1:7926
 ```
 
-The example reuses the same MCP content as the SSE example (the pirate prompt, two doc resources, and the `parentify` tool) via [`common-mcp-content`](../../example/common-mcp-content/), so the two transports are directly comparable. The full `curl` walkthrough lives in the example's [README](../../example/clj-server-streamable-http/README.md).
+The example reuses the same MCP content as the SSE example (the pirate prompt, two doc resources, and the `parentify` tool) via [`common-mcp-content`](https://github.com/b12n-oss/mcp-tkx/tree/main/example/common-mcp-content), so the two transports are directly comparable. The full `curl` walkthrough lives in the example's [README](https://github.com/b12n-oss/mcp-tkx/blob/main/example/clj-server-streamable-http/README.md).
 
 ## Endpoints
 
@@ -54,7 +54,7 @@ Every server→client SSE frame carries a monotonic `id:` and is buffered in a b
 ## 2026-07-28 (stateless)
 
 `2026-07-28` is not a mode of the transport above. It is a second transport,
-[`transport/streamable_http_2026.clj`](../../example/clj-server-streamable-http/src/example/transport/streamable_http_2026.clj), served by a second example server, [`example.my-server-2026`](../../example/clj-server-streamable-http/src/example/my_server_2026.clj), on its own port. Endpoints, Sessions, the JSON/SSE flip, and Resumability above are all
+[`transport/streamable_http_2026.clj`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/clj-server-streamable-http/src/example/transport/streamable_http_2026.clj), served by a second example server, [`example.my-server-2026`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/clj-server-streamable-http/src/example/my_server_2026.clj), on its own port. Endpoints, Sessions, the JSON/SSE flip, and Resumability above are all
 specific to the handshake revisions and none of them apply here.
 
 What changes, from the transport's point of view:
@@ -66,7 +66,7 @@ What changes, from the transport's point of view:
 
 Host, Origin and Content-Type validation, and the JSON encoding, carry over unchanged: the 2026 transport reuses them from the transport above rather than duplicating them.
 
-Run it with `bb example:server:streamable-http:2026`; the example's [README](../../example/clj-server-streamable-http/README.md) has a full curl walkthrough, including a working `subscriptions/listen` round trip. The protocol-level detail behind all of this, discovery, capabilities, Multi Round-Trip Requests, and the subscription filter shape, lives in [2026-07-28: the stateless revision](2026-07-28-stateless.md). This page covers the transport; that one covers the protocol.
+Run it with `bb example:server:streamable-http:2026`; the example's [README](https://github.com/b12n-oss/mcp-tkx/blob/main/example/clj-server-streamable-http/README.md) has a full curl walkthrough, including a working `subscriptions/listen` round trip. The protocol-level detail behind all of this, discovery, capabilities, Multi Round-Trip Requests, and the subscription filter shape, lives in [2026-07-28: the stateless revision](2026-07-28-stateless.md). This page covers the transport; that one covers the protocol.
 
 ## Security
 
@@ -106,7 +106,7 @@ claude mcp add toolkit-http --transport http http://127.0.0.1:7926/mcp
 
 ## See also
 
-- [`example/clj-server-streamable-http/README.md`](../../example/clj-server-streamable-http/README.md): full `curl` walkthrough + Inspector setup.
+- [`example/clj-server-streamable-http/README.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/clj-server-streamable-http/README.md): full `curl` walkthrough + Inspector setup.
 - [2026-07-28: the stateless revision](2026-07-28-stateless.md). Covers the protocol this fork's stateless transport implements: discovery, capabilities, Multi Round-Trip Requests, and subscriptions.
 - [Architecture](architecture.md): the transport-agnostic `handle-message` / `:send-message` contract.
 - [Kebab-case key transformation](kebab-case-transformation.md): the JSON ↔ Clojure boundary (note: `_meta` keeps its leading underscore, `:_meta`).

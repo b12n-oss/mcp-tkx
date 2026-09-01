@@ -87,7 +87,7 @@ naming the versions the server does support, and a client is expected to call
 This matrix covers the four handshake revisions only. `2026-07-28` negotiates
 differently and has its own feature set. See
 [2026-07-28: the stateless revision](2026-07-28-stateless.md) and the
-[capability table in the README](../../README.md#protocol-and-feature-support).
+[capability table in the README](https://github.com/b12n-oss/mcp-tkx/blob/main/README.md#protocol-and-feature-support).
 
 | Feature | 2024-11-05 | 2025-03-26 | 2025-06-18 | 2025-11-25 |
 |---|---|---|---|---|
@@ -278,7 +278,7 @@ Two practical consequences:
 
 - [Architecture](architecture.md): the initialization handshake that negotiates the version.
 - [2025-11-25 features](2025-11-25-features.md): every new feature in the latest handshake revision.
-- [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md): the 2025-03-26 → 2025-06-18 migration writeup.
-- [`docs/reference/MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md): the 2025-06-18 → 2025-11-25 migration writeup.
+- [`MIGRATION-2025-06-18.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/docs/reference/MIGRATION-2025-06-18.md): the 2025-03-26 → 2025-06-18 migration writeup.
+- [`docs/reference/MIGRATION-2025-11-25.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/docs/reference/MIGRATION-2025-11-25.md): the 2025-06-18 → 2025-11-25 migration writeup.
 - [Spec, 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 - [Spec, 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)

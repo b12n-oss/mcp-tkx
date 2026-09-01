@@ -13,7 +13,7 @@ What's distinctive about this fork:
 - **I/O-agnostic core**: the library does no I/O itself; you wire STDIO, HTTP/SSE, or any other transport by providing a `:send-message` fn and feeding decoded messages into `json-rpc/handle-message`.
 - **REPL-driven development**: `add-tool` / `remove-tool` / `add-resource` / `notify-resource-updated` mutate the running server's session and notify clients live, so you can iterate on tools while Claude Desktop / Claude Code is connected.
 
-This guide focuses on the **reusable building blocks**, the patterns that lift to other MCP servers and to other Clojure projects. For day-to-day API reference, see the `docs/reference/` folder. Most of it (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, and [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md)) is preserved from the upstream Metosin docs. Two files are this fork's own work: [`introduction.md`](../reference/introduction.md) and [`MIGRATION-2025-11-25.md`](../reference/MIGRATION-2025-11-25.md), both covering the `2025-11-25` protocol revision.
+This guide focuses on the **reusable building blocks**, the patterns that lift to other MCP servers and to other Clojure projects. For day-to-day API reference, see the `docs/reference/` folder. Most of it (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, and [`MIGRATION-2025-06-18.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/docs/reference/MIGRATION-2025-06-18.md)) is preserved from the upstream Metosin docs. Two files are this fork's own work: [`introduction.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/docs/reference/introduction.md) and [`MIGRATION-2025-11-25.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/docs/reference/MIGRATION-2025-11-25.md), both covering the `2025-11-25` protocol revision.
 
 ## How to read this guide
 
@@ -113,7 +113,7 @@ bb tasks                     # list every task with its docstring
 
 ## See also
 
-- [Project README](../../README.md): protocol and feature support table, the dynamic-resources capability row, other-MCP-libs comparison.
-- [`CHANGELOG.md`](../../CHANGELOG.md): version history per release. Two unreleased entries: `v2026-07-28` covers the stateless revision, and `v2025-11-25` covers the 9 phases of the upstream-spec port (Phase 0 = kebab-case transport, Phase 1 = protocol negotiation, Phase 2 = server description, Phase 3 = icons, Phase 4 = Malli schemas, Phase 5 = sampling with tools, Phase 6 = elicitation, Phase 7 = tasks, Phase 9 = JSON Schema 2020-12 dialect).
-- [`docs/reference/`](../reference/): preserved upstream Metosin docs (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, `MIGRATION-2025-06-18.md`).
-- [`MIGRATION-2025-06-18.md`](../reference/MIGRATION-2025-06-18.md): the older migration writeup (added by upstream when bumping from 2025-03-26 → 2025-06-18).
+- [Project README](https://github.com/b12n-oss/mcp-tkx/blob/main/README.md): protocol and feature support table, the dynamic-resources capability row, other-MCP-libs comparison.
+- [`CHANGELOG.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/CHANGELOG.md): version history per release. Two unreleased entries: `v2026-07-28` covers the stateless revision, and `v2025-11-25` covers the 9 phases of the upstream-spec port (Phase 0 = kebab-case transport, Phase 1 = protocol negotiation, Phase 2 = server description, Phase 3 = icons, Phase 4 = Malli schemas, Phase 5 = sampling with tools, Phase 6 = elicitation, Phase 7 = tasks, Phase 9 = JSON Schema 2020-12 dialect).
+- [`docs/reference/`](https://github.com/b12n-oss/mcp-tkx/tree/main/docs/reference): preserved upstream Metosin docs (`api-design.md`, `session.md`, `context.md`, `using-the-library.md`, `repl-story.md`, `MIGRATION-2025-06-18.md`).
+- [`MIGRATION-2025-06-18.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/docs/reference/MIGRATION-2025-06-18.md): the older migration writeup (added by upstream when bumping from 2025-03-26 → 2025-06-18).

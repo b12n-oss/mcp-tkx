@@ -58,7 +58,7 @@ clojure -X:mcp-server   # with cwd = example/cljc-server-stdio
 
 This boots a server with one prompt (`pirate_mode_prompt`), two resources (`hello.md`, `world.md`), one tool (`parentify`), and one resource template (`file:///doc/{path}`).
 
-The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc), the four moving parts are:
+The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/cljc-server-stdio/src/example/my_server.cljc), the four moving parts are:
 
 ```clojure
 ;; 1. State, a session atom
@@ -104,7 +104,7 @@ The server's `main` is in [`example/cljc-server-stdio/src/example/my_server.cljc
 
 The same file has a `#?(:cljs ...)` branch with the equivalent shadow-cljs / Node.js wiring, same `session`, same `context` shape, different transport plumbing.
 
-The shared content (prompts / resources / tools) lives in [`example/common-mcp-content/src/example/server_content.cljc`](../../example/common-mcp-content/src/example/server_content.cljc) and works on both JVM and Node without changes.
+The shared content (prompts / resources / tools) lives in [`example/common-mcp-content/src/example/server_content.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/common-mcp-content/src/example/server_content.cljc) and works on both JVM and Node without changes.
 
 ## Your first tool
 
@@ -130,7 +130,7 @@ Notice:
 - `:tool-fn` takes `(context, arguments)` and returns either a value (sent as the JSON-RPC `result`) or a Promesa promise that resolves to one.
 - The return shape `{:content [...] :is-error false}` is the MCP `tools/call` result. A simple string is also accepted; the handler wraps it.
 
-For a richer example with cancellation and progress notifications, see `parentify-tool` in [`server_content.cljc`](../../example/common-mcp-content/src/example/server_content.cljc):
+For a richer example with cancellation and progress notifications, see `parentify-tool` in [`server_content.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/common-mcp-content/src/example/server_content.cljc):
 
 ```clojure
 :tool-fn

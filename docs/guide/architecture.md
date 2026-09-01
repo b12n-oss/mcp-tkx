@@ -1,6 +1,6 @@
 # Architecture
 
-This page is the namespace map, the message lifecycle, and the session/context split. For day-to-day API reference, see [`docs/reference/api-design.md`](../reference/api-design.md), [`docs/reference/session.md`](../reference/session.md), [`docs/reference/context.md`](../reference/context.md), [`docs/reference/using-the-library.md`](../reference/using-the-library.md). This page is the architecture-level orientation.
+This page is the namespace map, the message lifecycle, and the session/context split. It is the architecture-level orientation, and it is also where the session and context reference now lives: the tables below list every key each one carries.
 
 ## Namespace map
 
@@ -81,6 +81,23 @@ Transport authors read it, because a 2026-07-28 transport has to recognise the
 That is 14 namespaces and 3,994 lines in total.
 
 The split is deliberate: any code under `impl/` is meant to be evolved with the spec, while `server.cljc` / `client.cljc` / `json_rpc.cljc` / `protocol.cljc` / `schema.cljc` are the stable surface you depend on.
+
+## One API, both directions
+
+`mcp-toolkit.client` and `mcp-toolkit.server` are shaped the same way, and that
+is deliberate rather than incidental. Both keep their state in a `session`
+atom, both wrap it in a `context` alongside the transport functions, and both
+take that `context` as the first argument of nearly every call. Learning one
+side teaches you the other.
+
+It also means a **proxy** is just both at once. Require the two namespaces, run
+a client session against the upstream server and a server session facing your
+own clients, and pass messages between them.
+
+One contract runs through every handler: return a value to be sent straight
+back as the JSON-RPC `result`, or return a Promesa promise that resolves to
+that value later. The toolkit awaits the promise for you, so a handler that
+needs to do I/O does not block the dispatch loop.
 
 ## The session atom
 
@@ -219,7 +236,7 @@ MCP supports `notifications/cancelled`: the client tells the server "stop reques
 
 4. After the handler settles (success or error), `route-message` removes the entry from `:is-cancelled-by-request-id` to avoid leaking memory.
 
-The pattern is in [`example/common-mcp-content/src/example/server_content.cljc`](../../example/common-mcp-content/src/example/server_content.cljc), where the `parentify-tool` checks `@(:is-cancelled context)` between progress steps and throws if cancelled.
+The pattern is in [`example/common-mcp-content/src/example/server_content.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/common-mcp-content/src/example/server_content.cljc), where the `parentify-tool` checks `@(:is-cancelled context)` between progress steps and throws if cancelled.
 
 ## Capability negotiation
 
@@ -302,7 +319,7 @@ This is the basis of [the REPL workflow](repl-workflow.md): you can add a tool, 
 
 ## See also
 
-- [`docs/reference/api-design.md`](../reference/api-design.md), [`docs/reference/session.md`](../reference/session.md), [`docs/reference/context.md`](../reference/context.md): the upstream Metosin reference docs.
+- [`docs/reference/using-the-library.md`](https://github.com/b12n-oss/mcp-tkx/blob/main/docs/reference/using-the-library.md): the upstream Metosin walkthrough, kept for its wider framing. Its key-transformation section predates this fork's `protocol/encode-key` and carries a note saying so.
 - [Kebab-case key transformation](kebab-case-transformation.md): the JSON ↔ Clojure boundary that this page treats as a black box.
 - [Protocol versions](protocol-versions.md): the version-negotiation algorithm.
 - [REPL workflow](repl-workflow.md): using the REPL-mutation fns above in practice.

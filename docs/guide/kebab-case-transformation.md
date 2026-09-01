@@ -34,7 +34,7 @@ You never write `:inputSchema` in handler code. The toolkit's internal handlers 
 
 ## Where the conversion happens
 
-In the canonical wiring ([`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc)):
+In the canonical wiring ([`example/cljc-server-stdio/src/example/my_server.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/cljc-server-stdio/src/example/my_server.cljc)):
 
 ```clojure
 ;; Outbound: kebab-case → camelCase string keys
@@ -160,7 +160,7 @@ Library deps:
         camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}}}
 ```
 
-Wiring (full version in [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc)):
+Wiring (full version in [`example/cljc-server-stdio/src/example/my_server.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/cljc-server-stdio/src/example/my_server.cljc)):
 
 ```clojure
 (:require
@@ -219,7 +219,7 @@ Do not pass `:keywordize-keys true` to `js->clj`. It keywordises every key befor
 
 ## Setup for HTTP / SSE
 
-The same pattern applies in [`example/clj-server-sse/`](../../example/clj-server-sse/), http-kit + reitit middleware reads the request body, applies the inbound mapper, hands the Clojure map to `json-rpc/handle-message`, and writes the response back via the outbound mapper. The transport changes; the kebab-case story doesn't.
+The same pattern applies in [`example/clj-server-sse/`](https://github.com/b12n-oss/mcp-tkx/tree/main/example/clj-server-sse), http-kit + reitit middleware reads the request body, applies the inbound mapper, hands the Clojure map to `json-rpc/handle-message`, and writes the response back via the outbound mapper. The transport changes; the kebab-case story doesn't.
 
 ## When NOT to convert
 
@@ -241,4 +241,4 @@ The 2025-11-25 spec settles this by adopting JSON Schema 2020-12 explicitly, see
 
 - [Architecture](architecture.md): the message lifecycle that this conversion sits at the boundary of.
 - [Extraction recipes](extraction-recipes.md): Recipe 1 lifts this kebab-case transport pattern out of the toolkit for use in other JSON-RPC services.
-- The canonical wiring is in [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc).
+- The canonical wiring is in [`example/cljc-server-stdio/src/example/my_server.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/cljc-server-stdio/src/example/my_server.cljc).

@@ -8,7 +8,7 @@ Lift-and-shift recipes for reusable patterns from `mcp-tkx`. Each recipe answers
 
 **You want:** Idiomatic Clojure handlers (kebab-case keys) over a wire format that uses camelCase. Works for any JSON-RPC service, not just MCP: JSON Schema validation services, LSP servers, custom JSON-RPC APIs.
 
-**Lift from:** [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc): specifically the `:send-message` fn in `context` and the `listen-messages` reader.
+**Lift from:** [`example/cljc-server-stdio/src/example/my_server.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/cljc-server-stdio/src/example/my_server.cljc): specifically the `:send-message` fn in `context` and the `listen-messages` reader.
 
 **What you copy:**
 
@@ -35,7 +35,7 @@ Idiomatic Clojure code uses kebab-case. Mixing camelCase keys for protocol field
 - **Key conversion keywordizes nearly everything.** `protocol/decode-key` returns keywords for ordinary fields, so user-supplied dictionary keys in a generic content map become keywords on inbound too. It makes two exceptions, both required by MCP: a key starting with `_` keeps its underscore, and a key containing `/` stays a string so its namespace survives the trip back out. If keywordising user content is a problem, scope the conversion narrower: maybe only the JSON-RPC envelope fields.
 - **Do not reach for `camel-snake-kebab` directly here.** It handles ordinary fields identically, which is what makes the mistake easy, but it strips the underscore from `_meta` and mangles namespaced keys. `protocol/encode-key` and `protocol/decode-key` are that library plus those two exceptions.
 
-**See:** [Kebab-case key transformation](kebab-case-transformation.md), [`example/cljc-server-stdio/src/example/my_server.cljc`](../../example/cljc-server-stdio/src/example/my_server.cljc).
+**See:** [Kebab-case key transformation](kebab-case-transformation.md), [`example/cljc-server-stdio/src/example/my_server.cljc`](https://github.com/b12n-oss/mcp-tkx/blob/main/example/cljc-server-stdio/src/example/my_server.cljc).
 
 ---
 
