@@ -195,6 +195,15 @@
    client reports the outcome by retrying the original request, so anything
    needed to correlate the interaction belongs in :request-state.
 
+   No `elicitation-id`. 2025-11-25 required one, and 2026-07-28 removed it
+   along with the completion notification that used it: this revision
+   correlates through the multi round-trip key instead. Checked against both
+   specification sources rather than inferred, because
+   `schema/UrlElicitationRequest` is the 2025-11-25 shape and does require it,
+   which makes the two look like they disagree. They do not. They describe
+   different revisions, and validating a 2026-07-28 request against the
+   2025-11-25 schema is the mistake.
+
    Args:
      params - Map of:
               :message - Prompt shown to the user

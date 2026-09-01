@@ -208,8 +208,11 @@
    - \"auto\"     - Model decides whether to use tools (default)
    - \"required\" - Model MUST use at least one tool
    - \"none\"     - Model MUST NOT use any tools"
+  ;; :mode is optional. The specification defines ToolChoice as
+  ;; `{ mode?: "auto" | "required" | "none" }` and an omitted mode means auto,
+  ;; so requiring it rejected a shape the spec permits.
   [:map
-   [:mode ToolChoiceMode]])
+   [:mode {:optional true} ToolChoiceMode]])
 
 ;; -----------------------------------------------------------------------------
 ;; Sampling Tool Definition
@@ -278,9 +281,10 @@
   [:map
    [:type [:= "tool_result"]]
    [:tool-use-id :string]
-   [:content [:or
-              [:map [:type :string]]
-              [:vector [:map [:type :string]]]]]
+   ;; An array. The specification types this as `content: ContentBlock[]`,
+   ;; and accepting a bare map let a caller build something a conforming
+   ;; consumer would reject. `tool-result-message` wraps a single block.
+   [:content [:vector [:map [:type :string]]]]
    [:is-error {:optional true} :boolean]])
 
 ;; -----------------------------------------------------------------------------
@@ -295,7 +299,18 @@
    - \"stopSequence\" - Hit a stop sequence
    - \"maxTokens\"    - Reached token limit
    - \"toolUse\"      - Model wants to use tools"
-  [:enum "endTurn" "stopSequence" "maxTokens" "toolUse"])
+  ;; Open, not closed. The specification types this as
+  ;; `"endTurn" | "stopSequence" | "maxTokens" | "toolUse" | string` and says
+  ;; in as many words that it "is an open string to allow for
+  ;; provider-specific stop reasons". A closed enum rejected any provider
+  ;; using one of its own, which is the case that openness exists for.
+  :string)
+
+(def known-stop-reasons
+  "The stop reasons the specification names, for a caller that wants to branch
+   on them. Not a validation schema, since the field is deliberately open. See
+   `StopReason`."
+  #{"endTurn" "stopSequence" "maxTokens" "toolUse"})
 
 ;; -----------------------------------------------------------------------------
 ;; Message Validation
@@ -371,7 +386,11 @@
   [{:keys [tool-use-id content is-error]}]
   (cond-> {:type "tool_result"
            :tool-use-id tool-use-id
-           :content content}
+           ;; The specification types :content as ContentBlock[]. A single
+           ;; block is wrapped rather than refused, because passing one bare
+           ;; is the natural thing to write and this namespace's own examples
+           ;; taught it. Only the shape on the wire changes.
+           :content (if (map? content) [content] content)}
     is-error (assoc :is-error true)))
 
 (defn tool-result-message
@@ -431,7 +450,12 @@
 ;; -----------------------------------------------------------------------------
 
 (def UrlElicitationRequest
-  "Schema for URL mode elicitation requests.
+  "Schema for URL mode elicitation requests, as 2025-11-25 defines them.
+
+   Revision-scoped, and it matters. 2026-07-28 removed `elicitationId`, so a
+   request built by `mcp-toolkit.impl.mrtr/elicit-url-request` for that
+   revision will not validate here and is not meant to. Reach for this schema
+   when you are speaking 2025-11-25.
 
    URL mode directs users to external URLs for sensitive interactions
    that must NOT pass through the MCP client (OAuth, payments, API keys).

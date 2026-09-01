@@ -179,8 +179,12 @@
 
     (testing "invalid modes"
       (is (not (schema/valid? schema/ToolChoice {:mode "invalid"})))
-      (is (not (schema/valid? schema/ToolChoice {:mode "always"})))
-      (is (not (schema/valid? schema/ToolChoice {})))))
+      (is (not (schema/valid? schema/ToolChoice {:mode "always"}))))
+
+    (testing "an omitted mode is valid, and means auto"
+      ;; The specification types ToolChoice as { mode?: ... }, so requiring it
+      ;; rejected a shape the spec permits.
+      (is (schema/valid? schema/ToolChoice {}))))
 
   (testing "tool-choice constructor"
     (is (= {:mode "auto"} (schema/tool-choice :auto)))
@@ -264,12 +268,14 @@
 (deftest tool-result-content-test
   (testing "ToolResultContent schema validation"
     (testing "valid tool results"
-      ;; Single content block
+      ;; A single content block, still as an array. The specification types
+      ;; :content as ContentBlock[], so a bare map is not a valid result even
+      ;; when there is only one of them. tool-result wraps it for you.
       (is (schema/valid? schema/ToolResultContent
                          {:type "tool_result"
                           :tool-use-id "call_abc123"
-                          :content {:type "text"
-                                    :text "Result"}}))
+                          :content [{:type "text"
+                                     :text "Result"}]}))
 
       ;; Multiple content blocks
       (is (schema/valid? schema/ToolResultContent
@@ -284,63 +290,72 @@
       (is (schema/valid? schema/ToolResultContent
                          {:type "tool_result"
                           :tool-use-id "call_abc123"
-                          :content {:type "text"
-                                    :text "Error occurred"}
-                          :is-error true})))
+                          :content [{:type "text"
+                                     :text "Error occurred"}]
+                          :is-error true}))
+
+      (is (not (schema/valid? schema/ToolResultContent
+                              {:type "tool_result"
+                               :tool-use-id "call_abc123"
+                               :content {:type "text" :text "bare map"}}))
+          "a bare content map is not what the specification asks for"))
 
     (testing "invalid tool results"
       ;; Wrong type
       (is (not (schema/valid? schema/ToolResultContent
                               {:type "text"
                                :tool-use-id "call_abc"
-                               :content {:type "text"
-                                         :text "x"}})))
+                               :content [{:type "text"
+                                         :text "x"}]})))
 
       ;; Missing tool-use-id
       (is (not (schema/valid? schema/ToolResultContent
                               {:type "tool_result"
-                               :content {:type "text"
-                                         :text "x"}}))))))
+                               :content [{:type "text"
+                                         :text "x"}]}))))))
 
 (deftest tool-result-constructor-test
   (testing "tool-result constructor"
     (testing "basic result"
       (is (= {:type "tool_result"
               :tool-use-id "call_abc"
-              :content {:type "text"
-                        :text "Weather: 18°C"}}
+              ;; Wrapped. The specification wants ContentBlock[], and passing
+              ;; a single block bare is common enough that the constructor
+              ;; normalises rather than refusing.
+              :content [{:type "text"
+                         :text "Weather: 18°C"}]}
              (schema/tool-result {:tool-use-id "call_abc"
-                                  :content {:type "text"
-                                            :text "Weather: 18°C"}}))))
+                                  :content [{:type "text"
+                                            :text "Weather: 18°C"}]}))))
 
     (testing "error result"
       (is (= {:type "tool_result"
               :tool-use-id "call_def"
-              :content {:type "text"
-                        :text "City not found"}
+              :content [{:type "text"
+                         :text "City not found"}]
               :is-error true}
              (schema/tool-result {:tool-use-id "call_def"
-                                  :content {:type "text"
-                                            :text "City not found"}
+                                  :content [{:type "text"
+                                            :text "City not found"}]
                                   :is-error true}))))))
 
 (deftest tool-result-message-test
   (testing "tool-result-message constructor"
     (testing "single result"
       (let [result (schema/tool-result {:tool-use-id "call_abc"
-                                        :content {:type "text"
-                                                  :text "Result"}})]
+                                        :content [{:type "text"
+                                                  :text "Result"}]})]
         (is (= {:role "user"
                 :content [result]}
                (schema/tool-result-message result)))))
 
     (testing "multiple results"
       (let [results [(schema/tool-result {:tool-use-id "call_abc"
-                                          :content {:type "text"
-                                                    :text "Result 1"}})
+                                          :content [{:type "text"
+                                                    :text "Result 1"}]})
                      (schema/tool-result {:tool-use-id "call_def"
-                                          :content {:type "text"
-                                                    :text "Result 2"}})]]
+                                          :content [{:type "text"
+                                                    :text "Result 2"}]})]]
         (is (= {:role "user"
                 :content results}
                (schema/tool-result-message results))))))
@@ -351,45 +366,45 @@
                          {:role "user"
                           :content {:type "tool_result"
                                     :tool-use-id "call_abc"
-                                    :content {:type "text"
-                                              :text "x"}}}))
+                                    :content [{:type "text"
+                                               :text "x"}]}}))
 
       (is (schema/valid? schema/ToolResultMessage
                          {:role "user"
                           :content [{:type "tool_result"
                                      :tool-use-id "call_abc"
-                                     :content {:type "text"
-                                               :text "x"}}
+                                     :content [{:type "text"
+                                               :text "x"}]}
                                     {:type "tool_result"
                                      :tool-use-id "call_def"
-                                     :content {:type "text"
-                                               :text "y"}}]})))
+                                     :content [{:type "text"
+                                               :text "y"}]}]})))
 
     (testing "invalid messages - wrong role"
       (is (not (schema/valid? schema/ToolResultMessage
                               {:role "assistant"
                                :content {:type "tool_result"
                                          :tool-use-id "call_abc"
-                                         :content {:type "text"
-                                                   :text "x"}}}))))))
+                                         :content [{:type "text"
+                                                   :text "x"}]}}))))))
 
 (deftest tool-result-message!-test
   (testing "tool-result-message! with validation"
     (testing "valid message returns result"
       (let [result (schema/tool-result {:tool-use-id "call_abc"
-                                        :content {:type "text"
-                                                  :text "OK"}})]
+                                        :content [{:type "text"
+                                                  :text "OK"}]})]
         (is (= {:role "user"
                 :content [result]}
                (schema/tool-result-message! result)))))
 
     (testing "validates constructed message"
       (let [results [(schema/tool-result {:tool-use-id "call_abc"
-                                          :content {:type "text"
-                                                    :text "R1"}})
+                                          :content [{:type "text"
+                                                    :text "R1"}]})
                      (schema/tool-result {:tool-use-id "call_def"
-                                          :content {:type "text"
-                                                    :text "R2"}})]]
+                                          :content [{:type "text"
+                                                    :text "R2"}]})]]
         (is (= {:role "user"
                 :content results}
                (schema/tool-result-message! results)))))))
@@ -402,10 +417,21 @@
       (is (schema/valid? schema/StopReason "maxTokens"))
       (is (schema/valid? schema/StopReason "toolUse")))
 
-    (testing "invalid stop reasons"
-      (is (not (schema/valid? schema/StopReason "done")))
-      (is (not (schema/valid? schema/StopReason "end")))
-      (is (not (schema/valid? schema/StopReason ""))))))
+    (testing "a provider-specific reason is valid too"
+      ;; The specification types this as the four named values OR any string,
+      ;; and says so explicitly: it "is an open string to allow for
+      ;; provider-specific stop reasons". A closed enum rejected exactly the
+      ;; case the openness exists for.
+      (is (schema/valid? schema/StopReason "done"))
+      (is (schema/valid? schema/StopReason "provider_specific_halt")))
+
+    (testing "the named reasons are still available to branch on"
+      (is (= #{"endTurn" "stopSequence" "maxTokens" "toolUse"}
+             schema/known-stop-reasons)))
+
+    (testing "it is still a string"
+      (is (not (schema/valid? schema/StopReason 42)))
+      (is (not (schema/valid? schema/StopReason nil))))))
 
 (deftest valid-tool-result-message?-test
   (testing "valid-tool-result-message? predicate"
@@ -414,8 +440,8 @@
            {:role "user"
             :content {:type "tool_result"
                       :tool-use-id "call_abc"
-                      :content {:type "text"
-                                :text "OK"}}})))
+                      :content [{:type "text"
+                                :text "OK"}]}})))
 
     (testing "invalid messages"
       ;; Wrong role
@@ -423,8 +449,8 @@
                 {:role "assistant"
                  :content {:type "tool_result"
                            :tool-use-id "call_abc"
-                           :content {:type "text"
-                                     :text "OK"}}})))
+                           :content [{:type "text"
+                                     :text "OK"}]}})))
 
       ;; Missing content
       (is (not (schema/valid-tool-result-message?

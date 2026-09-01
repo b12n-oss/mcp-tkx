@@ -208,12 +208,15 @@
   [context]
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
-    ;; The capability gate only applies to the handshake era, where
-    ;; :server-capabilities is filled in by initialize. A stateless session has
-    ;; no handshake, and request-discover is explicitly optional, so gating
-    ;; there made all three of these silently send nothing and return nil on a
-    ;; session the library itself calls "usable immediately".
-    (when (or (stateless-session? session)
+    ;; Gate on what is actually known. A handshake session has capabilities
+    ;; from initialize, so it gates as it always did. A stateless one has none
+    ;; until request-discover runs, and that is explicitly optional, so an
+    ;; un-discovered session goes ahead rather than silently sending nothing.
+    ;; Once discover has run its answer is respected, which an earlier version
+    ;; of this gate ignored: it waved every stateless call through even at a
+    ;; server that had just said it has none.
+    (when (or (and (stateless-session? session)
+                   (nil? server-capabilities))
               (contains? server-capabilities :prompts))
       (-> (call-method context {:method "prompts/list"})
           (p/then (fn [{:keys [prompts]}]
@@ -250,12 +253,15 @@
   [context]
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
-    ;; The capability gate only applies to the handshake era, where
-    ;; :server-capabilities is filled in by initialize. A stateless session has
-    ;; no handshake, and request-discover is explicitly optional, so gating
-    ;; there made all three of these silently send nothing and return nil on a
-    ;; session the library itself calls "usable immediately".
-    (when (or (stateless-session? session)
+    ;; Gate on what is actually known. A handshake session has capabilities
+    ;; from initialize, so it gates as it always did. A stateless one has none
+    ;; until request-discover runs, and that is explicitly optional, so an
+    ;; un-discovered session goes ahead rather than silently sending nothing.
+    ;; Once discover has run its answer is respected, which an earlier version
+    ;; of this gate ignored: it waved every stateless call through even at a
+    ;; server that had just said it has none.
+    (when (or (and (stateless-session? session)
+                   (nil? server-capabilities))
               (contains? server-capabilities :resources))
       (-> (call-method context {:method "resources/list"})
           (p/then (fn [{:keys [resources]}]
@@ -330,12 +336,15 @@
   [context]
   (let [{:keys [session]} context
         {:keys [server-capabilities]} @session]
-    ;; The capability gate only applies to the handshake era, where
-    ;; :server-capabilities is filled in by initialize. A stateless session has
-    ;; no handshake, and request-discover is explicitly optional, so gating
-    ;; there made all three of these silently send nothing and return nil on a
-    ;; session the library itself calls "usable immediately".
-    (when (or (stateless-session? session)
+    ;; Gate on what is actually known. A handshake session has capabilities
+    ;; from initialize, so it gates as it always did. A stateless one has none
+    ;; until request-discover runs, and that is explicitly optional, so an
+    ;; un-discovered session goes ahead rather than silently sending nothing.
+    ;; Once discover has run its answer is respected, which an earlier version
+    ;; of this gate ignored: it waved every stateless call through even at a
+    ;; server that had just said it has none.
+    (when (or (and (stateless-session? session)
+                   (nil? server-capabilities))
               (contains? server-capabilities :tools))
       (-> (call-method context {:method "tools/list"})
           (p/then (fn [{:keys [tools]}]
@@ -381,7 +390,17 @@
    Returns:
      nil"
   [context]
-  (json-rpc/send-message context (json-rpc/notification "roots/list_changed")))
+  ;; Not sent on the stateless revision. 2026-07-28 removed this notification
+  ;; outright, along with the server-initiated roots/list request it answered;
+  ;; roots now arrive as an input_required round trip instead. Checked against
+  ;; the specification source: 2025-11-25 names roots/list_changed, and
+  ;; 2026-07-28 does not name it anywhere. Sending it there would put a method
+  ;; on the wire that the revision does not define, and stamping _meta on it
+  ;; so a dual-era server routed it "correctly" would only route it to a table
+  ;; that has no handler for it either.
+  (when-not (stateless-session? (:session context))
+    (json-rpc/send-message context (json-rpc/notification "roots/list_changed")))
+  nil)
 
 (defn add-root
   "Adds a root to the client's root registry and notifies the server.
@@ -461,7 +480,18 @@
    Returns:
      nil"
   [context subscription-id]
-  (send-notification context "cancelled" {:request-id subscription-id}))
+  (send-notification context "cancelled" {:request-id subscription-id})
+  ;; Settle the listen request this ends. Its promise resolves when the
+  ;; subscription closes, and a server that has just been told to cancel does
+  ;; not send the closing response, so without this the promise never settles
+  ;; and its entry sits in the registry for the life of the session. Resolving
+  ;; rather than rejecting, because request-subscribe documents its promise as
+  ;; resolving at the end of the subscription and this is the client ending it.
+  (let [{:keys [session]} context]
+    (when-some [response-handler (get (:handler-by-called-method-id @session)
+                                      subscription-id)]
+      (response-handler (assoc context :message {:result nil}))))
+  nil)
 
 (defn subscription-id
   "Returns the subscription a notification arrived on.
@@ -509,6 +539,28 @@
                          :server-instructions instructions)
                   ((user-callback :on-initialized) context))))))
 
+(defn negotiated-version-mismatch?
+  "True when the server answered `initialize` with a version this client did
+   not ask for.
+
+   Negotiation lets a server reply with a revision of its own when it cannot
+   speak the one requested, and the specification says a client SHOULD
+   disconnect rather than carry on. This library records the mismatch and
+   leaves the decision to you, because closing the transport belongs to
+   whoever owns it. `(:server-protocol-version @session)` is what was
+   actually agreed.
+
+   Returns nil before the handshake has completed, which is not the same as
+   false.
+
+   Args:
+     context - The client session context
+
+   Returns:
+     true, false, or nil when initialize has not been answered yet."
+  [context]
+  (:protocol-version-mismatch? @(:session context)))
+
 (defn server-supports-protocol-version?
   "Returns true when the server named this session's protocol version in its
    discovery result.
@@ -547,7 +599,20 @@
                                                        :capabilities client-capabilities
                                                        :protocol-version protocol-version}})
         (p/then (fn [{:keys [protocol-version capabilities server-info]}]
+                  ;; The server may answer with a version this client did not
+                  ;; ask for, which is how negotiation reports "I cannot speak
+                  ;; yours, here is mine". The specification says a client
+                  ;; SHOULD disconnect rather than carry on. This session used
+                  ;; to store whatever came back and set :initialized, so a
+                  ;; client that asked for 2099-01-01 and was answered
+                  ;; 2025-11-25 proceeded as though it had agreed to something.
+                  ;; :server-protocol-version records what was actually agreed,
+                  ;; and the mismatch is surfaced through the callback rather
+                  ;; than decided here, since closing the transport is the
+                  ;; caller's to do.
                   (swap! session assoc
+                         :protocol-version-mismatch?
+                         (not= protocol-version (:protocol-version @session))
                          :server-protocol-version protocol-version
                          :server-capabilities capabilities
                          :server-info server-info

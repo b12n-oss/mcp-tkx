@@ -123,12 +123,16 @@
       (true? (get subscription-filter filter-key)))
     false))
 
-(defn- compare-subscription-ids
+(defn compare-subscription-ids
   "Orders two JSON-RPC ids, which may be numbers or strings.
 
    `sort` alone throws a ClassCastException the moment one client picks a
    numeric id and another picks a string, and JSON-RPC allows both. Numbers
-   sort before strings, and within a type the natural order applies."
+   sort before strings, and within a type the natural order applies.
+
+   Public because `server/close-all-subscriptions!` needs it too. It sorted
+   the same ids with a bare `sort` and threw on the same mixture, which is
+   what fixing only `subscriber-ids` missed."
   [a b]
   (let [rank (fn [id] (if (number? id) 0 1))
         ra   (rank a)

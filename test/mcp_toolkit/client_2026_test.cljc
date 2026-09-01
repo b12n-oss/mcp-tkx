@@ -394,3 +394,86 @@
          (is (= #{"prompts/list" "resources/list" "tools/list"}
                 (set (map :method @sent)))
              "and they are the three we asked for"))))))
+
+(deftest list-functions-respect-discovered-capabilities-test
+  ;; Ungating these for stateless sessions over-corrected: they then ignored
+  ;; :server-capabilities even after request-discover had populated them, so a
+  ;; client called prompts/list at a server that had just said it has none.
+  (testing "an un-discovered stateless session goes ahead"
+    (let [sent (atom [])
+          session (atom (client/create-session {:protocol-version "2026-07-28"
+                                                :on-initialized nil}))
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)}]
+      (client/request-tool-list context)
+      (async-test
+       3000
+       (p/let [_ (util/assert-atom sent (fn [m] (seq m)) 2000 "the call goes out")]
+         (is (= ["tools/list"] (map :method @sent)))))))
+
+  (testing "once discovery says a capability is absent, the call is not made"
+    (let [sent (atom [])
+          session (atom (client/create-session {:protocol-version "2026-07-28"
+                                                :on-initialized nil}))
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)}]
+      ;; What request-discover stores: a server with prompts and no tools.
+      (swap! session assoc :server-capabilities {:prompts {}})
+      (client/request-tool-list context)
+      (client/request-prompt-list context)
+      (async-test
+       3000
+       (p/let [_ (util/assert-atom sent (fn [m] (seq m)) 2000 "the honoured call goes out")]
+         (is (= ["prompts/list"] (map :method @sent))
+             "only the capability the server actually declared"))))))
+
+(deftest roots-list-changed-is-not-sent-on-a-stateless-session-test
+  ;; 2026-07-28 removed notifications/roots/list_changed along with the
+  ;; server-initiated roots/list it answered. Verified against both
+  ;; specification sources: 2025-11-25 names it, 2026-07-28 does not name it
+  ;; anywhere. Sending it there puts a method on the wire the revision does
+  ;; not define, and stamping _meta so a dual-era server routed it "properly"
+  ;; would only route it to a table with no handler for it either.
+  (testing "a stateless session sends nothing"
+    (let [sent (atom [])
+          session (atom (client/create-session {:protocol-version "2026-07-28"
+                                                :on-initialized nil}))
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)}]
+      (client/notify-root-list-changed context)
+      (is (= [] @sent))))
+
+  (testing "a handshake session still sends it, since that revision has it"
+    (let [sent (atom [])
+          session (atom (client/create-session {:on-initialized nil}))
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)}]
+      (client/notify-root-list-changed context)
+      (is (= ["notifications/roots/list_changed"] (map :method @sent))))))
+
+(deftest unsubscribe-settles-the-listen-promise-test
+  ;; request-subscribe's promise resolves when the subscription closes, and a
+  ;; server told to cancel does not send the closing response. Without this the
+  ;; promise never settled and its registry entry sat there for the life of the
+  ;; session.
+  (testing "ending a subscription settles the request that opened it"
+    (async-test
+     3000
+     (let [sent (atom [])
+           session (atom (client/create-session {:protocol-version "2026-07-28"
+                                                 :on-initialized nil}))
+           context {:session session
+                    :send-message (fn [m] (swap! sent conj m) nil)}
+           listening (client/request-subscribe context {:tools-list-changed true})]
+       (p/let [_ (util/assert-atom session
+                                   (fn [s] (= 1 (count (:handler-by-called-method-id s))))
+                                   2000
+                                   "the listen request is registered")]
+         (let [subscription-id (first (keys (:handler-by-called-method-id @session)))]
+           (client/notify-unsubscribe context subscription-id)
+           (is (= {} (:handler-by-called-method-id @session))
+               "the registry entry is released rather than leaked")
+           (p/then listening
+                   (fn [result]
+                     (is (nil? result)
+                         "and the promise resolves, as request-subscribe documents")))))))))

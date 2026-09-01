@@ -457,3 +457,22 @@
                              (some (fn [m] (= "notifications/tools/list_changed" (:method m))) msgs))
                            2000
                            "a tool registered later still notifies the subscriber"))))))
+
+(deftest close-all-subscriptions-handles-mixed-id-types-test
+  ;; The sibling of subscriber-ids, and it kept the bare sort when that one was
+  ;; fixed. Same ClassCastException on the same mixture, and the fix's own test
+  ;; comment claimed this function was covered.
+  (testing "closing every subscription works with string and numeric ids together"
+    (let [sent (atom [])
+          session (atom (server/create-session {:protocol-version "2026-07-28"
+                                                :on-initialized nil}))
+          context {:session session
+                   :send-message (fn [m] (swap! sent conj m) nil)}]
+      (swap! session assoc :subscription-by-id
+             {1 {:tools-list-changed true}
+              "abc" {:tools-list-changed true}
+              2 {:tools-list-changed true}})
+      (is (nil? (server/close-all-subscriptions! context))
+          "a mixture of id types must not throw")
+      (is (= 3 (count @sent))
+          "and every subscription gets its closing response"))))

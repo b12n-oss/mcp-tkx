@@ -54,16 +54,24 @@
         ;; marks a request that came through the stateless path. Reading the
         ;; session's :logging-level there instead would apply its "debug"
         ;; default and emit everything, which is what used to happen.
-        threshold (if (contains? context :log-level)
+        requested (if (contains? context :log-level)
                     (:log-level context)
-                    (:logging-level @session))]
+                    (:logging-level @session))
+        ;; An unknown level is not a quieter level. The per-request _meta one
+        ;; arrives straight off the wire and nothing validates it, unlike
+        ;; logging/setLevel and create-session which now refuse one. Comparing
+        ;; against a default of 0 would read it as "debug" and send the client
+        ;; everything, which is the opposite of what an unrecognised threshold
+        ;; should do, so it suppresses instead.
+        threshold (when (contains? protocol/log-level->importance requested)
+                    requested)]
     ;; Both lookups carry a default. Only the first one did, so an unrecognised
     ;; stored level produced nil and blew up the comparison on the JVM, while
     ;; ClojureScript coerced it to 0 and emitted everything instead. Defaulting
     ;; an unknown threshold to "debug" errs toward sending rather than silence.
     (when (and (some? threshold)
                (>= (log-level->importance level -1)
-                   (log-level->importance threshold 0)))
+                   (log-level->importance threshold)))
       (json-rpc/send-message context (json-rpc/notification "message"
                                                             {:level level
                                                              :logger logger
@@ -548,12 +556,21 @@
    Returns:
      nil"
   [context]
-  (doseq [subscription-id (sort (keys (:subscription-by-id @(:session context))))]
+  ;; The same comparator subscriber-ids uses. A bare sort throws
+  ;; ClassCastException the moment one client picks a numeric JSON-RPC id and
+  ;; another picks a string, and JSON-RPC allows both.
+  (doseq [subscription-id (sort subscriptions/compare-subscription-ids
+                                (keys (:subscription-by-id @(:session context))))]
     (close-subscription! context subscription-id))
   nil)
 
 (defn active-subscriptions
-  "Returns the honoured filter of every open subscription, keyed by id.
+  "Returns the requested filter of every open subscription, keyed by id.
+
+   The requested filter, not the honoured one. What a subscription stores is
+   what the client asked for; the acknowledgement reported what was servable
+   at that instant. They differ deliberately, so that a capability appearing
+   later still reaches a subscriber who asked for it.
 
    Args:
      context - The server session context
@@ -1003,7 +1020,18 @@
          logging-level "debug"
          on-initialized request-root-list
          on-client-root-list-changed request-root-list}}]
-  (let [handshake-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]
+  (let [_ (when-not (contains? protocol/log-level->importance logging-level)
+            ;; The same eight levels logging/setLevel is checked against. An
+            ;; unknown one used to be stored and then compared with a default
+            ;; of 0, which reads as "debug" and floods the client with every
+            ;; message rather than filtering anything.
+            (throw (ex-info (str "Unknown :logging-level " (pr-str logging-level) ". "
+                                 "Accepted levels are "
+                                 (pr-str (sort (keys protocol/log-level->importance))) ".")
+                            {:type :invalid-logging-level
+                             :logging-level logging-level
+                             :accepted (sort (keys protocol/log-level->importance))})))
+        handshake-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]
         _ (when (some? protocol-version)
             ;; stateless? is a set membership test, so anything outside it
             ;; quietly built a handshake session instead. One mistyped digit
