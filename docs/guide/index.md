@@ -110,7 +110,7 @@ bb tasks                     # list every task with its docstring
 ## Not covered yet
 
 - **Pagination**: not wired through `prompts/list`, `resources/list` or `tools/list`. Implementations leave a `#_#_:next-cursor "next-page-cursor"` placeholder in the handler.
-- **Babashka support**: the CLJC core runs on the JVM and on Node via shadow-cljs. It does not load on Babashka: the failure is inside `promesa`, which `mcp-toolkit.json-rpc` depends on for its promise-based handler contract. Verified with `bb --classpath $(clojure -Spath)`, which fails loading `promesa.util` at `promesa/util.cljc:9:3` (an unresolvable `java.util.concurrent.locks.ReentrantLock` import), reached via `server` to `impl.server.handler` to `json-rpc` to `promesa.core`. Supporting bb means finding a promise layer that bb can load.
+- **Babashka support**: the CLJC core runs on the JVM and on Node via shadow-cljs. It does not load on Babashka: the failure is inside `promesa`, which `mcp-toolkit.json-rpc` depends on for its promise-based handler contract. Verified with `bb --classpath $(clojure -Spath)`, which fails loading `promesa.util` at `promesa/util.cljc:9:3` (an unresolvable `java.util.concurrent.locks.ReentrantLock` import), reached via `server` to `impl.server.handler` to `json-rpc` to `promesa.core`. The missing class is the whole of it: Babashka's allowlist carries `CompletableFuture` and `TimeUnit` but not `ReentrantLock`, and `promesa.util` imports it unconditionally in its `:clj` branch. promesa's own `bb test:bb` task fails the same way, reproduced against promesa master at `9b38ac3` on 2026-09-01, so that task is not evidence of working support and no version pin routes around this. Supporting bb means finding a promise layer that bb can load.
 
 ## See also
 
