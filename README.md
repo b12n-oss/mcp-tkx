@@ -169,7 +169,7 @@ lines up with the spec's own experimental status for this capability.
 |---|---|
 | Clojure (JVM) | Supported |
 | ClojureScript (Node, shadow-cljs) | Supported |
-| Babashka | Not supported. Babashka's allowlist has no `java.util.concurrent.locks.ReentrantLock`, which `promesa.util` imports unconditionally, so `json-rpc` never loads. promesa's own `bb test:bb` task fails the same way, so it is not evidence of support. [Detail](docs/guide/index.md#not-covered-yet). |
+| Babashka | Works from Babashka 1.13.220 with promesa 12, and not before either. Earlier Babashka has no `java.util.concurrent.locks.ReentrantLock`, and promesa 11 has a `deftype` implementing `java.util.function.Supplier` that SCI rejects. This project still pins promesa 11.0.678, so running on Babashka today means overriding that. [Detail](docs/guide/index.md#not-covered-yet). |
 
 ### Content block types
 
