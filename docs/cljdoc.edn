@@ -15,6 +15,7 @@
                      ["Claude Desktop setup" {:file "docs/guide/claude-desktop-setup.md"}]
                      ["Streamable HTTP" {:file "docs/guide/streamable-http.md"}]
                      ["REPL workflow" {:file "docs/guide/repl-workflow.md"}]
+                     ["Docker + REPL smoke test" {:file "docs/guide/docker-repl-smoke.md"}]
                      ["Extraction recipes" {:file "docs/guide/extraction-recipes.md"}]]]
                    ["Reference"
                     [["Introduction" {:file "docs/reference/introduction.md"}]

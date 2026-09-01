@@ -205,10 +205,10 @@ per protocol era, so the table below has five rows.
 
 ## Documentation
 
-The [user guide](docs/guide/index.md) is the place to start. Twelve
+The [user guide](docs/guide/index.md) is the place to start. Thirteen
 more pages cover the architecture, all five protocol revisions, schema
-validation, both HTTP transports, the REPL workflow, and recipes for
-lifting pieces of this into other projects.
+validation, both HTTP transports, the REPL workflow, a container smoke
+test, and recipes for lifting pieces of this into other projects.
 
 <details>
 <summary><b>Guide contents</b></summary>
@@ -226,6 +226,7 @@ lifting pieces of this into other projects.
 | [Claude Desktop setup](docs/guide/claude-desktop-setup.md) | `claude_desktop_config.json` and `claude mcp add` |
 | [Streamable HTTP](docs/guide/streamable-http.md) | The current remote transport, end to end |
 | [REPL workflow](docs/guide/repl-workflow.md) | Editing tools while a client stays connected |
+| [Docker + REPL smoke test](docs/guide/docker-repl-smoke.md) | Driving a containerised server with this library's own client |
 | [Extraction recipes](docs/guide/extraction-recipes.md) | Lifting the transport or the schema registry elsewhere |
 
 </details>

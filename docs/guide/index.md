@@ -50,6 +50,7 @@ This guide focuses on the **reusable building blocks**, the patterns that lift t
 | [Claude Desktop / Claude Code setup](claude-desktop-setup.md) | `claude_desktop_config.json` STDIO config, `claude mcp add` for Claude Code, SSE transport for Claude Code (not yet supported by Desktop), Docker-based server config, MCP Inspector for debugging |
 | [Streamable HTTP transport](streamable-http.md) | The current remote transport (`2025-03-26`+): single `/mcp` endpoint, `Mcp-Session-Id` sessions, JSON-or-SSE responses (the "flip"), `Last-Event-Id` resumability, Host/Origin + `MCP-Protocol-Version` security; how it differs from the HTTP+SSE example |
 | [REPL workflow](repl-workflow.md) | nREPL embedded in your STDIO server, `add-tool` / `remove-tool` / `notify-resource-updated` from the REPL while a client is connected, Claude Desktop log tailing for diagnostics |
+| [Docker + REPL smoke test](docker-repl-smoke.md) | Standing the 2026-07-28 server up in a container and driving it from a REPL with this library's own client, rather than curl: what a clean room catches, and the `_meta` round trip that proves the key rules held |
 | [Extraction recipes](extraction-recipes.md) | Worked recipes, kebab-case transport for any JSON-RPC service, Malli protocol-schema registry pattern, dynamic-resource `:read-fn`, multi-version handshake negotiation, cancellation via `is-cancelled` atom, REPL-aware notification helpers |
 
 ## Find your scenario
