@@ -219,6 +219,16 @@
   ;; Documentation site (b12n-oss/docs-engine)
   ;; =============================================================================
 
+  docs:links
+  {:doc "Check every markdown link resolves, in the repo and on the built site"
+   :task (do
+           (header "🔗 Checking documentation links")
+           (info "Two audiences: a reader in the repo, and a reader on the site")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "bb" "-e"
+                                         "(load-file \"dev/check_links.clj\") (check-links/-main)")]
+             (System/exit exit)))}
+
   site:build
   {:doc "Build the documentation site into _site/ (needs a docs-engine checkout)"
    :task (do

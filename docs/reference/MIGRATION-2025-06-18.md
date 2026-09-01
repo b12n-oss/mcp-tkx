@@ -386,8 +386,8 @@ Here's a complete before/after example:
 
 ## Getting Help
 
-- Check the [CHANGELOG](CHANGELOG.md) for detailed changes
-- Review the [test suite](test/mcp_toolkit/core_test.cljc) for usage examples
+- Check the [CHANGELOG](../../CHANGELOG.md) for detailed changes
+- Review the [test suite](../../test/mcp_toolkit/core_test.cljc) for usage examples
 - Visit the #mcp-toolkit channel on Clojurians Slack
 - Report issues on the [GitHub repository](https://github.com/metosin/mcp-toolkit)
 
