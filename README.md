@@ -344,6 +344,13 @@ without either side needing to agree.
 
 </details>
 
+## Contributing
+
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md)
+covers the gate (`bb ci`, and the suite staying at 236 tests), the traps
+that have actually cost someone a session, and where this project's line
+on AI-assisted contributions differs from upstream's.
+
 ## License
 
 Distributed under the [Eclipse Public License v2.0](LICENSE.txt).
