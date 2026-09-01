@@ -3,7 +3,8 @@
    audiences and a link can satisfy one and fail the other.
 
    REPO: someone reading the files on GitHub or in a checkout. A relative
-   path has to resolve on disk from the file that contains it.
+   path has to resolve on disk from the file that contains it, and an
+   anchor on the end of it has to name a heading that is really there.
 
    SITE: someone reading the rendered site. Only docs/guide is built, so a
    link out of it, to docs/reference or to a source file, has nothing to
@@ -97,6 +98,104 @@
                                 (str/replace self-url-prefix ""))]
                    (fs/exists? (fs/path root path)))))))
 
+(def ^:private heading-pattern
+  ;; A setext heading is not supported here. Every heading in this repo is
+  ;; atx, and the trailing #s an atx heading may carry are not part of its text.
+  (re-pattern "^(#{1,6})\\s+(.*?)\\s*#*\\s*$"))
+
+(def ^:private fence-pattern
+  (re-pattern "^\\s*(```|~~~)"))
+
+(defn- slugify
+  "One heading's text turned into the anchor GitHub would give it: markdown
+   link syntax reduced to its text, lowercased, everything but letters,
+   digits, underscore, hyphen and space dropped, then spaces to hyphens.
+
+   Punctuation vanishing is what makes `## `bb check`` reachable as
+   #bb-check rather than as anything containing a backtick."
+  [text]
+  (-> text
+      (str/replace (re-pattern "\\[([^\\]]*)\\]\\([^)]*\\)") "$1")
+      str/lower-case
+      (str/replace (re-pattern "[^a-z0-9 _-]") "")
+      str/trim
+      (str/replace (re-pattern "\\s+") "-")))
+
+(defn- heading-slugs
+  "Every anchor a reader could land on in one file.
+
+   Fence-aware on purpose. The docs are full of shell blocks whose comment
+   lines start with #, and treating those as headings would mint slugs that
+   let a genuinely broken anchor pass.
+
+   A repeated heading gets GitHub's -1, -2 suffix, so the second `## Notes`
+   is reachable as #notes-1."
+  [path]
+  ;; fs/path hands back a Path, which slurp cannot open. fs/file also
+  ;; accepts the plain strings markdown-files produces.
+  (loop [[line & more] (str/split-lines (slurp (fs/file path)))
+         in-fence? false
+         seen {}
+         out #{}]
+    (cond
+      (nil? line) out
+
+      (re-find fence-pattern line)
+      (recur more (not in-fence?) seen out)
+
+      in-fence?
+      (recur more in-fence? seen out)
+
+      :else
+      (if-some [m (re-find heading-pattern line)]
+        (let [base (slugify (nth m 2))
+              n    (get seen base 0)]
+          (recur more in-fence?
+                 (assoc seen base (inc n))
+                 (conj out (if (zero? n) base (str base "-" n)))))
+        (recur more in-fence? seen out)))))
+
+(defn- anchor-target
+  "The file an anchored link points at and the fragment it wants, or nil
+   when there is no fragment or it belongs to someone else's document.
+
+   Three shapes resolve: a bare #fragment against the containing file, this
+   repo's own GitHub URL against the repo root, and a relative path against
+   the containing file's directory."
+  [root {:keys [file target]}]
+  (let [[path frag] (str/split target (re-pattern "#") 2)]
+    (when (seq frag)
+      (cond
+        (str/blank? path)
+        [(fs/path root file) frag]
+
+        (re-find self-url-prefix target)
+        [(fs/path root (str/replace path self-url-prefix "")) frag]
+
+        (or (str/starts-with? path "http://")
+            (str/starts-with? path "https://")
+            (str/starts-with? path "mailto:"))
+        nil
+
+        :else
+        [(fs/path root (or (fs/parent file) "") path) frag]))))
+
+(defn- anchor-broken
+  "Anchored links whose fragment names no heading in the file they point at.
+
+   Without this the other checks stop at the file, so renaming a heading
+   rots every anchor aimed at it while they all keep reporting clean. A
+   target that does not exist at all is left to repo-broken rather than
+   reported twice."
+  [root links]
+  (->> links
+       (keep (fn [link]
+               (when-some [[path frag] (anchor-target root link)]
+                 (when (and (fs/exists? path)
+                            (fs/regular-file? path)
+                            (not (contains? (heading-slugs path) frag)))
+                   link))))))
+
 (defn- report [label broken]
   (if (seq broken)
     (do
@@ -107,15 +206,23 @@
     (do (println (str "  none " label)) true)))
 
 (defn -main [& _]
-  (let [root  (str (fs/cwd))
-        files (markdown-files root)
-        links (mapcat (fn [f] (links-in root f)) files)]
-    (println (str "Checked " (count links) " links across " (count files) " files."))
+  (let [root    (str (fs/cwd))
+        files   (markdown-files root)
+        links   (mapcat (fn [f] (links-in root f)) files)
+        anchored (count (filter (fn [l] (anchor-target root l)) links))]
+    (println (str "Checked " (count links) " links across " (count files)
+                  " files, " anchored " of them carrying an anchor."))
     (println)
     (println "REPO, do they resolve on disk:")
-    (let [repo-ok (and (report "broken in the repo" (repo-broken root links))
-                       (report "self-links naming a path that is gone"
-                               (self-link-broken root links)))]
+    ;; Every report runs before the verdict. Threading these through `and`
+    ;; short-circuits, which hides the second and third failure behind the
+    ;; first and makes one run tell you less than it found.
+    (let [repo-ok (->> [(report "broken in the repo" (repo-broken root links))
+                        (report "self-links naming a path that is gone"
+                                (self-link-broken root links))
+                        (report "anchors naming a heading that is gone"
+                                (anchor-broken root links))]
+                       (every? true?))]
       (println)
       (println "SITE, do they resolve on the built site:")
       (let [site-ok (report "unresolvable on the site" (site-broken links))]
