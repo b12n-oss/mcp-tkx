@@ -6,7 +6,21 @@
 .cljs_node_repl
 node_modules/
 out/
-.clj-kondo
+# Caches only, at any depth. .clj-kondo/imports holds the linter configs that
+# libraries export (Promesa's p/loop and p/let among them), and without them a
+# fresh clone fails bb check with five bogus "Unresolved symbol" errors. They
+# are 32K across 8 files against an 18M cache, so the configs are tracked and
+# the caches are not.
+#
+# The ** matters. An anchored ".clj-kondo/.cache" only covers the root, which
+# would start tracking example caches, and those embed absolute paths from
+# whoever last ran the linter.
+**/.clj-kondo/.cache
+
+# The examples' own .clj-kondo is ignored outright. Its imports are stale
+# debris from an unrelated checkout (next.jdbc, hiccup, aero, none of which
+# any example uses), and bb check lints from the root config anyway.
+example/*/.clj-kondo
 .lsp
 # clojure-mcp
 .clojure-mcp/
