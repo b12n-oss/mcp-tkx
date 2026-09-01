@@ -14,10 +14,12 @@
 
    Known limitation, stated rather than hidden: subscription channels are
    keyed by the JSON-RPC id the client chose, and one server session is shared
-   by every connection. Two clients that both open a subscription with id 1
-   would collide. A real deployment wants a session per client, or a
-   transport-minted key. It is left simple here because the point of the
-   example is the mechanism."
+   by every connection. Two clients that both pick id 1 therefore contend for
+   the same key. The library refuses the second with -32602 and the first keeps
+   its stream, so nobody is silently displaced, but the second client cannot
+   subscribe at all until the first is done. A real deployment wants a session
+   per client, or a transport-minted key. It is left simple here because the
+   point of the example is the mechanism."
   (:require
    [example.transport.streamable-http :as http-2025]
    [mcp-toolkit.json-rpc :as json-rpc]
@@ -54,6 +56,25 @@
 (defn- unregister-channel!
   [ctx subscription-id]
   (swap! (::channels ctx) dissoc subscription-id))
+
+(defn- release-channel!
+  "Drops this channel's registration, but only if it is the one registered,
+   and reports whether it was.
+
+   A second client that collides on an id it does not own must not evict the
+   first. Before this existed, a colliding listen registered over the original
+   channel, the library's refusal carried :error rather than :result so the
+   stream-closing branch never fired, and when the refused connection finally
+   dropped its :on-close removed the original subscriber's entry from the
+   session. The first client stopped receiving with no error and no way to
+   tell."
+  [ctx subscription-id channel]
+  (let [[before _] (swap-vals! (::channels ctx)
+                               (fn [channels]
+                                 (if (identical? channel (get channels subscription-id))
+                                   (dissoc channels subscription-id)
+                                   channels)))]
+    (identical? channel (get before subscription-id))))
 
 (defn- subscription-channel
   [ctx subscription-id]
@@ -97,7 +118,10 @@
       (fn [channel]
         (http-kit/send! channel {:status 200
                                  :headers sse-headers} false)
-        (register-channel! ctx subscription-id channel)
+        ;; Only claim the id if it is free. The library refuses a duplicate
+        ;; below, and registering first would evict the client that holds it.
+        (when-not (subscription-channel ctx subscription-id)
+          (register-channel! ctx subscription-id channel))
         (let [mcp-context
               {:session (:session ctx)
                :send-message
@@ -116,11 +140,13 @@
                                     :data {:err (ex-message error)}})
                          (http-kit/close channel))))))
       :on-close
-      (fn [_channel _status]
+      (fn [channel _status]
         ;; The client went away. Drop the subscription so the server stops
-        ;; producing for a stream nobody is reading.
-        (unregister-channel! ctx subscription-id)
-        (swap! (:session ctx) update :subscription-by-id dissoc subscription-id))})))
+        ;; producing for a stream nobody is reading, but only when this channel
+        ;; is the one that owns the id. A refused, colliding listen also lands
+        ;; here, and it must leave the original subscriber alone.
+        (when (release-channel! ctx subscription-id channel)
+          (swap! (:session ctx) update :subscription-by-id dissoc subscription-id)))})))
 
 (defn- handle-plain-request
   "Serves an ordinary request. One request, one JSON response.

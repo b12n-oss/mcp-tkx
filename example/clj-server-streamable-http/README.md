@@ -159,9 +159,11 @@ server (port `7926`). It has no `2026-07-28` mode to point at the other one.
   transport rather than duplicated.
 - A known limitation carried over from the source, not hidden: subscription
   channels are keyed by the JSON-RPC id the client chose, and one server
-  session is shared by every connection, so two clients that both open a
-  subscription with id `1` would collide. A real deployment wants a session
-  per client, or a transport-minted key. See the namespace docstring in
+  session is shared by every connection, so two clients that both pick id `1`
+  contend for the same key. The library refuses the second with `-32602` and
+  the first keeps its stream, so nobody is silently displaced, but the second
+  client cannot subscribe until the first is done. A real deployment wants a
+  session per client, or a transport-minted key. See the namespace docstring in
   `transport/streamable_http_2026.clj` for the full reasoning.
 
 Both transports share the same MCP content (prompts/resources/tools) with the
