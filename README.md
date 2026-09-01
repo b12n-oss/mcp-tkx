@@ -169,7 +169,7 @@ lines up with the spec's own experimental status for this capability.
 |---|---|
 | Clojure (JVM) | Supported |
 | ClojureScript (Node, shadow-cljs) | Supported |
-| Babashka | Works from Babashka 1.13.220 with promesa 12, and not before either. Earlier Babashka has no `java.util.concurrent.locks.ReentrantLock`, and promesa 11 has a `deftype` implementing `java.util.function.Supplier` that SCI rejects. This project still pins promesa 11.0.678, so running on Babashka today means overriding that. [Detail](docs/guide/index.md#not-covered-yet). |
+| Babashka | Supported, and `bb bb:smoke` drives a real `tools/list` and `tools/call` there to prove it. Needs Babashka 1.13.220 or newer plus promesa 12, which the `:babashka` alias supplies because the project pin stays on promesa 11 for ClojureScript's sake. [Detail](docs/guide/index.md#babashka). |
 
 ### Content block types
 

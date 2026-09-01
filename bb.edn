@@ -271,6 +271,31 @@
                                          "(load-file \"dev/check_links.clj\") (check-links/-main)")]
              (System/exit exit)))}
 
+  bb:smoke
+  {:doc "Run a real MCP round trip on Babashka (needs bb 1.13.220 or newer)"
+   :task (do
+           (header "\uD83C\uDF3F Babashka smoke test")
+           (info "Loading is not the same as working, so this drives a real dispatch")
+           ;; Version gate first. Below 1.13.220 the require itself fails on a
+           ;; missing ReentrantLock, and that error says nothing about which
+           ;; babashka you need.
+           (let [raw   (System/getProperty "babashka.version")
+                 parts (mapv (fn [x] (or (parse-long x) 0))
+                             (take 3 (str/split (str raw) (re-pattern "\\."))))]
+             (when (neg? (compare parts [1 13 220]))
+               (error-msg (str "This babashka is " raw ". The library needs 1.13.220 or newer."))
+               (info "Babashka gained java.util.concurrent.locks.ReentrantLock in 1.13.220,")
+               (info "which promesa imports unconditionally. Install a newer one with:")
+               (println "    mise use \"github:babashka/babashka@1.13.220\"")
+               (System/exit 1)))
+           ;; The :babashka alias overrides promesa to 12. See deps.edn for why
+           ;; that override is scoped here instead of being the project pin.
+           (let [cp (:out (p/shell {:out :string} "clojure" "-A:babashka" "-Spath"))
+                 {:keys [exit]} (p/shell {:continue true}
+                                         "bb" "--classpath" (str/trim cp)
+                                         "-e" "(load-file \"dev/bb_smoke.clj\") (bb-smoke/-main)")]
+             (System/exit exit)))}
+
   site:build
   {:doc "Build the documentation site into _site/ (needs a docs-engine checkout)"
    :task (do

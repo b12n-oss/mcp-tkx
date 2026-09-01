@@ -33,6 +33,19 @@
                            "--src-ns-path" "src"
                            "--test-ns-path" "test"]}
 
+  ;; Babashka only. Run via `bb bb:smoke`.
+  ;;
+  ;; Babashka needs promesa 12: promesa 11 has a deftype implementing
+  ;; java.util.function.Supplier that SCI rejects, so every handler fails
+  ;; at call time. The main pin stays on 11 because promesa 12 breaks
+  ;; rejection values on ClojureScript, handing p/catch a promise object
+  ;; instead of the error, which silently drops the reason from every
+  ;; error response. The two problems sit on opposite sides of the
+  ;; platform split, so overriding here and nowhere else gives Babashka a
+  ;; working promesa without putting the cljs regression on the build
+  ;; every other consumer gets.
+  :babashka {:override-deps {funcool/promesa {:mvn/version "12.0.1"}}}
+
   ;; clojure -M:outdated --upgrade
   :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
              :main-opts  ["-m" "antq.core"]}

@@ -107,10 +107,36 @@ bb info                      # grouped, categorised cheat-sheet of all tasks
 bb tasks                     # list every task with its docstring
 ```
 
+### Babashka
+
+The library runs on Babashka, and `bb bb:smoke` proves it by driving a real
+`tools/list` and `tools/call` through a server session rather than just
+requiring the namespaces. Loading is the easy half, and both problems below
+sit behind a successful require.
+
+Two things are needed, and neither alone is enough. Babashka 1.13.220 or
+newer, because earlier versions have no
+`java.util.concurrent.locks.ReentrantLock` and `promesa.util` imports it
+unconditionally. And promesa 12, because promesa 11 has a `deftype`
+implementing `java.util.function.Supplier` that SCI rejects.
+
+That promesa version is supplied by the `:babashka` alias in `deps.edn`
+rather than by the project pin, because promesa 12 breaks rejection values
+on ClojureScript: `p/catch` receives a promise object instead of the error,
+so the reason silently vanishes from every error response. The two problems
+land on opposite sides of the platform split, so the override is scoped to
+the one runtime that needs it.
+
+Consuming this library on Babashka means doing the same in your own
+`deps.edn`, since the pin you inherit is promesa 11:
+
+```clojure
+{:aliases {:babashka {:override-deps {funcool/promesa {:mvn/version "12.0.1"}}}}}
+```
+
 ## Not covered yet
 
 - **Pagination**: not wired through `prompts/list`, `resources/list` or `tools/list`. Implementations leave a `#_#_:next-cursor "next-page-cursor"` placeholder in the handler.
-- **Babashka**: works from Babashka 1.13.220 with promesa 12, and not before either. Two separate walls had to come down, so clearing one is not enough. Babashka's class allowlist gained `java.util.concurrent.locks.ReentrantLock`, which `promesa.util` imports unconditionally in its `:clj` branch, and promesa 12 dropped the `deftype` implementing `java.util.function.Supplier` that SCI rejects in `promesa.exec`. Verified on 2026-09-01 against Babashka 1.13.220: promesa's own `bb test:bb` passes (68 tests, 0 failures), every `mcp-toolkit` namespace loads, and a `tools/list` plus `tools/call` round trip comes back correct with the namespaced `_meta` key intact. This project still pins promesa 11.0.678, which fails on Babashka at the `Supplier` wall, so running there today means overriding that dependency.
 
 ## See also
 
