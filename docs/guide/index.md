@@ -121,11 +121,16 @@ unconditionally. And promesa 12, because promesa 11 has a `deftype`
 implementing `java.util.function.Supplier` that SCI rejects.
 
 That promesa version is supplied by the `:babashka` alias in `deps.edn`
-rather than by the project pin, because promesa 12 breaks rejection values
-on ClojureScript: `p/catch` receives a promise object instead of the error,
-so the reason silently vanishes from every error response. The two problems
-land on opposite sides of the platform split, so the override is scoped to
-the one runtime that needs it.
+rather than by the project pin, because promesa 12 carries a ClojureScript
+regression that `json_rpc.cljc` walks straight into. A `p/handle` whose
+function returns a `Throwable` rejects with promesa's own wrapper promise
+instead of the exception, so the `p/catch` after it receives a `PromiseImpl`,
+`ex-message` is nil, and every error response quietly loses its reason. A
+plain `p/catch` is unaffected, and so is the JVM. It takes that one shape on
+that one platform, which is how it reached a release. Reported as
+[promesa#171](https://github.com/funcool/promesa/issues/171). The two
+problems land on opposite sides of the platform split, so the override is
+scoped to the one runtime that needs it.
 
 Consuming this library on Babashka means doing the same in your own
 `deps.edn`, since the pin you inherit is promesa 11:

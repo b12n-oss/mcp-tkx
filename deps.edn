@@ -37,13 +37,17 @@
   ;;
   ;; Babashka needs promesa 12: promesa 11 has a deftype implementing
   ;; java.util.function.Supplier that SCI rejects, so every handler fails
-  ;; at call time. The main pin stays on 11 because promesa 12 breaks
-  ;; rejection values on ClojureScript, handing p/catch a promise object
-  ;; instead of the error, which silently drops the reason from every
-  ;; error response. The two problems sit on opposite sides of the
-  ;; platform split, so overriding here and nowhere else gives Babashka a
-  ;; working promesa without putting the cljs regression on the build
-  ;; every other consumer gets.
+  ;; at call time. The main pin stays on 11 because promesa 12 carries a
+  ;; ClojureScript regression that route-message walks straight into: a
+  ;; p/handle whose fn RETURNS a Throwable rejects with promesa's own
+  ;; wrapper promise instead of the exception, so the p/catch after it
+  ;; gets a PromiseImpl, ex-message is nil, and every error response
+  ;; loses its reason. A plain p/catch is fine and the JVM is fine, so it
+  ;; needs that one shape on that one platform.
+  ;; https://github.com/funcool/promesa/issues/171
+  ;; The two problems sit on opposite sides of the platform split, so
+  ;; overriding here and nowhere else gives Babashka a working promesa
+  ;; without putting the cljs regression on every other consumer.
   :babashka {:override-deps {funcool/promesa {:mvn/version "12.0.1"}}}
 
   ;; clojure -M:outdated --upgrade
