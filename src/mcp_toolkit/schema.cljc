@@ -45,26 +45,52 @@
 ;; =============================================================================
 
 (def EnumSchema
-  "Schema for MCP EnumSchema (2025-11-25 spec).
+  "Schema for the MCP enum family used by elicitation (2025-11-25).
 
-   Supports:
-   - :type        - Must be \"string\"
-   - :enum        - Required vector of string values
-   - :enum-titles - Optional display names (must match :enum length)
-   - :multi-select - Allow multiple selections (default: false)
-   - :default     - Default value(s)"
-  [:and
-   [:map
-    [:type [:= "string"]]
-    [:enum [:vector {:min 1} :string]]
-    [:enum-titles {:optional true} [:vector :string]]
-    [:multi-select {:optional true} :boolean]
-    [:default {:optional true} [:or :string [:vector :string]]]]
-   ;; Custom validation: enum-titles must match enum length
-   [:fn {:error/message ":enum-titles length must match :enum length"}
-    (fn [{:keys [enum enum-titles]}]
-      (or (nil? enum-titles)
-          (= (count enum) (count enum-titles))))]])
+   The specification defines four shapes, not one, and they differ more than
+   by a flag. Single selection is a string, multiple selection is an array.
+   Titles are carried as objects, not as a parallel vector of names.
+
+     untitled single  {:type \"string\" :enum [...]}
+     titled single    {:type \"string\" :one-of [{:const v :title t} ...]}
+     untitled multi   {:type \"array\"  :items {:type \"string\" :enum [...]}}
+     titled multi     {:type \"array\"  :items {:any-of [{:const v :title t} ...]}}
+
+   Note the asymmetry, which is the specification's and not ours: the titled
+   single form puts `one-of` at the top level beside `:type \"string\"`, while
+   the titled multi form nests `any-of` inside `:items` with no `:type` at all.
+
+   This namespace previously emitted `:enum-titles` and `:multi-select`.
+   Neither field exists in any MCP revision, so a conforming client ignored
+   both and showed raw values with single selection."
+  (let [option [:map
+                [:const :string]
+                [:title :string]]]
+    [:multi {:dispatch :type}
+     ["string" [:and
+                [:map
+                 [:type [:= "string"]]
+                 [:title {:optional true} :string]
+                 [:description {:optional true} :string]
+                 [:enum {:optional true} [:vector {:min 1} :string]]
+                 [:one-of {:optional true} [:vector {:min 1} option]]
+                 [:default {:optional true} :string]]
+                [:fn {:error/message "a single-select enum needs exactly one of :enum or :one-of"}
+                 (fn [{:keys [enum one-of]}]
+                   (not= (some? enum) (some? one-of)))]]]
+     ["array" [:map
+               [:type [:= "array"]]
+               [:title {:optional true} :string]
+               [:description {:optional true} :string]
+               [:min-items {:optional true} :int]
+               [:max-items {:optional true} :int]
+               [:items [:or
+                        [:map
+                         [:type [:= "string"]]
+                         [:enum [:vector {:min 1} :string]]]
+                        [:map
+                         [:any-of [:vector {:min 1} option]]]]]
+               [:default {:optional true} [:vector :string]]]]]))
 
 ;; =============================================================================
 ;; Validation Functions
@@ -95,34 +121,67 @@
 ;; =============================================================================
 
 (defn enum-schema
-  "Creates an enum schema map (2025-11-25 spec).
+  "Builds an enum schema in the shape the 2025-11-25 specification defines.
 
    Options:
    - :values       - Vector of string values (required)
-   - :titles       - Vector of display titles (optional, must match values length)
+   - :titles       - Vector of display titles (optional, must match :values length)
    - :multi-select - Allow multiple selections (default: false)
-   - :default      - Default value(s)
+   - :min-items    - Minimum selections, multi-select only (optional)
+   - :max-items    - Maximum selections, multi-select only (optional)
+   - :default      - Default value, or vector of them when :multi-select
+
+   Which of the four shapes comes out depends on :titles and :multi-select.
+   See `EnumSchema` for all four and for the asymmetry between them.
 
    Example:
      (enum-schema {:values [\"low\" \"medium\" \"high\"]
                    :titles [\"Low\" \"Medium\" \"High\"]
                    :default \"medium\"})
+     ;=> {:type \"string\"
+     ;    :one-of [{:const \"low\" :title \"Low\"} ...]
+     ;    :default \"medium\"}
 
      (enum-schema {:values [\"email\" \"sms\" \"push\"]
                    :multi-select true
-                   :default [\"email\"]})"
-  [{:keys [values titles multi-select default]}]
-  (cond-> {:type "string"
-           :enum values}
-    titles (assoc :enum-titles titles)
-    multi-select (assoc :multi-select true)
-    default (assoc :default default)))
+                   :default [\"email\"]})
+     ;=> {:type \"array\"
+     ;    :items {:type \"string\" :enum [\"email\" \"sms\" \"push\"]}
+     ;    :default [\"email\"]}"
+  [{:keys [values titles multi-select min-items max-items default]}]
+  (let [options (when titles
+                  (mapv (fn [v t] {:const v :title t}) values titles))]
+    (if multi-select
+      (cond-> {:type "array"
+               ;; The titled array form carries :any-of inside :items and no
+               ;; :type there, while the untitled one carries :type and :enum.
+               :items (if options
+                        {:any-of options}
+                        {:type "string" :enum values})}
+        min-items (assoc :min-items min-items)
+        max-items (assoc :max-items max-items)
+        default (assoc :default default))
+      (cond-> {:type "string"}
+        options (assoc :one-of options)
+        (not options) (assoc :enum values)
+        default (assoc :default default)))))
 
 (defn enum-schema!
   "Like enum-schema, but validates the result and throws on invalid schema.
 
    Throws ex-info with :errors key if validation fails."
-  [opts]
+  [{:keys [values titles] :as opts}]
+  ;; Checked here rather than by EnumSchema. The shapes carry titles as
+  ;; {:const :title} objects built by zipping values with titles, and a zip
+  ;; over mismatched lengths truncates to the shorter one. The result is
+  ;; structurally valid, so validating the output cannot see the mistake, and
+  ;; the caller would silently lose options.
+  (when (and (some? titles)
+             (not= (count values) (count titles)))
+    (throw (ex-info "Invalid enum schema"
+                    {:errors [":titles length must match :values length"]
+                     :values values
+                     :titles titles})))
   (let [schema (enum-schema opts)
         result (validate EnumSchema schema)]
     (if (:valid? result)

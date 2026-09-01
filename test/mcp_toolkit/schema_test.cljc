@@ -50,128 +50,110 @@
                 :type "string"}))))))
 
 (deftest enum-schema-test
-  (testing "EnumSchema validation"
-    (testing "valid schemas"
-      ;; Simple enum
-      (is (schema/valid? schema/EnumSchema
-                         {:type "string"
-                          :enum ["low" "medium" "high"]}))
+  ;; The specification defines four shapes, and this namespace used to emit a
+  ;; fifth of its own invention: :enum-titles and :multi-select, neither of
+  ;; which exists in any MCP revision. A conforming client ignored both.
+  (testing "the four shapes the specification defines all validate"
+    (is (schema/valid? schema/EnumSchema
+                       {:type "string" :enum ["low" "medium" "high"]})
+        "untitled single select")
+    (is (schema/valid? schema/EnumSchema
+                       {:type "string"
+                        :one-of [{:const "low" :title "Low"}
+                                 {:const "high" :title "High"}]})
+        "titled single select carries one-of at the top level")
+    (is (schema/valid? schema/EnumSchema
+                       {:type "array"
+                        :items {:type "string" :enum ["email" "sms"]}})
+        "untitled multi select is an array")
+    (is (schema/valid? schema/EnumSchema
+                       {:type "array"
+                        :items {:any-of [{:const "email" :title "Email"}]}})
+        "titled multi select nests any-of in items, with no type there"))
 
-      ;; Enum with titles
-      (is (schema/valid? schema/EnumSchema
-                         {:type "string"
-                          :enum ["low" "medium" "high"]
-                          :enum-titles ["Low Priority" "Medium Priority" "High Priority"]}))
+  (testing "defaults are a string for single select and a vector for multi"
+    (is (schema/valid? schema/EnumSchema
+                       {:type "string" :enum ["a" "b"] :default "a"}))
+    (is (schema/valid? schema/EnumSchema
+                       {:type "array"
+                        :items {:type "string" :enum ["a" "b"]}
+                        :default ["a"]}))
+    (is (schema/valid? schema/EnumSchema
+                       {:type "array"
+                        :items {:type "string" :enum ["a"]}
+                        :min-items 1
+                        :max-items 2})))
 
-      ;; Multi-select enum
-      (is (schema/valid? schema/EnumSchema
-                         {:type "string"
-                          :enum ["email" "sms" "push"]
-                          :multi-select true}))
-
-      ;; Enum with default (string)
-      (is (schema/valid? schema/EnumSchema
-                         {:type "string"
-                          :enum ["low" "medium" "high"]
-                          :default "medium"}))
-
-      ;; Multi-select with default (array)
-      (is (schema/valid? schema/EnumSchema
-                         {:type "string"
-                          :enum ["email" "sms" "push"]
-                          :multi-select true
-                          :default ["email" "sms"]}))
-
-      ;; Full example with all fields
-      (is (schema/valid? schema/EnumSchema
-                         {:type "string"
-                          :enum ["a" "b" "c"]
-                          :enum-titles ["Option A" "Option B" "Option C"]
-                          :multi-select true
-                          :default ["a"]})))
-
-    (testing "invalid schemas"
-      ;; Missing type
-      (is (not (schema/valid? schema/EnumSchema
-                              {:enum ["a" "b" "c"]})))
-
-      ;; Wrong type
-      (is (not (schema/valid? schema/EnumSchema
-                              {:type "number"
-                               :enum ["a" "b" "c"]})))
-
-      ;; Empty enum
-      (is (not (schema/valid? schema/EnumSchema
-                              {:type "string"
-                               :enum []})))
-
-      ;; Mismatched enum-titles length
-      (is (not (schema/valid? schema/EnumSchema
-                              {:type "string"
-                               :enum ["a" "b" "c"]
-                               :enum-titles ["A" "B"]}))))
-
-    (testing "error messages for mismatched titles"
-      (is (= [":enum-titles length must match :enum length"]
-             (schema/explain schema/EnumSchema
-                             {:type "string"
-                              :enum ["a" "b" "c"]
-                              :enum-titles ["A" "B"]}))))))
+  (testing "the shapes the specification does not define are refused"
+    (is (not (schema/valid? schema/EnumSchema {:enum ["a"]}))
+        "no type")
+    (is (not (schema/valid? schema/EnumSchema {:type "number" :enum ["a"]}))
+        "a type that is neither string nor array")
+    (is (not (schema/valid? schema/EnumSchema {:type "string" :enum []}))
+        "an empty enum")
+    (is (not (schema/valid? schema/EnumSchema
+                            {:type "string"
+                             :enum ["a"]
+                             :one-of [{:const "a" :title "A"}]}))
+        "a single select carries enum or one-of, never both")
+    (is (not (schema/valid? schema/EnumSchema {:type "string"}))
+        "a single select carries one of them")
+    (is (not (schema/valid? schema/EnumSchema {:type "array"}))
+        "an array needs items")))
 
 (deftest enum-schema-constructor-test
-  (testing "enum-schema constructor"
-    (testing "simple enum"
-      (is (= {:type "string"
-              :enum ["low" "medium" "high"]}
-             (schema/enum-schema {:values ["low" "medium" "high"]}))))
+  (testing "which shape comes out depends on titles and multi-select"
+    (is (= {:type "string" :enum ["low" "high"]}
+           (schema/enum-schema {:values ["low" "high"]})))
 
-    (testing "enum with titles"
-      (is (= {:type "string"
-              :enum ["low" "medium" "high"]
-              :enum-titles ["Low" "Medium" "High"]}
-             (schema/enum-schema {:values ["low" "medium" "high"]
-                                  :titles ["Low" "Medium" "High"]}))))
+    (is (= {:type "string"
+            :one-of [{:const "low" :title "Low"}
+                     {:const "high" :title "High"}]}
+           (schema/enum-schema {:values ["low" "high"] :titles ["Low" "High"]})))
 
-    (testing "multi-select enum"
-      (is (= {:type "string"
-              :enum ["a" "b" "c"]
-              :multi-select true}
-             (schema/enum-schema {:values ["a" "b" "c"]
-                                  :multi-select true}))))
+    (is (= {:type "array" :items {:type "string" :enum ["email" "sms"]}}
+           (schema/enum-schema {:values ["email" "sms"] :multi-select true})))
 
-    (testing "enum with default"
-      (is (= {:type "string"
-              :enum ["low" "medium" "high"]
-              :default "medium"}
-             (schema/enum-schema {:values ["low" "medium" "high"]
-                                  :default "medium"}))))
+    (is (= {:type "array" :items {:any-of [{:const "email" :title "Email"}]}}
+           (schema/enum-schema {:values ["email"] :titles ["Email"] :multi-select true}))))
 
-    (testing "full example"
-      (is (= {:type "string"
-              :enum ["email" "sms" "push"]
-              :enum-titles ["Email" "SMS" "Push"]
-              :multi-select true
-              :default ["email"]}
-             (schema/enum-schema {:values ["email" "sms" "push"]
-                                  :titles ["Email" "SMS" "Push"]
-                                  :multi-select true
-                                  :default ["email"]}))))))
+  (testing "defaults and item bounds ride along"
+    (is (= {:type "string" :enum ["a" "b"] :default "a"}
+           (schema/enum-schema {:values ["a" "b"] :default "a"})))
+    (is (= {:type "array"
+            :items {:type "string" :enum ["a"]}
+            :min-items 1
+            :max-items 3
+            :default ["a"]}
+           (schema/enum-schema {:values ["a"]
+                                :multi-select true
+                                :min-items 1
+                                :max-items 3
+                                :default ["a"]}))))
+
+  (testing "everything it builds validates against EnumSchema"
+    (doseq [opts [{:values ["a"]}
+                  {:values ["a"] :titles ["A"]}
+                  {:values ["a"] :multi-select true}
+                  {:values ["a"] :titles ["A"] :multi-select true}]]
+      (is (schema/valid? schema/EnumSchema (schema/enum-schema opts))
+          (str opts " must produce a valid schema")))))
 
 (deftest enum-schema!-test
-  (testing "enum-schema! with validation"
-    (testing "valid schema returns result"
-      (is (= {:type "string"
-              :enum ["a" "b" "c"]
-              :enum-titles ["A" "B" "C"]}
-             (schema/enum-schema! {:values ["a" "b" "c"]
-                                   :titles ["A" "B" "C"]}))))
+  (testing "a valid request comes back built"
+    (is (= {:type "string"
+            :one-of [{:const "a" :title "A"}
+                     {:const "b" :title "B"}]}
+           (schema/enum-schema! {:values ["a" "b"] :titles ["A" "B"]}))))
 
-    (testing "invalid schema throws"
-      (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
-                            #"Invalid enum schema"
-                            (schema/enum-schema! {:values ["a" "b" "c"]
-                                                  :titles ["A" "B"]}))))))
-
+  (testing "mismatched titles throw rather than silently losing options"
+    ;; Titles are zipped onto values, and a zip over mismatched lengths
+    ;; truncates to the shorter one. The truncated result is structurally
+    ;; valid, so validating the output cannot catch this.
+    (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                          #"Invalid enum schema"
+                          (schema/enum-schema! {:values ["a" "b" "c"]
+                                                :titles ["A" "B"]})))))
 (deftest validate-fn-test
   (testing "validate function"
     (testing "returns {:valid? true} for valid data"

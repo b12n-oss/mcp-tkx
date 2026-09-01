@@ -110,8 +110,10 @@ This is the table of every conversion that fires in the MCP protocol, pulled fro
 | `requestedSchema` | `:requested-schema` |
 | `elicitationId` | `:elicitation-id` |
 | `statusMessage` | `:status-message` |
-| `enumTitles` | `:enum-titles` |
-| `multiSelect` | `:multi-select` |
+| `oneOf` | `:one-of` |
+| `anyOf` | `:any-of` |
+| `minItems` | `:min-items` |
+| `maxItems` | `:max-items` |
 | `taskId` | `:task-id` |
 | `pollInterval` | `:poll-interval` |
 | `nextCursor` | `:next-cursor` |

@@ -70,21 +70,42 @@ http:// (insecure) and bare paths are rejected. data: URIs other than image/ (e.
 
 ### Enum schemas (2025-11-25)
 
-`EnumSchema` describes a `:type "string"` JSON Schema with the 2025-11-25 extensions: `:enum-titles` for display names, `:multi-select` for "pick many", `:default`. It validates that `:enum-titles`'s length matches `:enum`:
+The specification defines **four** enum shapes rather than one, and they differ by more than a flag. Single selection is a string, multiple selection is an array, and titles ride as objects rather than as a parallel vector of names:
+
+| Selection | Titles | Shape |
+|---|---|---|
+| single | no | `{:type "string" :enum [...]}` |
+| single | yes | `{:type "string" :one-of [{:const v :title t} ...]}` |
+| multiple | no | `{:type "array" :items {:type "string" :enum [...]}}` |
+| multiple | yes | `{:type "array" :items {:any-of [{:const v :title t} ...]}}` |
+
+Note the asymmetry between the two titled forms. It is the specification's, not ours: the single form puts `one-of` at the top level beside `:type "string"`, while the multiple form nests `any-of` inside `:items` with no `:type` there at all.
+
+`enum-schema` picks the shape from `:titles` and `:multi-select`, so you describe what you want rather than assembling it:
 
 ```clojure
 (schema/enum-schema {:values ["low" "medium" "high"]
                      :titles ["Low priority" "Medium priority" "High priority"]
                      :default "medium"})
 ;; => {:type "string"
-;;     :enum ["low" "medium" "high"]
-;;     :enum-titles ["Low priority" "Medium priority" "High priority"]
+;;     :one-of [{:const "low" :title "Low priority"}
+;;              {:const "medium" :title "Medium priority"}
+;;              {:const "high" :title "High priority"}]
 ;;     :default "medium"}
+
+(schema/enum-schema {:values ["email" "sms"] :multi-select true :min-items 1})
+;; => {:type "array"
+;;     :items {:type "string" :enum ["email" "sms"]}
+;;     :min-items 1}
 
 ;; Throwing version, validates and throws on shape mismatch
 (schema/enum-schema! {:values ["a" "b"] :titles ["A"]})
-;; => throws ex-info: "Invalid enum schema" with :errors and :schema
+;; => throws ex-info: "Invalid enum schema" with :errors
 ```
+
+Mismatched `:titles` are checked before the shape is built, not after. Titles are zipped onto values, and a zip over mismatched lengths truncates to the shorter one, so the result would be structurally valid and quietly missing options.
+
+Earlier versions of this library emitted `:enum-titles` and `:multi-select` fields. Neither exists in any MCP revision, so a conforming client ignored both and showed raw values with single selection.
 
 Use `enum-schema` for the plain constructor; use `enum-schema!` when you want a panic if the construction is malformed (e.g. titles vector wrong length).
 

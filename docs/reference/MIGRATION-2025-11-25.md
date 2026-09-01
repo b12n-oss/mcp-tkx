@@ -223,7 +223,7 @@ a value and throw `ExceptionInfo` if it doesn't pass its schema. See
 ### Available Schemas
 
 - `Icon` - Icon field validation
-- `EnumSchema` - Enum schema with titles and multi-select
+- `EnumSchema` - The four enum shapes: single or multiple selection, titled or not
 - `SamplingRequest` - Sampling request with tools support
 - `UrlElicitationRequest` - URL-based elicitation
 - `FormElicitationRequest` - Form-based elicitation
@@ -270,8 +270,8 @@ Check client capabilities before using features:
 | `isError` | `:is-error` |
 | `mimeType` | `:mime-type` |
 | `listChanged` | `:list-changed` |
-| `multiSelect` | `:multi-select` |
-| `enumTitles` | `:enum-titles` |
+| `oneOf` | `:one-of` |
+| `anyOf` | `:any-of` |
 | `taskId` | `:task-id` |
 | `pollInterval` | `:poll-interval` |
 | `statusMessage` | `:status-message` |
