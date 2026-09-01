@@ -12,7 +12,7 @@ flowchart TD
   subgraph pub["Public API, the stable surface you depend on"]
     server["server.cljc<br/>create-session, add-tool,<br/>request-sampling, notify-progress"]
     client["client.cljc<br/>create-session, request-prompt,<br/>request-tool-invocation, request-subscribe"]
-    jsonrpc["json_rpc.cljc<br/>handle-message, route-message,<br/>call-remote-method, hold-open"]
+    jsonrpc["json_rpc.cljc<br/>handle-message, send-message,<br/>call-remote-method, hold-open"]
     protocol["protocol.cljc<br/>revision predicates, _meta field names,<br/>latest-protocol-version"]
     schema["schema.cljc<br/>Malli schemas for MCP protocol types<br/>+ helper constructors"]
   end

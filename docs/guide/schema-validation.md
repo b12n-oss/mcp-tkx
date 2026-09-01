@@ -44,7 +44,7 @@ The full list is in [`src/mcp_toolkit/schema.cljc`](https://github.com/b12n-oss/
 
 ### Top-level constants
 
-```clojure
+```clojure fragment
 schema/JSON_SCHEMA_DIALECT  ; "https://json-schema.org/draft/2020-12/schema"
 (schema/with-schema-dialect {:type "object" ...})
 ;; => {:$schema "https://json-schema.org/draft/2020-12/schema" :type "object" ...}
@@ -111,7 +111,7 @@ Use `enum-schema` for the plain constructor; use `enum-schema!` when you want a 
 
 ### Sampling with tools (2025-11-25)
 
-```clojure
+```clojure fragment
 schema/ToolChoice                ; {:mode #{"auto" "required" "none"}}
 schema/ToolChoiceMode            ; [:enum "auto" "required" "none"]
 schema/SamplingTool              ; {:name :string :description? :string :input-schema :map}

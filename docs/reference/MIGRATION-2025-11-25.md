@@ -21,7 +21,7 @@ MCP Toolkit v2025-11-25 adds support for the MCP 2025-11-25 specification while 
 
 All internal Clojure code uses **kebab-case** keys (`:max-tokens`, `:input-schema`). Conversion to/from camelCase happens automatically at the transport layer.
 
-```clojure
+```clojure fragment
 ;; Your code uses kebab-case
 {:max-tokens 1000
  :input-schema {:type "object"}

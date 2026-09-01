@@ -6,7 +6,7 @@ This is the most distinctive ergonomic choice in this fork. Your handler code us
 
 The MCP spec and JSON-RPC use camelCase keys on the wire. Idiomatic Clojure uses kebab-case. The fork's stance is that handlers should look like Clojure, not like a JS port:
 
-```clojure
+```clojure fragment
 ;; Handler code, kebab-case throughout
 (def my-tool
   {:name "summarize"

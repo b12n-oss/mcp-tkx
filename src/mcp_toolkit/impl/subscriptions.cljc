@@ -109,7 +109,9 @@
   "True when a subscription's filter opts in to this notification.
 
    Args:
-     subscription-filter - The honoured filter for one subscription
+     subscription-filter - The stored filter for one subscription, which is
+                           what the client requested rather than the subset
+                           acknowledged at subscribe time
      topic               - A notification topic, without the notifications/ prefix
      uri                 - The resource URI, for resources/updated only
 

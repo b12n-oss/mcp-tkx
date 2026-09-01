@@ -183,7 +183,7 @@ Define the structure of your tool's output for better type safety:
                  ;; Structured data matching outputSchema
                  :data {:result result
                         :formula (str a " " operation " " b " = " result)
-                        :unit "numeric"}})})
+                        :unit "numeric"}}))})
 ```
 
 ### Step 6: Handle Completion Context (Optional)

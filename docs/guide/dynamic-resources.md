@@ -66,7 +66,7 @@ The auto-merge of `[:uri :description :mime-type]` from the registration onto th
 
 ## Worked example: system status as JSON
 
-```clojure
+```clojure fragment
 (require '[clojure.data.json :as json])
 
 (def *start-time (System/currentTimeMillis))
@@ -104,11 +104,13 @@ Each `resources/read` call computes fresh values. The MIME type stays at `applic
               (try
                 {:text (slurp "/etc/hostname")}
                 (catch Exception e
-                  {:error {:code "read-failed"
+                  ;; An integer code. JSON-RPC requires one, and a string is
+                  ;; discarded in favour of -32603.
+                  {:error {:code -32603
                            :message (.getMessage e)}})))})
 ```
 
-The handler swallows the exception locally and returns an `{:error}` map. If you let the exception escape, the toolkit catches it and returns `{:error {:code "read-error" :message "<the exception's message>"}}`, same envelope shape, different code string.
+This handler catches the exception itself and returns an `{:error}` map, which the toolkit turns into a JSON-RPC error response. Letting the exception escape instead reaches the same place: the toolkit catches it and answers `-32603` carrying the exception's message. Catching it yourself is worth doing only when you want to choose the code or reword the message.
 
 ## Worked example: async fetch via Promesa
 
@@ -127,7 +129,7 @@ The handler swallows the exception locally and returns an `{:error}` map. If you
                             {:text (json/write-str (:body response))}))))})
 ```
 
-The toolkit `(p/then)`-chains your return, so any Promesa promise (or anything that satisfies `p/promise?`) is awaited. If the chain rejects, the catch in `resource-read-handler` converts it to `{:error ...}`, your fn doesn't have to handle async errors itself.
+The toolkit `(p/then)`-chains your return, so any Promesa promise (or anything that satisfies `p/promise?`) is awaited. If the chain rejects, the catch in `resource-read-handler` turns it into a JSON-RPC error response carrying the reason, so your fn doesn't have to handle async errors itself. A synchronous throw lands there too, since the call is wrapped in `p/do`.
 
 ## Worked example: multiple URIs per `:read-fn`
 

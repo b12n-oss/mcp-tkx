@@ -442,10 +442,16 @@
    beginning. Do not await it before carrying on.
 
    The server answers first with notifications/subscriptions/acknowledged,
-   reporting the subset of the filter it will actually honour, which reaches
-   :on-subscription-acknowledged. Check it: a type the server does not support
-   is omitted rather than refused, so a silent stream and a stream you were
-   never going to get anything on look identical otherwise.
+   which reaches :on-subscription-acknowledged. It reports what the server
+   could serve at that instant, with an unsupported type omitted rather than
+   refused, so a silent stream and one that was never going to carry anything
+   look identical otherwise.
+
+   Read it as a snapshot, not a promise. The subscription stores what you
+   asked for, so a capability the server gains later still reaches you even
+   though the acknowledgement left it out. That is deliberate: narrowing at
+   subscribe time meant a client that subscribed before the server registered
+   its tools held a stream that could never carry anything.
 
    Every notification on the stream carries the subscription id in _meta under
    io.modelcontextprotocol/subscriptionId. On stdio all streams share one

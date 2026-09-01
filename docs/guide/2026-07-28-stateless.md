@@ -110,7 +110,7 @@ This is the part that changes how you write handlers.
 Under `2025-11-25` a tool could ask the client something in the middle of a
 call and wait for the answer:
 
-```clojure
+```clojure fragment
 ;; 2025-11-25
 (defn greet [context _arguments]
   (p/let [answer (server/request-elicitation context {...})]
@@ -274,11 +274,17 @@ start. The request itself is the stream: it stays open for the subscription's
 life, and it is answered only if the server closes it gracefully. Do not
 await it before carrying on.
 
-The server replies first with an acknowledgement naming the subset of the
-filter it will actually honour, which reaches `:on-subscription-acknowledged`.
-Check it. A type the server cannot support is omitted rather than refused, so
-a stream that is merely quiet and one that was never going to carry anything
-look identical otherwise.
+The server replies first with an acknowledgement, which reaches
+`:on-subscription-acknowledged`. It names what the server could serve at that
+instant, with a type it cannot support omitted rather than refused, so a
+stream that is merely quiet and one that was never going to carry anything
+look identical otherwise. Check it.
+
+Read it as a snapshot rather than a promise. The subscription stores the
+filter you asked for, so a capability the server gains afterwards still
+reaches you even though the acknowledgement left it out. Narrowing at
+subscribe time meant a client that subscribed before the server registered its
+tools held a stream that could never carry anything at all.
 
 A URI ending in a slash covers everything beneath it, so
 `file:///project/` also catches `file:///project/config.json`. One without a
@@ -334,7 +340,7 @@ may reconnect on. Closing it properly says the ending was intentional.
 Every result names its own type, and the six cacheable ones carry a freshness
 hint:
 
-```clojure
+```clojure fragment
 {:result-type "complete"          ;; or "input_required"
  :content [...]
  :ttl-ms 60000                    ;; list and read results only

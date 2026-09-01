@@ -8,7 +8,7 @@ The first four negotiate automatically at the initial handshake, and this page c
 
 `create-session` picks one of three lists of supported versions, by session kind:
 
-```clojure
+```clojure fragment
 ;; src/mcp_toolkit/server.cljc create-session, lines 1000-1010
 (let [stateless (protocol/stateless? protocol-version)
       handshake-versions ["2024-11-05" "2025-03-26" "2025-06-18" "2025-11-25"]]
@@ -156,7 +156,7 @@ The 2025-06-18 spec is the previous-generation feature set. Most MCP clients in 
 
 Prompts, resources, and tools gained an optional `:title` for human-readable display:
 
-```clojure
+```clojure fragment
 (def my-tool
   {:name "calculate_sum"
    :title "Calculator, Addition"            ; ← NEW

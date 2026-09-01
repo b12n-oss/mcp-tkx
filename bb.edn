@@ -250,6 +250,17 @@
                                          "docker" "compose" "run" "--rm" "verify")]
              (System/exit exit)))}
 
+  docs:blocks
+  {:doc "Read every fenced Clojure block in the docs and report what will not parse"
+   :task (do
+           (header "📖 Checking documentation code blocks")
+           (info "A block a reader copies should compile. One in the 2025-06-18")
+           (info "migration was a close paren short and two reviews read past it.")
+           (let [{:keys [exit]} (p/shell {:continue true}
+                                         "bb" "-e"
+                                         "(load-file \"dev/check_blocks.clj\") (check-blocks/-main)")]
+             (System/exit exit)))}
+
   docs:links
   {:doc "Check every markdown link resolves, in the repo and on the built site"
    :task (do

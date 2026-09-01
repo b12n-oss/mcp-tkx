@@ -131,9 +131,11 @@ added.
 Three things work well enough to use but do not fully match the spec.
 `README.md`'s capability table has the detail.
 
-- **Sampling, and sampling with tools.** `request-sampling` carries a
-  `FIXME: implementation is not complete` marker inherited from
-  upstream. Capability detection around it is complete.
+- **Sampling with tools.** `request-sampling` refuses a tool-carrying
+  request when the client has not declared the `sampling.tools`
+  capability, rejecting with `:missing-client-capability` rather than
+  sending something the client cannot answer. The `FIXME` this entry
+  used to cite is gone from the source; `CHANGELOG.md` records when.
 - **Icons.** Shipped as a singular `:icon` holding a bare URI string,
   where the spec wants `icons?: Icon[]`, an array of objects. Icons are
   not attached to server info at all, so a spec-conforming client will
