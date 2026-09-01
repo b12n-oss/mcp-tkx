@@ -19,19 +19,28 @@ yet.
 
 ## Install
 
-There is no Clojars release. Depend on it by git SHA:
+There is no Clojars release. Depend on it by git tag:
 
 ```clojure
 {:deps {io.github.b12n-oss/mcp-tkx
-        {:git/url "git@github.com:b12n-oss/mcp-tkx.git"
-         :git/sha "666ed1f5af0f27bb75017ec97d429b445ada814f"}}}
+        {:git/tag "v2026-07-28" :git/sha "6ab2a10"}}}
 ```
 
-The explicit `:git/url` is deliberate. While this repo is private the
-shorthand form resolves to an unauthenticated `https://` URL and fails
-even for someone who has access over SSH. The coordinate itself does
-match the repo, so once the repo is public the shorthand works and the
-`:git/url` line becomes optional.
+Tags are what to pin to. They move only when a release is cut, so your
+build does not change under you, and the pair is checked: tools.deps
+verifies the sha really is that tag.
+
+To take the tip instead, or to check what the newest tag is:
+
+```sh
+clojure -X:deps git-resolve-tags          # rewrites tags in deps.edn to their shas
+gh api repos/b12n-oss/mcp-tkx/tags --jq '.[0].name'
+```
+
+No `:git/url` is needed now the repo is public. It used to carry one,
+because while the repo was private the shorthand resolved to an
+unauthenticated `https://` URL and failed even for someone with SSH
+access.
 
 Examples inside this repo use `:local/root "../.."` instead.
 

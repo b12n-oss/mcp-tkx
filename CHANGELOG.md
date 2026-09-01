@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 Versions prior to v0.1.0 are considered experimental, their API may change.
 
-## [v2026-07-28] - Unreleased
+## [v2026-07-28] - 2026-09-01
 
 ### Added
 - **MCP Protocol 2026-07-28 Support** - The stateless revision, alongside the four handshake ones. A session speaks one era, chosen when it is created, and each reports only what it can actually serve. See `docs/guide/2026-07-28-stateless.md`.
