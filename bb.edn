@@ -287,7 +287,10 @@
                (info "Babashka gained java.util.concurrent.locks.ReentrantLock in 1.13.220,")
                (info "which promesa imports unconditionally. Install a newer one with:")
                (println "    mise use \"github:babashka/babashka@1.13.220\"")
-               (System/exit 1)))
+               ;; 2, not 1. `bb ci` treats 2 as "could not run here" and keeps
+               ;; going, and 1 as a real failure. Both are non-zero, so running
+               ;; this task directly still reports trouble.
+               (System/exit 2)))
            ;; The :babashka alias overrides promesa to 12. See deps.edn for why
            ;; that override is scoped here instead of being the project pin.
            (let [cp (:out (p/shell {:out :string} "clojure" "-A:babashka" "-Spath"))
@@ -495,7 +498,7 @@
            (println "ℹ️  Fix issues with 'bb lsp:fix' if needed"))}
 
   ci
-  {:doc "Full CI pipeline (clean + compile + lint + test)"
+  {:doc "Full CI pipeline (clean + compile + lint + test + babashka smoke)"
    :task (do
            (step 1 "Cleaning...")
            ;; .cljs_node_repl holds kaocha-cljs's compiled output. Leaving it
@@ -513,6 +516,24 @@
            (println)
            (step 4 "Running tests...")
            (p/shell "clj" "-M:test")
+           (println)
+           (step 5 "Babashka round trip...")
+           ;; Skipped, not failed, when this babashka is too old. The project's
+           ;; own :min-bb-version is 1.3.0, so someone on an older bb should not
+           ;; be blocked by a runtime they are not touching. bb:smoke exits 2
+           ;; for "could not run" and 1 for "ran and failed", and only the
+           ;; second is a gate failure.
+           (let [{:keys [exit]} (p/shell {:continue true} "bb" "bb:smoke")]
+             (cond
+               (zero? exit)
+               nil
+
+               (= 2 exit)
+               (warn "Babashka smoke skipped, see the message above. Not a CI failure.")
+
+               :else
+               (do (error-msg "Babashka smoke test failed.")
+                   (System/exit exit))))
            (println "\n✅ CI checks complete!"))}
 
   ;; =============================================================================

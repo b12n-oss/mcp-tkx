@@ -112,7 +112,9 @@ bb tasks                     # list every task with its docstring
 The library runs on Babashka, and `bb bb:smoke` proves it by driving a real
 `tools/list` and `tools/call` through a server session rather than just
 requiring the namespaces. Loading is the easy half, and both problems below
-sit behind a successful require.
+sit behind a successful require. `bb ci` runs it as step 5, so it cannot rot
+quietly. On a Babashka too old to run it, the gate warns and carries on
+rather than failing, since this project's `:min-bb-version` is 1.3.0.
 
 Two things are needed, and neither alone is enough. Babashka 1.13.220 or
 newer, because earlier versions have no
