@@ -26,13 +26,20 @@
    single wire key. Adding a namespace makes the key opaque under
    `protocol/opaque-wire-key?`, so transports pass it through verbatim.
 
+   The caller's own namespace is preserved. `name` alone dropped it, so
+   `:step/one` and `:other/one` both rendered as the same wire key, and one of
+   the two input requests was silently discarded, its answer never arriving.
+   A bare key is unaffected and renders exactly as before.
+
    Args:
      k - A keyword or string naming one request within a round trip
 
    Returns:
      The namespaced string key used on the wire."
   [k]
-  (str correlation-key-prefix (name k)))
+  (str correlation-key-prefix
+       (when-some [k-ns (namespace k)] (str k-ns "/"))
+       (name k)))
 
 (defn <-wire-key
   "Recovers the caller's key from a wire correlation key.

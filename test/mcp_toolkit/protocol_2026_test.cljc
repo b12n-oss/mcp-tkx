@@ -841,3 +841,35 @@
     (is (some? (server/create-session {:protocol-version "2026-07-28"})))
     (is (some? (server/create-session {})))
     (is (false? (:dual-era? (server/create-session {}))))))
+
+(deftest mrtr-correlation-keys-keep-their-namespace-test
+  ;; ->wire-key used `name`, which drops the namespace, so :step/one and
+  ;; :other/one both rendered as the same wire key. input-required built a map
+  ;; keyed by it, so one of the two requests was silently discarded and its
+  ;; answer never arrived. That is the exact failure protocol.cljc warns about
+  ;; and names mrtr for.
+  (testing "two keys differing only by namespace stay distinct on the wire"
+    (is (not= (mrtr/->wire-key :step/one)
+              (mrtr/->wire-key :other/one))))
+
+  (testing "a namespaced key round-trips back to itself"
+    (doseq [k [:step/one :other/one :a.b.c/deep :plain]]
+      (is (= k (mrtr/<-wire-key (mrtr/->wire-key k)))
+          (str k " must survive the wire round trip"))))
+
+  (testing "a bare key renders exactly as it always did, so the wire is unchanged"
+    (is (= "mcp-toolkit/plain" (mrtr/->wire-key :plain))))
+
+  (testing "the wire key stays opaque, or a transport would mangle it"
+    (doseq [k [:step/one :plain]]
+      (is (true? (protocol/opaque-wire-key? (mrtr/->wire-key k)))
+          (str (mrtr/->wire-key k) " must be opaque"))))
+
+  (testing "two input requests differing only by namespace both survive"
+    (let [result (mrtr/input-required
+                  {:input-requests {:step/one   (mrtr/sampling-request {:messages [] :max-tokens 1})
+                                    :other/one  (mrtr/sampling-request {:messages [] :max-tokens 1})}})]
+      (is (= 2 (count (:input-requests result)))
+          "neither request may be dropped")
+      (is (= #{"mcp-toolkit/step/one" "mcp-toolkit/other/one"}
+             (set (keys (:input-requests result))))))))
