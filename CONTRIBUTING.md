@@ -141,6 +141,19 @@ Do not paste generated documentation you have not verified. Several
 claims in this repository's own docs were wrong on the first pass and were
 caught by running the command rather than by reading it back.
 
+## Security
+
+Do not open a public issue for a vulnerability. Use
+[private reporting](https://github.com/b12n-oss/mcp-tkx/security/advisories/new).
+[SECURITY.md](SECURITY.md) sets out what is in scope, and what belongs in
+your own transport or handler rather than here.
+
+## Conduct
+
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and it is short. Criticise the
+code, not the person. Asking an obvious question and telling a maintainer
+they got it wrong are both explicitly welcome.
+
 ## Licence
 
 Eclipse Public License 2.0, the same as upstream. By contributing you

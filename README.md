@@ -360,6 +360,12 @@ covers the gate (`bb ci`, and the suite staying at 236 tests), the traps
 that have actually cost someone a session, and where this project's line
 on AI-assisted contributions differs from upstream's.
 
+Also here: a [code of conduct](CODE_OF_CONDUCT.md), and a
+[security policy](SECURITY.md) with what is in scope for a report and
+what belongs in your transport instead. Vulnerabilities go through
+[private reporting](https://github.com/b12n-oss/mcp-tkx/security/advisories/new),
+not a public issue.
+
 ## License
 
 Distributed under the [Eclipse Public License v2.0](LICENSE.txt).

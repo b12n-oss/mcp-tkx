@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/b12n-oss/mcp-tkx/security/advisories/new
+    about: Please report these privately rather than in a public issue.
+  - name: Documentation
+    url: https://b12n-oss.github.io/mcp-tkx/
+    about: The user guide, fourteen pages, before filing.
