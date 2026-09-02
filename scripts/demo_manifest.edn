@@ -20,13 +20,21 @@
 ;; wrappers self-locate, so a clone anywhere works and no absolute path
 ;; has to survive EDN, then sh, then AppleScript quoting.
 ;;
-;; Run this from your own terminal, not from an agent shell. cgevent
-;; resolves `:app` through pgrep, and a sandboxed shell can fail to see
-;; Terminal at all: on 2026-09-02 pgrep matched 1100 of 1112 processes
-;; from one, and Terminal (running, pid 3243, ucomm exactly "Terminal")
-;; was not among them, so the capture failed with "window never appeared"
-;; while the window was plainly on screen. Nothing wrong with the tool or
-;; the manifest; the enclosing process simply could not see the target.
+;; RUN THIS FROM A DIFFERENT TERMINAL APP THAN THE ONE BEING CAPTURED.
+;; With :target {:app "Terminal"}, start it from iTerm2, and vice versa.
+;;
+;; cgevent resolves :app with `pgrep -x`, and BSD pgrep excludes the
+;; calling process AND ITS ANCESTORS unless given -a. Your terminal
+;; emulator is an ancestor of anything you type into it, so pgrep cannot
+;; see it, and the capture dies with "window never appeared" while the
+;; window is plainly on screen. Verified 2026-09-02: `pgrep -x Terminal`
+;; found nothing while Terminal ran as pid 3243, and `pgrep -a -x
+;; Terminal` returned 3243. Every pid ps could see and pgrep could not
+;; was exactly the caller's ancestor chain.
+;;
+;; The real fix is one flag in cgevent's app->pid
+;; (src/net/b12n/cgevent/cli.clj): `pgrep -x` should be `pgrep -a -x`.
+;; Until that lands, use a different terminal app.
 {:driver   :spawn
  :out-dir  "docs/demos"
  :title    "mcp-tkx demos"
