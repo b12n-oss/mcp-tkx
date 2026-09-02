@@ -8,7 +8,7 @@
 ;; runtime that could not load this library at all a day earlier.
 ;;
 ;; Terminal is spawned via osascript because screen-grab captures a macOS
-;; window, and a bb task on its own has none. `:target {:app "Terminal"}`
+;; window, and a bb task on its own has none. `:target {:app "iTerm2"}`
 ;; rather than the spawned pid, since osascript exits immediately and the
 ;; window belongs to Terminal.
 ;;
@@ -21,7 +21,7 @@
 ;; has to survive EDN, then sh, then AppleScript quoting.
 ;;
 ;; RUN THIS FROM A DIFFERENT TERMINAL APP THAN THE ONE BEING CAPTURED.
-;; With :target {:app "Terminal"}, start it from iTerm2, and vice versa.
+;; With :target {:app "iTerm2"}, start it from iTerm2, and vice versa.
 ;;
 ;; cgevent resolves :app with `pgrep -x`, and BSD pgrep excludes the
 ;; calling process AND ITS ANCESTORS unless given -a. Your terminal
@@ -51,6 +51,6 @@
    :group  "babashka"
    :desc   "`bb bb:smoke` driving a real tools/list and tools/call through a server session on Babashka. Six checks, and the round trip completing is the point: loading proves nothing here, because both problems it guards against sit behind a require that succeeds."
    :src    "dev/bb_smoke.clj"
-   :target {:app "Terminal"}
+   :target {:app "iTerm2"}
    :run    "sh scripts/demo-open-terminal.sh"}]
  :groups [{:key "babashka" :title "Babashka"}]}
