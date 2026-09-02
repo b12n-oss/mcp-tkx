@@ -31,7 +31,9 @@
  :out-dir  "docs/demos"
  :title    "mcp-tkx demos"
  :preamble "Recorded with screen-grab (https://github.com/burinc/b12n-screen-grab). Regenerate with `bb demo:record`."
- :cwd      "/Users/choomnuanb/dev/mcp-tkx"
+ ;; Relative on purpose. bb demo:record runs from the repo root, and the
+ ;; demo-*.sh wrappers self-locate, so no absolute path belongs in here.
+ :cwd      "."
  ;; 15s covers the wrapper: 3s lead-in, the run (sub-second warm, a few
  ;; seconds cold), then its 9s hold on the result. Do not widen it much
  ;; further or the tail is a static prompt.
