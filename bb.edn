@@ -299,6 +299,25 @@
                                          "-e" "(load-file \"dev/bb_smoke.clj\") (bb-smoke/-main)")]
              (System/exit exit)))}
 
+  demo:record
+  {:doc "Record a demo GIF per item, via screen-grab (macOS, needs Screen Recording)"
+   :task (do
+           (header "\uD83C\uDFAC Recording demo GIFs")
+           (info "Opens a real window and captures it. Not for an unattended run.")
+           (let [{:keys [exit]} (apply p/shell {:continue true}
+                                       "screen-grab" "record"
+                                       "--manifest" "scripts/demo_manifest.edn"
+                                       *command-line-args*)]
+             (System/exit exit)))}
+
+  demo:shot
+  {:doc "Capture a still per item, via screen-grab"
+   :task (let [{:keys [exit]} (apply p/shell {:continue true}
+                                     "screen-grab" "shot"
+                                     "--manifest" "scripts/demo_manifest.edn"
+                                     *command-line-args*)]
+           (System/exit exit))}
+
   site:build
   {:doc "Build the documentation site into _site/ (needs a docs-engine checkout)"
    :task (do

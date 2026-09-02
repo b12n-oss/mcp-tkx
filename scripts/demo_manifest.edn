@@ -1,0 +1,35 @@
+;; Demo capture for mcp-tkx, driven by screen-grab.
+;;
+;;   bb demo:record    a GIF per item
+;;   bb demo:shot      a still per item
+;;
+;; The Babashka smoke test is the one thing worth animating here. A still
+;; shows six ok lines; a GIF shows a real MCP round trip completing on a
+;; runtime that could not load this library at all a day earlier.
+;;
+;; Terminal is spawned via osascript because screen-grab captures a macOS
+;; window, and a bb task on its own has none. `:target {:app "Terminal"}`
+;; rather than the spawned pid, since osascript exits immediately and the
+;; window belongs to Terminal.
+;;
+;; Run this from your own terminal, not from an agent shell. cgevent
+;; resolves `:app` through pgrep, and a sandboxed shell can fail to see
+;; Terminal at all: on 2026-09-02 pgrep matched 1100 of 1112 processes
+;; from one, and Terminal (running, pid 3243, ucomm exactly "Terminal")
+;; was not among them, so the capture failed with "window never appeared"
+;; while the window was plainly on screen. Nothing wrong with the tool or
+;; the manifest; the enclosing process simply could not see the target.
+{:driver   :spawn
+ :out-dir  "docs/demos"
+ :title    "mcp-tkx demos"
+ :preamble "Recorded with screen-grab (https://github.com/burinc/b12n-screen-grab). Regenerate with `bb demo:record`."
+ :cwd      "/Users/choomnuanb/dev/mcp-tkx"
+ :defaults {:duration 14 :fps 12 :width 900 :warmup 20}
+ :examples
+ [{:id     "bb-smoke"
+   :group  "babashka"
+   :desc   "`bb bb:smoke` driving a real tools/list and tools/call through a server session on Babashka. Six checks, and the round trip completing is the point: loading proves nothing here, because both problems it guards against sit behind a require that succeeds."
+   :src    "dev/bb_smoke.clj"
+   :target {:app "Terminal"}
+   :run    "osascript -e 'tell application \"Terminal\" to do script \"clear && bb bb:smoke\"' -e 'tell application \"Terminal\" to activate'"}]
+ :groups [{:key "babashka" :title "Babashka"}]}
