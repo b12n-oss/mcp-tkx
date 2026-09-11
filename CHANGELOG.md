@@ -78,7 +78,7 @@ Versions prior to v0.1.0 are considered experimental, their API may change.
   - `valid?`, `validate`, `explain` functions for validation
 
 - **Coverage reporting** - `bb coverage` runs cloverage via a `:coverage` alias, writing `target/coverage/index.html`. Deliberately not wired into `bb ci`, and deliberately not kaocha-cloverage, which has had no commits since 2023 and pins an incompatible kaocha. JVM only, which is not the gap it sounds like: `src/` has no reader conditionals, so every line the ClojureScript build compiles also runs on the JVM
-- **Documentation site** - Built from `docs/` through `b12n-oss/docs-engine`, configured by `docs/site.edn`, with `bb site:serve`, `bb site:build` and `bb site:clean`. CI builds it on pull requests; publishing is gated off behind a repository variable that is not set
+- **Documentation site** - Built from `docs/` through `jlt-commons/docs-engine`, configured by `docs/site.edn`, with `bb site:serve`, `bb site:build` and `bb site:clean`. CI builds it on pull requests; publishing is gated off behind a repository variable that is not set
 
 ### Changed
 - **Internal naming convention** - All internal keys now use kebab-case

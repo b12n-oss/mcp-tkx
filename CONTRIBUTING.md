@@ -89,7 +89,7 @@ treats it as "could not run here" and carries on. A genuine failure exits
 ## Docs
 
 The guide lives in `docs/guide/` and renders through
-[docs-engine](https://github.com/b12n-oss/docs-engine).
+[docs-engine](https://github.com/jlt-commons/docs-engine).
 
 ```sh
 bb site:serve   # build and serve locally
